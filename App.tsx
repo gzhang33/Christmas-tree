@@ -70,7 +70,7 @@ function App() {
       if (audioRef.current) {
         audioRef.current.muted = newState;
         if (!newState && audioRef.current.paused) {
-           audioRef.current.play().catch(e => console.warn("Play failed on unmute:", e));
+          audioRef.current.play().catch(e => console.warn("Play failed on unmute:", e));
         }
       }
       return newState;
@@ -100,10 +100,9 @@ function App() {
   return (
     <div className="w-full h-screen relative bg-black">
       {/* Background Music */}
-      <audio 
+      <audio
         ref={audioRef}
-        src="https://ia800501.us.archive.org/22/items/JingleBells_209/JingleBells.mp3"
-        crossOrigin="anonymous"
+        src="/child-Jingle Bells.mp3"
         loop
         muted={isMuted}
         preload="auto"
@@ -111,16 +110,16 @@ function App() {
 
       {/* 3D Canvas Layer */}
       <div className="absolute inset-0 z-0">
-        <Canvas 
-          camera={{ position: [0, 4, 25], fov: 45 }} 
+        <Canvas
+          camera={{ position: [0, 4, 25], fov: 45 }}
           dpr={[1, 1.5]}
           gl={{ antialias: false, toneMappingExposure: 1.2, alpha: false }}
         >
           <Experience uiState={uiState} />
-          
-          {/* Magical Bloom */}
-          <EffectComposer disableNormalPass>
-             <Bloom luminanceThreshold={0.6} mipmapBlur intensity={0.8} radius={0.4} />
+
+          {/* Magical Bloom - Tuned for clarity */}
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.7} mipmapBlur intensity={0.6} radius={0.3} />
           </EffectComposer>
         </Canvas>
       </div>
@@ -130,12 +129,11 @@ function App() {
 
       {/* Intro Overlay */}
       {!isExploded && photos.length === 0 && (
-         <div className="absolute bottom-8 left-8 text-white/60 pointer-events-none z-0">
-            <h1 className="text-4xl font-thin tracking-widest text-pink-200 mb-2 drop-shadow-[0_0_15px_rgba(255,183,197,0.8)]">
-              ROYAL CHRISTMAS
-            </h1>
-            <p className="text-xs tracking-[0.3em] uppercase text-pink-100/80">Tap the gifts to unwrap memory universe</p>
-         </div>
+        <div className="absolute bottom-8 left-8 text-white/60 pointer-events-none z-0">
+          <h1 className="text-4xl font-thin tracking-widest text-pink-200 mb-2 drop-shadow-[0_0_15px_rgba(255,183,197,0.8)]">
+            MERRY CHRISTMAS
+          </h1>
+        </div>
       )}
     </div>
   );

@@ -25,12 +25,12 @@ export const Snow: React.FC<SnowProps> = ({ count }) => {
 
   useFrame(() => {
     if (!mesh.current) return;
-    
+
     const geometry = mesh.current.geometry;
     if (!geometry || !geometry.attributes.position) return;
 
     const positions = geometry.attributes.position.array as Float32Array;
-    
+
     // Safety check for dynamic resizing
     const maxIndex = positions.length / 3;
     const loopCount = Math.min(count, maxIndex);
@@ -46,7 +46,7 @@ export const Snow: React.FC<SnowProps> = ({ count }) => {
         positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
       }
     }
-    
+
     geometry.attributes.position.needsUpdate = true;
   });
 
@@ -61,11 +61,12 @@ export const Snow: React.FC<SnowProps> = ({ count }) => {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.15}
+        size={0.25} // Larger for clarity
         color="#ffffff"
         transparent
-        opacity={0.8}
+        opacity={0.9} // More opaque
         depthWrite={false}
+        blending={THREE.AdditiveBlending} // Additive for sparkle
       />
     </points>
   );
