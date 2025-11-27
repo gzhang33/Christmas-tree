@@ -31,15 +31,12 @@ function App() {
     const attemptPlay = async () => {
       try {
         await audio.play();
-        setIsMuted(false);
       } catch (err) {
         console.log("Audio autoplay prevented. Waiting for user interaction.");
-        setIsMuted(true);
 
         const handleInteraction = async () => {
           try {
             await audio.play();
-            setIsMuted(false);
           } catch (e) {
             console.warn("Audio playback failed after interaction:", e);
           }
