@@ -136,10 +136,15 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     const ctx = canvas.getContext('2d');
 
     if (ctx) {
+      const treeColor = new THREE.Color(config.treeColor);
+      const r = Math.round(treeColor.r * 255);
+      const g = Math.round(treeColor.g * 255);
+      const b = Math.round(treeColor.b * 255);
+      
       const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, config.treeColor);
-      gradient.addColorStop(0.5, config.treeColor + 'CC');
-      gradient.addColorStop(1, config.treeColor + '00');
+      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+      gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.8)`);
+      gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
       
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 64, 64);
@@ -155,7 +160,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         opacity={0.9}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
-        color={config.treeColor}
+        color={new THREE.Color(config.treeColor)}
       />
     );
   }, [config.treeColor]);
