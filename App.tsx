@@ -143,7 +143,7 @@ function App() {
 
       {/* Intro Overlay */}
       {!isExploded && photos.length === 0 && (
-        <div className="absolute top-1/2 left-8 md:left-24 -translate-y-1/2 pointer-events-none z-10 select-none text-left">
+        <div className="absolute top-8 left-8 md:top-1/2 md:left-24 md:-translate-y-1/2 pointer-events-none z-10 select-none text-left">
           <div
             className="font-['Great_Vibes'] leading-none transition-colors duration-700"
             style={{
@@ -151,8 +151,8 @@ function App() {
               textShadow: `0 0 30px ${config.treeColor}80`
             }}
           >
-            <h1 className="text-8xl md:text-[10rem] block">Merry</h1>
-            <h1 className="text-8xl md:text-[10rem] block ml-24 md:ml-48 mt-4">Christmas</h1>
+            <h1 className="text-5xl md:text-[10rem] block">Merry</h1>
+            <h1 className="text-5xl md:text-[10rem] block ml-8 md:ml-48 mt-2 md:mt-4">Christmas</h1>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { OrbitControls, Stars } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { PhotoCard } from './PhotoCard.tsx';
@@ -12,6 +13,24 @@ interface ExperienceProps {
 
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
+  const { camera } = useThree();
+
+  // Adjust camera for mobile to prevent tree from being too large
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        // Mobile: Move camera further back
+        camera.position.set(0, 2, 42);
+      } else {
+        // Desktop: Original position
+        camera.position.set(0, 4, 25);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [camera]);
 
   // Universe Photos
   const photoPositions = useMemo(() => {

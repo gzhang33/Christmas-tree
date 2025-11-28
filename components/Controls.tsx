@@ -7,7 +7,7 @@ interface ControlsProps {
 }
 
 export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const { config, updateConfig, addPhotos, photos, isExploded, toggleExplosion, isMuted, toggleMute } = uiState;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
