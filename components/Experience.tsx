@@ -1,11 +1,11 @@
-import React, { useMemo, useEffect } from 'react';
-import { OrbitControls, Stars } from '@react-three/drei';
+import React, { useEffect, useMemo } from 'react';
 import { useThree } from '@react-three/fiber';
-import { Snow } from './Snow.tsx';
-import { TreeParticles } from './TreeParticles.tsx';
-import { PhotoCard } from './PhotoCard.tsx';
-import { UIState } from '../types.ts';
+import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import { UIState } from '../types';
+import { Snow } from './Snow';
+import { TreeParticles } from './TreeParticles';
+import { PhotoCard } from './PhotoCard';
 
 interface ExperienceProps {
   uiState: UIState;
@@ -128,13 +128,19 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         })}
       </group>
 
+      {/* --- Decorative Base --- */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -7.55, 0]} receiveShadow>
+        <circleGeometry args={[9, 64]} />
+        <meshStandardMaterial color="#220000" roughness={0.8} />
+      </mesh>
+
       {/* --- Floor --- */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.6, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -7.6, 0]} receiveShadow>
         <planeGeometry args={[200, 200]} />
         <meshStandardMaterial
-          color="#080002"
-          metalness={0.6}
-          roughness={0.4}
+          color="#050505"
+          metalness={0.8}
+          roughness={0.2}
         />
       </mesh>
     </>

@@ -46,13 +46,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
     const glowTexture = useMemo(() => createGlowTexture(), []);
 
     const { positions, targetTree, targetGalaxy, colors, sizes } = useMemo(() => {
-        const total = Math.max(config.particleCount, 30000); // High count for realism
+        // Increase total particle count for a denser look
+        const total = Math.max(config.particleCount, 45000);
 
-        // Budget
-        const countGifts = 4000;
-        const countCrown = 1200;
-        const countSwirls = 2500;
-        const countOrnaments = 1500;
+        // Budget - Adjusted for better proportions
+        const countGifts = 3000;
+        const countCrown = 2000; // More definition for crown
+        const countSwirls = 4000; // More particles for trails
+        const countOrnaments = 2000;
         const countTree = Math.max(0, total - countGifts - countCrown - countSwirls - countOrnaments);
 
         const pos = new Float32Array(total * 3);
@@ -65,13 +66,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
 
         // Colors
         const cPinkBase = new THREE.Color(config.treeColor);
-
-        // Derive variants from the selected color
         const hsl = { h: 0, s: 0, l: 0 };
         cPinkBase.getHSL(hsl);
 
-        const cPinkDark = new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(0, hsl.l - 0.2));
-        const cPinkLight = new THREE.Color().setHSL(hsl.h, hsl.s, Math.min(1, hsl.l + 0.2));
+        // Create a richer palette
+        const cPinkDark = new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(0, hsl.l - 0.25));
+        const cPinkLight = new THREE.Color().setHSL(hsl.h, hsl.s, Math.min(1, hsl.l + 0.25));
+        const cPinkDeep = new THREE.Color().setHSL(hsl.h, hsl.s + 0.1, Math.max(0, hsl.l - 0.4)); // For depth
 
         const cGold = new THREE.Color('#FFD700');
         const cSilver = new THREE.Color('#E0E0E0');
@@ -80,49 +81,47 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
         const cBlue = new THREE.Color('#4169E1');
 
         // --- 1. REALISTIC TREE BODY ---
-        // We simulate layers of branches spiraling up
-        const treeHeight = 16;
-        const treeBaseY = -7;
-        const maxRadius = 7.5;
-        const layers = 18; // Number of branch whorls
+        const treeHeight = 17;
+        const treeBaseY = -7.5;
+        const maxRadius = 8.0;
+        const layers = 24; // More layers for density
 
-        // We'll generate particles by "growing" branches
         const particlesPerLayer = Math.floor(countTree / layers);
 
         for (let l = 0; l < layers; l++) {
-            const tLayer = l / (layers - 1); // 0 (bottom) to 1 (top)
+            const tLayer = l / (layers - 1);
             const layerY = treeBaseY + tLayer * treeHeight;
 
-            // Concave taper for elegant shape (not linear cone)
-            const taper = Math.pow(1 - tLayer, 1.1);
+            // Slightly wider base, sharper top
+            const taper = Math.pow(1 - tLayer, 1.2);
             const layerRadius = maxRadius * taper;
 
-            // Number of main branches in this layer
-            const branchesInLayer = 8 + Math.floor((1 - tLayer) * 10);
+            // More branches at bottom
+            const branchesInLayer = 12 + Math.floor((1 - tLayer) * 15);
 
-            // Distribute particles for this layer
             for (let p = 0; p < particlesPerLayer; p++) {
                 if (idx >= total) break;
 
-                // Pick a branch
                 const branchIdx = Math.floor(Math.random() * branchesInLayer);
-                const branchAngle = (branchIdx / branchesInLayer) * Math.PI * 2 + (l * 0.5); // Twist per layer
+                // Add some random rotation offset per layer to break symmetry
+                const branchAngle = (branchIdx / branchesInLayer) * Math.PI * 2 + (l * 1.618);
 
-                // Distance along branch (0 to 1)
-                // Bias towards tips for "fluffy" surface, but keep some internal volume
-                const d = Math.pow(Math.random(), 0.6);
+                // Distribution along branch: Bias heavily towards outer shell for "fluff"
+                // but keep enough inner volume to look solid
+                const d = Math.pow(Math.random(), 0.4);
 
-                // Add some spread around the branch vector (needles)
-                const spread = 0.8 * d; // Tips are wider
+                // Spread: The further out, the more spread (pine needle effect)
+                const spreadBase = 0.5 + (1 - tLayer) * 0.5; // More spread at bottom
+                const spread = spreadBase * d * 1.5;
+
                 const angleOffset = (Math.random() - 0.5) * spread;
                 const theta = branchAngle + angleOffset;
 
-                // Radius for this particle
                 const r = layerRadius * d;
 
-                // Gravity Droop: Tips droop more
-                const droop = d * d * 1.2;
-                const y = layerY - droop + (Math.random() - 0.5) * 0.5; // Slight vertical jitter
+                // Gravity Droop: Quadratic droop
+                const droop = d * d * (1.5 + (1 - tLayer)); // Bottom branches droop more
+                const y = layerY - droop + (Math.random() - 0.5) * 0.8;
 
                 const x = Math.cos(theta) * r;
                 const z = Math.sin(theta) * r;
@@ -133,43 +132,40 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
                 const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
                 tGalaxy[idx * 3] = gx; tGalaxy[idx * 3 + 1] = gy; tGalaxy[idx * 3 + 2] = gz;
 
-                // Coloring: Depth based
-                // Inner (d < 0.4) -> Dark
-                // Tips (d > 0.8) -> Light/Frosty
+                // Coloring: Enhanced Depth
                 let c = cPinkBase;
-                if (d < 0.4) c = cPinkDark;
-                else if (d > 0.85) c = cPinkLight;
-
-                if (Math.random() < 0.02) c = cWhite; // Random sparkle
+                if (d < 0.3) c = cPinkDeep; // Deep inside
+                else if (d < 0.6) c = cPinkDark;
+                else if (d > 0.9) c = cPinkLight; // Tips
+                else if (Math.random() < 0.05) c = cWhite; // Frosty tips / sparkles
 
                 col[idx * 3] = c.r; col[idx * 3 + 1] = c.g; col[idx * 3 + 2] = c.b;
-                siz[idx] = 0.4 + Math.random() * 0.4;
+
+                // Variable sizing for texture
+                siz[idx] = 0.3 + Math.random() * 0.6;
                 idx++;
             }
         }
 
-        // --- 2. ORNAMENTS (Hanging from branch tips) ---
+        // --- 2. ORNAMENTS ---
         for (let i = 0; i < countOrnaments; i++) {
             if (idx >= total) break;
 
-            // Random layer
             const t = Math.random();
-            const taper = Math.pow(1 - t, 1.1);
+            const taper = Math.pow(1 - t, 1.2);
             const rBase = maxRadius * taper;
             const yBase = treeBaseY + t * treeHeight;
 
-            // Place near tips
-            const r = rBase * (0.8 + Math.random() * 0.3); // Can hang slightly outside
+            // Place mostly on outer shell
+            const r = rBase * (0.7 + Math.random() * 0.4);
             const theta = Math.random() * Math.PI * 2;
 
-            // Droop
-            const droop = 1.2;
+            const droop = 1.5;
             const y = yBase - droop;
 
             tTree[idx * 3] = Math.cos(theta) * r;
             tTree[idx * 3 + 1] = y;
             tTree[idx * 3 + 2] = Math.sin(theta) * r;
-
             pos[idx * 3] = tTree[idx * 3]; pos[idx * 3 + 1] = tTree[idx * 3 + 1]; pos[idx * 3 + 2] = tTree[idx * 3 + 2];
 
             const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
@@ -177,25 +173,25 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
 
             const rnd = Math.random();
             let c = cGold;
-            if (rnd < 0.3) c = cRed;
-            else if (rnd < 0.5) c = cSilver;
-            else if (rnd < 0.6) c = cBlue;
+            if (rnd < 0.2) c = cRed;
+            else if (rnd < 0.4) c = cSilver;
+            else if (rnd < 0.5) c = cBlue;
 
             col[idx * 3] = c.r; col[idx * 3 + 1] = c.g; col[idx * 3 + 2] = c.b;
-            siz[idx] = 0.7;
+            siz[idx] = 0.8; // Larger ornaments
             idx++;
         }
 
-        // --- 3. GIFT BOXES (Under the tree) ---
+        // --- 3. GIFT BOXES ---
         const giftDefinitions = [
-            { r: 2.5, ang: 0, w: 2.2, h: 2.0, c: cPinkBase, rib: cWhite },
-            { r: 2.8, ang: 1.2, w: 1.8, h: 1.5, c: cSilver, rib: cPinkDark },
-            { r: 2.6, ang: 2.5, w: 2.5, h: 1.8, c: cPinkDark, rib: cGold },
-            { r: 3.0, ang: 3.8, w: 2.0, h: 2.2, c: cWhite, rib: cRed },
-            { r: 3.2, ang: 5.0, w: 1.6, h: 1.4, c: cSilver, rib: cBlue },
-            { r: 4.2, ang: 0.5, w: 1.5, h: 1.2, c: cPinkLight, rib: cSilver },
-            { r: 4.5, ang: 2.0, w: 1.8, h: 1.0, c: cWhite, rib: cPinkBase },
-            { r: 4.0, ang: 4.5, w: 1.4, h: 1.4, c: cPinkDark, rib: cWhite },
+            { r: 3.0, ang: 0, w: 2.2, h: 2.0, c: cPinkBase, rib: cWhite },
+            { r: 3.5, ang: 1.2, w: 1.8, h: 1.5, c: cSilver, rib: cPinkDark },
+            { r: 3.2, ang: 2.5, w: 2.5, h: 1.8, c: cPinkDark, rib: cGold },
+            { r: 3.8, ang: 3.8, w: 2.0, h: 2.2, c: cWhite, rib: cRed },
+            { r: 4.0, ang: 5.0, w: 1.6, h: 1.4, c: cSilver, rib: cBlue },
+            { r: 5.0, ang: 0.5, w: 1.5, h: 1.2, c: cPinkLight, rib: cSilver },
+            { r: 5.2, ang: 2.0, w: 1.8, h: 1.0, c: cWhite, rib: cPinkBase },
+            { r: 4.8, ang: 4.5, w: 1.4, h: 1.4, c: cPinkDark, rib: cWhite },
         ];
 
         const particlesPerBox = Math.floor(countGifts / giftDefinitions.length);
@@ -203,7 +199,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
         giftDefinitions.forEach(box => {
             const cx = Math.cos(box.ang) * box.r;
             const cz = Math.sin(box.ang) * box.r;
-            const cy = -6.6 + (box.h / 2);
+            const cy = treeBaseY + 0.2 + (box.h / 2); // Grounded
             const rot = Math.random() * Math.PI;
 
             for (let i = 0; i < particlesPerBox; i++) {
@@ -246,36 +242,43 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
             }
         });
 
-        // --- 4. CROWN TOPPER ---
-        const crownBaseY = treeBaseY + treeHeight - 0.5;
+        // --- 4. CROWN TOPPER (Enhanced) ---
+        const crownBaseY = treeBaseY + treeHeight - 0.2;
         for (let i = 0; i < countCrown; i++) {
             if (idx >= total) break;
 
             let x = 0, y = 0, z = 0;
             const type = Math.random();
-            const cRadius = 0.7;
+            const cRadius = 0.9; // Slightly larger
 
-            if (type < 0.4) {
+            if (type < 0.5) {
+                // Main Ring
                 const theta = Math.random() * Math.PI * 2;
-                const h = Math.random() * 0.3;
-                x = Math.cos(theta) * cRadius;
+                const h = Math.random() * 0.5;
+                // Add thickness to ring
+                const rOffset = (Math.random() - 0.5) * 0.1;
+                x = Math.cos(theta) * (cRadius + rOffset);
                 y = crownBaseY + h;
-                z = Math.sin(theta) * cRadius;
-            } else if (type < 0.8) {
-                const points = 5;
+                z = Math.sin(theta) * (cRadius + rOffset);
+            } else if (type < 0.85) {
+                // Spikes (Crown points)
+                const points = 6; // 6 points
                 const segment = (Math.floor(Math.random() * points) / points) * Math.PI * 2;
-                const arc = (Math.random() - 0.5) * 0.5;
+                const arc = (Math.random() - 0.5) * 0.4; // Width of spike base
                 const theta = segment + arc;
-                const spikeH = 0.8 * (1 - Math.abs(arc) * 3);
+
+                // Spike shape
+                const spikeH = 1.2 * (1 - Math.abs(arc) * 4); // Taper up
                 x = Math.cos(theta) * cRadius;
-                y = crownBaseY + 0.3 + spikeH;
+                y = crownBaseY + 0.5 + Math.max(0, spikeH);
                 z = Math.sin(theta) * cRadius;
             } else {
+                // Central Gem / Sparkle
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.random() * Math.PI;
-                const r = Math.random() * 0.2;
+                const r = Math.random() * 0.4;
                 x = Math.sin(phi) * Math.cos(theta) * r;
-                y = crownBaseY + 1.2 + Math.cos(phi) * r;
+                y = crownBaseY + 1.0 + Math.cos(phi) * r;
                 z = Math.sin(phi) * Math.sin(theta) * r;
             }
 
@@ -285,24 +288,32 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
             const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
             tGalaxy[idx * 3] = gx; tGalaxy[idx * 3 + 1] = gy; tGalaxy[idx * 3 + 2] = gz;
 
+            // Very bright for bloom
             const c = Math.random() > 0.3 ? cGold : cWhite;
-            col[idx * 3] = c.r * 1.5; col[idx * 3 + 1] = c.g * 1.5; col[idx * 3 + 2] = c.b * 1.5;
-            siz[idx] = 0.5;
+            col[idx * 3] = c.r * 3.0; col[idx * 3 + 1] = c.g * 3.0; col[idx * 3 + 2] = c.b * 3.0;
+            siz[idx] = 0.6;
             idx++;
         }
 
-        // --- 5. MAGICAL SWIRLS ---
+        // --- 5. MAGICAL SWIRLS (Elegant & Sweeping) ---
         for (let i = 0; i < countSwirls; i++) {
             if (idx >= total) break;
 
-            const t = i / countSwirls;
-            const theta = t * Math.PI * 20;
-            const y = treeBaseY + (t * (treeHeight + 2));
-            const taper = Math.pow(1 - t, 1.1);
-            const r = (maxRadius * taper) + 1.5 + Math.sin(t * 20) * 0.5;
+            // Multiple trails
+            const trailId = Math.floor(Math.random() * 3);
+            const t = i / (countSwirls / 3); // Normalized per trail
 
-            const x = Math.cos(theta) * r;
-            const z = Math.sin(theta) * r;
+            // Elegant spiral equation
+            const theta = t * Math.PI * 8 + (trailId * (Math.PI * 2 / 3));
+            const y = treeBaseY + (t * (treeHeight + 5));
+
+            const taper = Math.pow(1 - (t * 0.8), 0.5); // Wider at top
+            const r = (maxRadius * taper) + 3.0 + Math.sin(t * 10) * 0.5;
+
+            // Add some noise for "dust" effect
+            const noise = 0.3;
+            const x = Math.cos(theta) * r + (Math.random() - 0.5) * noise;
+            const z = Math.sin(theta) * r + (Math.random() - 0.5) * noise;
 
             tTree[idx * 3] = x; tTree[idx * 3 + 1] = y; tTree[idx * 3 + 2] = z;
             pos[idx * 3] = x; pos[idx * 3 + 1] = y; pos[idx * 3 + 2] = z;
@@ -311,8 +322,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
             tGalaxy[idx * 3] = gx; tGalaxy[idx * 3 + 1] = gy; tGalaxy[idx * 3 + 2] = gz;
 
             const c = Math.random() > 0.5 ? cWhite : cPinkLight;
-            col[idx * 3] = c.r; col[idx * 3 + 1] = c.g; col[idx * 3 + 2] = c.b;
-            siz[idx] = 0.3 + Math.random() * 0.4;
+            // Boost brightness for glow
+            col[idx * 3] = c.r * 1.5; col[idx * 3 + 1] = c.g * 1.5; col[idx * 3 + 2] = c.b * 1.5;
+            siz[idx] = 0.2 + Math.random() * 0.3;
             idx++;
         }
 
