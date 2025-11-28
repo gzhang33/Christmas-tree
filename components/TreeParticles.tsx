@@ -345,6 +345,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
 
     return (
         <group onClick={(e) => { e.stopPropagation(); onParticlesClick(); }}>
+            {/* Hit Volume for easier interaction */}
+            <mesh position={[0, 1, 0]} visible={true}>
+                <cylinderGeometry args={[8, 8, 18, 16]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
             <points ref={pointsRef} key={config.particleCount}>
                 <bufferGeometry>
                     <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />

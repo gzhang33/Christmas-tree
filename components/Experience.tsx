@@ -15,16 +15,32 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
   const { camera } = useThree();
 
-  // Adjust camera for mobile to prevent tree from being too large
+  // Adaptive camera positioning
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        // Mobile: Move camera further back
-        camera.position.set(0, 2, 42);
-      } else {
-        // Desktop: Original position
-        camera.position.set(0, 4, 25);
-      }
+      const aspect = window.innerWidth / window.innerHeight;
+
+      // Tree dimensions approximation
+      const targetHeight = 22; // Height with some margin
+      const targetWidth = 18;  // Width with some margin
+
+      // Calculate required distance to fit height and width
+      // tan(FOV/2) = (Size/2) / Distance
+      // Distance = (Size/2) / tan(FOV/2)
+      const cam = camera as THREE.PerspectiveCamera;
+      const fovRad = (cam.fov * Math.PI) / 180;
+      const distH = targetHeight / (2 * Math.tan(fovRad / 2));
+      const distW = targetWidth / (2 * Math.tan(fovRad / 2) * aspect);
+
+      // Choose the larger distance to ensure both fit
+      const dist = Math.max(distH, distW);
+
+      // Adjust Y offset based on aspect to center visually
+      // We want the tree centered. Tree center is roughly Y=1.
+      const yPos = 1 + (dist * 0.1);
+
+      camera.position.set(0, yPos, dist);
+      camera.updateProjectionMatrix();
     };
 
     handleResize();

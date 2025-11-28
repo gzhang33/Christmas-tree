@@ -143,16 +143,21 @@ function App() {
 
       {/* Intro Overlay */}
       {!isExploded && photos.length === 0 && (
-        <div className="absolute top-8 left-8 md:top-1/2 md:left-24 md:-translate-y-1/2 pointer-events-none z-10 select-none text-left">
+        <div className="absolute top-8 left-8 md:top-12 md:left-12 pointer-events-none z-10 select-none text-left">
           <div
-            className="font-['Great_Vibes'] leading-none transition-colors duration-700"
+            className="font-['Great_Vibes'] leading-none transition-colors duration-700 origin-top-left"
             style={{
               color: config.treeColor,
-              textShadow: `0 0 30px ${config.treeColor}80`
+              textShadow: `
+                0 0 20px ${config.treeColor}80,
+                2px 2px 0px rgba(0,0,0,0.5),
+                4px 4px 4px rgba(0,0,0,0.3)
+              `,
+              transform: 'perspective(1000px) rotateY(12deg) rotateX(5deg) translateZ(20px)',
             }}
           >
-            <h1 className="text-5xl md:text-[10rem] block">Merry</h1>
-            <h1 className="text-5xl md:text-[10rem] block ml-8 md:ml-48 mt-2 md:mt-4">Christmas</h1>
+            <h1 className="text-5xl md:text-[8rem] block">Merry</h1>
+            <h1 className="text-5xl md:text-[8rem] block ml-8 md:ml-32 mt-2 md:mt-0">Christmas</h1>
           </div>
         </div>
       )}
