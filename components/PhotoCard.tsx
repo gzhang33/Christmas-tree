@@ -14,13 +14,24 @@ interface PhotoCardProps {
 export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, scale, isExploded }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
-    loader.load(url, (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      setTexture(tex);
-    });
+    setLoadError(false);
+    
+    loader.load(
+      url,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        setTexture(tex);
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load photo texture:', error);
+        setLoadError(true);
+      }
+    );
   }, [url]);
 
   useFrame((state) => {
@@ -44,12 +55,17 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       </mesh>
       
       {/* Photo Image */}
-      {texture && (
+      {texture ? (
         <mesh position={[0, 0.1, 0.02]}>
           <planeGeometry args={[0.85, 0.85]} />
           <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         </mesh>
-      )}
+      ) : loadError ? (
+        <mesh position={[0, 0.1, 0.02]}>
+          <planeGeometry args={[0.85, 0.85]} />
+          <meshBasicMaterial color="#cccccc" side={THREE.DoubleSide} />
+        </mesh>
+      ) : null}
 
       {/* Backside Text */}
       <Text
