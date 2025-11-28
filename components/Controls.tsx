@@ -44,8 +44,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
             <button
               onClick={toggleExplosion}
               className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-medium transition-all duration-300 ${isExploded
-                  ? 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.5)]'
-                  : 'bg-green-600 hover:bg-green-500 shadow-[0_0_20px_rgba(22,163,74,0.5)]'
+                ? 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.5)]'
+                : 'bg-green-600 hover:bg-green-500 shadow-[0_0_20px_rgba(22,163,74,0.5)]'
                 }`}
             >
               {isExploded ? <RefreshCcw size={18} /> : <Camera size={18} />}
@@ -72,7 +72,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
               <span className="text-xs font-mono">{config.treeColor}</span>
             </label>
             <div className="flex gap-2">
-              {['#00ff00', '#ff0000', '#00ffff', '#ffff00', '#ff00ff'].map(c => (
+              {['#FFC0CB', '#00ff00', '#ff0000', '#00ffff', '#ffff00', '#ff00ff'].map(c => (
                 <button
                   key={c}
                   onClick={() => updateConfig('treeColor', c)}

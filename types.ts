@@ -5,6 +5,8 @@ export interface AppConfig {
   rotationSpeed: number;
   photoSize: number;
   explosionRadius: number;
+  snowSpeed: number;
+  windStrength: number;
 }
 
 export interface PhotoData {

@@ -64,9 +64,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
         let idx = 0;
 
         // Colors
-        const cPinkBase = new THREE.Color('#FFC0CB');
-        const cPinkDark = new THREE.Color('#C71585'); // MediumVioletRed for depth
-        const cPinkLight = new THREE.Color('#FFE4E1');
+        const cPinkBase = new THREE.Color(config.treeColor);
+
+        // Derive variants from the selected color
+        const hsl = { h: 0, s: 0, l: 0 };
+        cPinkBase.getHSL(hsl);
+
+        const cPinkDark = new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(0, hsl.l - 0.2));
+        const cPinkLight = new THREE.Color().setHSL(hsl.h, hsl.s, Math.min(1, hsl.l + 0.2));
+
         const cGold = new THREE.Color('#FFD700');
         const cSilver = new THREE.Color('#E0E0E0');
         const cRed = new THREE.Color('#DC143C');
@@ -317,7 +323,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({ isExploded, config
             colors: col,
             sizes: siz
         };
-    }, [config.particleCount, config.explosionRadius]);
+    }, [config.particleCount, config.explosionRadius, config.treeColor]);
 
     useFrame((state) => {
         if (!pointsRef.current) return;

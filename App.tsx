@@ -9,7 +9,7 @@ function App() {
   // --- State Management ---
   const [isExploded, setIsExploded] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Start muted to allow autoplay
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const [config, setConfig] = useState<AppConfig>({
@@ -19,6 +19,8 @@ function App() {
     rotationSpeed: 0.8,
     photoSize: 1.5,
     explosionRadius: 30,
+    snowSpeed: 0.4,
+    windStrength: 1.0,
   });
 
   // --- Audio Handling ---
@@ -28,28 +30,42 @@ function App() {
 
     audio.volume = 0.4;
 
-    const attemptPlay = async () => {
+    // Attempt to play muted initially (browsers allow this)
+    const playMuted = async () => {
       try {
+        audio.muted = true;
         await audio.play();
-      } catch (err) {
-        console.log("Audio autoplay prevented. Waiting for user interaction.");
-
-        const handleInteraction = async () => {
-          try {
-            await audio.play();
-          } catch (e) {
-            console.warn("Audio playback failed after interaction:", e);
-          }
-          document.removeEventListener('click', handleInteraction);
-          document.removeEventListener('keydown', handleInteraction);
-        };
-
-        document.addEventListener('click', handleInteraction);
-        document.addEventListener('keydown', handleInteraction);
+      } catch (e) {
+        console.warn("Muted autoplay failed:", e);
       }
     };
 
-    attemptPlay();
+    playMuted();
+
+    // Global interaction listener to unmute
+    const handleInteraction = () => {
+      if (audio) {
+        audio.muted = false;
+        setIsMuted(false);
+        if (audio.paused) {
+          audio.play().catch(e => console.warn("Play failed after interaction:", e));
+        }
+      }
+      // Remove listeners after first interaction
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
   }, []);
 
   // --- Handlers ---
@@ -101,8 +117,9 @@ function App() {
         ref={audioRef}
         src="/child-Jingle Bells.mp3"
         loop
-        muted={isMuted}
+        muted={isMuted} // Controlled by state
         preload="auto"
+        autoPlay // Try to autoplay (will work if muted)
       />
 
       {/* 3D Canvas Layer */}
@@ -126,12 +143,24 @@ function App() {
 
       {/* Intro Overlay */}
       {!isExploded && photos.length === 0 && (
-        <div className="absolute bottom-8 left-8 text-white/60 pointer-events-none z-0">
-          <h1 className="text-4xl font-thin tracking-widest text-pink-200 mb-2 drop-shadow-[0_0_15px_rgba(255,183,197,0.8)]">
-            MERRY CHRISTMAS
-          </h1>
+        <div className="absolute top-1/2 left-8 md:left-24 -translate-y-1/2 pointer-events-none z-10 select-none text-left">
+          <div
+            className="font-['Great_Vibes'] leading-none transition-colors duration-700"
+            style={{
+              color: config.treeColor,
+              textShadow: `0 0 30px ${config.treeColor}80`
+            }}
+          >
+            <h1 className="text-8xl md:text-[10rem] block">Merry</h1>
+            <h1 className="text-8xl md:text-[10rem] block ml-24 md:ml-48 mt-4">Christmas</h1>
+          </div>
         </div>
       )}
+
+      {/* Music Attribution */}
+      <div className="absolute bottom-4 right-4 text-white/30 text-[10px] pointer-events-none z-0 font-light tracking-wide">
+        Music: ‘Jingle Bells’ by Georgia & August Greenberg, from Free Music Archive, licensed under CC BY-NC.
+      </div>
     </div>
   );
 }
