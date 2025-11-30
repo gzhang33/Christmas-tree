@@ -33,7 +33,7 @@ A 3D interactive particle Christmas tree that explodes into a universe of memori
 ## Structure Analysis
 
 ### File Organization
-```
+```text
 Christmas-tree/
 ├── App.tsx                    # Main application component
 ├── index.tsx                  # Entry point

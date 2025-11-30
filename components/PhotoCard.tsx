@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface PhotoCardProps {
@@ -14,25 +13,20 @@ interface PhotoCardProps {
 export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, scale, isExploded }) => {
   const groupRef = useRef<THREE.Group>(null);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const [loadError, setLoadError] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (!isExploded) {
+      setVisible(false);
+      return;
+    }
     const loader = new THREE.TextureLoader();
-    setLoadError(false);
-    
-    loader.load(
-      url,
-      (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        setTexture(tex);
-      },
-      undefined,
-      (error) => {
-        console.warn('Failed to load photo texture:', error);
-        setLoadError(true);
-      }
-    );
-  }, [url]);
+    loader.load(url, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      setTexture(tex);
+      setVisible(true);
+    });
+  }, [url, isExploded]);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -46,8 +40,11 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
     groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
   });
 
+  // Don't render anything when not exploded
+  if (!isExploded && !visible) return null;
+
   return (
-    <group ref={groupRef} position={position} rotation={rotation}>
+    <group ref={groupRef} position={position} rotation={rotation} scale={0}>
       {/* Polaroid Frame */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[1, 1.2, 0.02]} />
@@ -55,27 +52,12 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       </mesh>
       
       {/* Photo Image */}
-      {texture ? (
+      {texture && (
         <mesh position={[0, 0.1, 0.02]}>
           <planeGeometry args={[0.85, 0.85]} />
           <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         </mesh>
-      ) : loadError ? (
-        <mesh position={[0, 0.1, 0.02]}>
-          <planeGeometry args={[0.85, 0.85]} />
-          <meshBasicMaterial color="#cccccc" side={THREE.DoubleSide} />
-        </mesh>
-      ) : null}
-
-      {/* Backside Text */}
-      <Text
-        position={[0, -0.4, -0.02]}
-        rotation={[0, Math.PI, 0]}
-        fontSize={0.1}
-        color="#333"
-      >
-        Memory
-      </Text>
+      )}
     </group>
   );
 };
