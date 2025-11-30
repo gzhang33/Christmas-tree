@@ -1,0 +1,56 @@
+name: workflow-status
+description: Lightweight status checker - answers "what should I do now?" for any agent
+version: 1.0.0
+
+workflow_type: status-checker
+input_file: "{project-root}/docs/bmm-workflow-status.yaml"
+
+steps:
+  - id: load_status
+    name: Load Workflow Status
+    action: read_yaml
+    file: "{project-root}/docs/bmm-workflow-status.yaml"
+    output: status_data
+    
+  - id: analyze_status
+    name: Analyze Current Status
+    action: analyze_workflow_status
+    input: status_data
+    checks:
+      - check: workflow_status_empty
+        condition: workflow_status == {}
+        message: "Workflow status is empty. Project may need initialization."
+      - check: workflow_items_present
+        condition: workflow_items.length > 0
+        message: "Workflow items defined: {workflow_items}"
+      - check: project_info
+        condition: project_name and project_type
+        message: "Project: {project_name} ({project_type})"
+    
+  - id: determine_next_action
+    name: Determine Next Action
+    action: determine_next_step
+    input: status_data
+    logic:
+      - if: workflow_status == {}
+        then: "Initialize workflow - run workflow-init or start first workflow item"
+      - elif: workflow_status has incomplete_items
+        then: "Continue with incomplete workflow items"
+      - else: "All workflow items complete. Consider running document-project or next phase."
+    
+  - id: generate_report
+    name: Generate Status Report
+    action: generate_report
+    template: status_report
+    output: "{project-root}/docs/workflow-status-report.md"
+    sections:
+      - project_info
+      - current_status
+      - next_actions
+      - recommendations
+
+output:
+  format: markdown
+  location: "{project-root}/docs/workflow-status-report.md"
+  save_after_each_section: true
+

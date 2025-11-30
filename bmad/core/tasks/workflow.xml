@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow>
+  <description>BMad Method Core Workflow Execution Engine</description>
+  
+  <instructions>
+    <step id="1">
+      <action>LOAD_WORKFLOW_CONFIG</action>
+      <description>Load the workflow configuration YAML file specified by the workflow-config parameter</description>
+      <required>workflow-config</required>
+    </step>
+    
+    <step id="2">
+      <action>READ_STATUS_FILE</action>
+      <description>Read the project workflow status file from {project-root}/docs/bmm-workflow-status.yaml</description>
+      <file>docs/bmm-workflow-status.yaml</file>
+    </step>
+    
+    <step id="3">
+      <action>EXECUTE_WORKFLOW</action>
+      <description>Execute the workflow steps as defined in the workflow configuration</description>
+      <follow>workflow-config</follow>
+    </step>
+    
+    <step id="4">
+      <action>SAVE_OUTPUTS</action>
+      <description>Save outputs after each section when generating documents from templates</description>
+      <required>after-each-section</required>
+    </step>
+  </instructions>
+  
+  <variables>
+    <variable name="project-root">Current working directory root</variable>
+    <variable name="workflow-config">Path to workflow YAML configuration file</variable>
+  </variables>
+</workflow>
+
