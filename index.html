@@ -48,6 +48,73 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.5);
     }
+
+    .royal-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255, 215, 225, 0.4), rgba(247, 120, 190, 0.7));
+      box-shadow: 0 0 12px rgba(255, 163, 205, 0.45);
+    }
+
+    .royal-slider:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25), 0 0 20px rgba(247, 120, 190, 0.6);
+    }
+
+    .royal-slider::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    .royal-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 30% 70% 40% 60%;
+      background: radial-gradient(circle, #ffffff 0%, #ffe1f1 55%, #ff9fda 100%);
+      border: 2px solid rgba(255, 255, 255, 0.75);
+      box-shadow: 0 0 20px rgba(255, 168, 210, 0.75);
+      margin-top: -7px;
+      cursor: pointer;
+    }
+
+    .royal-slider::-moz-range-track {
+      height: 4px;
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    .royal-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 30% 70% 40% 60%;
+      background: radial-gradient(circle, #ffffff 0%, #ffe1f1 55%, #ff9fda 100%);
+      border: 2px solid rgba(255, 255, 255, 0.75);
+      box-shadow: 0 0 20px rgba(255, 168, 210, 0.75);
+      cursor: pointer;
+    }
+
+    .royal-slider::-ms-track {
+      height: 4px;
+      border-radius: 999px;
+      background: transparent;
+      border-color: transparent;
+      color: transparent;
+    }
+
+    .royal-slider::-ms-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 30% 70% 40% 60%;
+      background: radial-gradient(circle, #ffffff 0%, #ffe1f1 55%, #ff9fda 100%);
+      border: 2px solid rgba(255, 255, 255, 0.75);
+      box-shadow: 0 0 20px rgba(255, 168, 210, 0.75);
+      cursor: pointer;
+      margin-top: 0;
+    }
   </style>
   <script type="importmap">
 {
