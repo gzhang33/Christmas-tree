@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette } from 'lucide-react';
 import { UIState } from '../types.ts';
 
+
+const TREE_COLORS = [
+  { hex: '#ffc0cb', name: 'Pink' },
+  { hex: '#00ff00', name: 'Green' },
+  { hex: '#ff0000', name: 'Red' },
+  { hex: '#00ffff', name: 'Cyan' },
+  { hex: '#ffff00', name: 'Yellow' },
+  { hex: '#ff00ff', name: 'Magenta' },
+];
 interface ControlsProps {
   uiState: UIState;
 }
@@ -60,11 +69,10 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
               <button
                 onClick={toggleMute}
                 className={`p-3 rounded-2xl border border-white/25 transition-all duration-300 hover:border-white/60 hover:bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.45)] ${isMuted ? 'text-rose-300' : 'text-white'}`}
-                title={isMuted ? "Unmute Music" : "Mute Music"}
-              >
+                title={isMuted ? "取消静音" : "静音"}
+                aria-label={isMuted ? "取消静音" : "静音音乐"}              >
                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-            </div>
+              </button>            </div>
           </div>
 
           {/* Configuration Section */}
@@ -76,15 +84,28 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                 Tree Color
                 <span className="text-xs font-mono text-white/60">{config.treeColor}</span>
               </label>
-              <div className="flex gap-3">
-                {['#FFC0CB', '#00ff00', '#ff0000', '#00ffff', '#ffff00', '#ff00ff'].map(c => (
+              <div className="flex flex-wrap gap-3">
+                {TREE_COLORS.map(({ hex, name }) => (
                   <button
-                    key={c}
-                    onClick={() => updateConfig('treeColor', c)}
-                    className={`w-7 h-7 rounded-full border ${config.treeColor === c ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.55)] scale-110' : 'border-transparent opacity-60 hover:opacity-90'} transition-all`}
-                    style={{ backgroundColor: c }}
+                    key={hex}
+                    onClick={() => updateConfig('treeColor', hex)}
+                    aria-label={`Select color ${name}`}
+                    className={`w-7 h-7 rounded-full border ${config.treeColor === hex ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.55)] scale-110' : 'border-transparent opacity-60 hover:opacity-90'} transition-all`}
+                    style={{ backgroundColor: hex }}
                   />
                 ))}
+                <div className="relative group">
+                  <input
+                    type="color"
+                    value={config.treeColor}
+                    onChange={(e) => updateConfig('treeColor', e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    aria-label="Custom color picker"
+                  />
+                  <div className={`w-7 h-7 rounded-full border flex items-center justify-center bg-white/10 ${!TREE_COLORS.some(c => c.hex === config.treeColor) ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.55)] scale-110' : 'border-transparent opacity-60 group-hover:opacity-90'} transition-all`}>
+                    <Palette size={14} className="text-white" />
+                  </div>
+                </div>
               </div>
             </div>
 
