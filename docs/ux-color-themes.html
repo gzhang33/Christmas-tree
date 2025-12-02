@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christmas Tree UX Color Themes</title>
+    <style>
+        :root {
+            --font-main: 'Inter', system-ui, sans-serif;
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+        }
+
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background: #f0f2f5;
+            color: #1a1a1a;
+        }
+
+        .header {
+            background: #fff;
+            padding: var(--space-lg);
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-lg);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .theme-card {
+            background: var(--bg-color);
+            color: var(--text-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-header {
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .theme-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 var(--space-xs) 0;
+        }
+
+        .theme-desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        .palette {
+            display: flex;
+            height: 80px;
+        }
+
+        .swatch {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: var(--space-xs);
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: rgba(255,255,255,0.9);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .preview-section {
+            padding: var(--space-lg);
+        }
+
+        .component-group {
+            margin-bottom: var(--space-lg);
+        }
+
+        .component-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-sm);
+            opacity: 0.6;
+        }
+
+        /* Component Styles */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-block;
+            margin-right: var(--space-sm);
+            margin-bottom: var(--space-sm);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--on-primary);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: var(--on-secondary);
+        }
+
+        .card {
+            background: var(--surface);
+            padding: var(--space-md);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: var(--space-sm);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: var(--on-accent);
+        }
+
+        .alert {
+            padding: var(--space-md);
+            border-radius: 8px;
+            background: var(--surface-2);
+            border-left: 4px solid var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* Theme 1: Classic Nostalgia */
+        .theme-1 {
+            --bg-color: #fdf8f6;
+            --text-color: #2d3748;
+            --border-color: #e2e8f0;
+            --surface: #ffffff;
+            --surface-2: #f7fafc;
+            
+            --primary: #c53030; /* Classic Red */
+            --on-primary: #ffffff;
+            --secondary: #276749; /* Forest Green */
+            --on-secondary: #ffffff;
+            --accent: #d69e2e; /* Gold */
+            --on-accent: #ffffff;
+        }
+
+        /* Theme 2: Winter Wonderland */
+        .theme-2 {
+            --bg-color: #f0f9ff;
+            --text-color: #1a202c;
+            --border-color: #bee3f8;
+            --surface: #ffffff;
+            --surface-2: #e6fffa;
+            
+            --primary: #3182ce; /* Ice Blue */
+            --on-primary: #ffffff;
+            --secondary: #805ad5; /* Royal Purple */
+            --on-secondary: #ffffff;
+            --accent: #00b5d8; /* Cyan */
+            --on-accent: #ffffff;
+        }
+
+        /* Theme 3: Midnight Magic */
+        .theme-3 {
+            --bg-color: #1a202c;
+            --text-color: #e2e8f0;
+            --border-color: #2d3748;
+            --surface: #2d3748;
+            --surface-2: #4a5568;
+            
+            --primary: #d53f8c; /* Neon Pink */
+            --on-primary: #ffffff;
+            --secondary: #805ad5; /* Electric Purple */
+            --on-secondary: #ffffff;
+            --accent: #38b2ac; /* Teal */
+            --on-accent: #ffffff;
+        }
+
+        /* Theme 4: Golden Hour */
+        .theme-4 {
+            --bg-color: #2c241b;
+            --text-color: #faebd7;
+            --border-color: #4a3b2a;
+            --surface: #3e3226;
+            --surface-2: #5c4b3a;
+            
+            --primary: #ecc94b; /* Amber Gold */
+            --on-primary: #2c241b;
+            --secondary: #dd6b20; /* Warm Orange */
+            --on-secondary: #ffffff;
+            --accent: #f6e05e; /* Light Gold */
+            --on-accent: #2c241b;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Christmas Tree Experience - Color Themes</h1>
+        <p>Explore 4 distinct visual directions for the 3D experience.</p>
+    </div>
+
+    <div class="container">
+
+        <!-- Theme 1 -->
+        <div class="theme-card theme-1">
+            <div class="theme-header">
+                <h2 class="theme-name">1. Classic Nostalgia</h2>
+                <p class="theme-desc">Traditional warmth. Red, green, and gold. Feels like home, cookies, and old family albums.</p>
+            </div>
+            <div class="palette">
+                <div class="swatch" style="background: var(--primary)">#C53030</div>
+                <div class="swatch" style="background: var(--secondary)">#276749</div>
+                <div class="swatch" style="background: var(--accent)">#D69E2E</div>
+                <div class="swatch" style="background: var(--bg-color); color: #000">BG</div>
+            </div>
+            <div class="preview-section">
+                <div class="component-group">
+                    <div class="component-label">Buttons</div>
+                    <button class="btn btn-primary">Open Gift</button>
+                    <button class="btn btn-secondary">View Gallery</button>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Card Element</div>
+                    <div class="card">
+                        <div style="font-weight: bold; margin-bottom: 8px;">Christmas 2023</div>
+                        <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 12px;">A wonderful time with family.</div>
+                        <span class="tag">Favorite</span>
+                    </div>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Notification</div>
+                    <div class="alert">
+                        <strong>Memory Unlocked!</strong> Click to view details.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 2 -->
+        <div class="theme-card theme-2">
+            <div class="theme-header">
+                <h2 class="theme-name">2. Winter Wonderland</h2>
+                <p class="theme-desc">Magical, crisp, and clean. Ice blues and whites. Feels like a snowy morning and frozen lakes.</p>
+            </div>
+            <div class="palette">
+                <div class="swatch" style="background: var(--primary)">#3182CE</div>
+                <div class="swatch" style="background: var(--secondary)">#805AD5</div>
+                <div class="swatch" style="background: var(--accent)">#00B5D8</div>
+                <div class="swatch" style="background: var(--bg-color); color: #000">BG</div>
+            </div>
+            <div class="preview-section">
+                <div class="component-group">
+                    <div class="component-label">Buttons</div>
+                    <button class="btn btn-primary">Open Gift</button>
+                    <button class="btn btn-secondary">View Gallery</button>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Card Element</div>
+                    <div class="card">
+                        <div style="font-weight: bold; margin-bottom: 8px;">Christmas 2023</div>
+                        <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 12px;">A wonderful time with family.</div>
+                        <span class="tag">Favorite</span>
+                    </div>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Notification</div>
+                    <div class="alert">
+                        <strong>Memory Unlocked!</strong> Click to view details.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 3 -->
+        <div class="theme-card theme-3">
+            <div class="theme-header">
+                <h2 class="theme-name">3. Midnight Magic</h2>
+                <p class="theme-desc">Modern, high-contrast, and vibrant. Neon pinks and deep purples. A cyberpunk Christmas eve.</p>
+            </div>
+            <div class="palette">
+                <div class="swatch" style="background: var(--primary)">#D53F8C</div>
+                <div class="swatch" style="background: var(--secondary)">#805AD5</div>
+                <div class="swatch" style="background: var(--accent)">#38B2AC</div>
+                <div class="swatch" style="background: var(--bg-color)">BG</div>
+            </div>
+            <div class="preview-section">
+                <div class="component-group">
+                    <div class="component-label">Buttons</div>
+                    <button class="btn btn-primary">Open Gift</button>
+                    <button class="btn btn-secondary">View Gallery</button>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Card Element</div>
+                    <div class="card">
+                        <div style="font-weight: bold; margin-bottom: 8px;">Christmas 2023</div>
+                        <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 12px;">A wonderful time with family.</div>
+                        <span class="tag">Favorite</span>
+                    </div>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Notification</div>
+                    <div class="alert">
+                        <strong>Memory Unlocked!</strong> Click to view details.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 4 -->
+        <div class="theme-card theme-4">
+            <div class="theme-header">
+                <h2 class="theme-name">4. Golden Hour</h2>
+                <p class="theme-desc">Intimate, sepia-toned, and cozy. Ambers and browns. Feels like candlelight and old film.</p>
+            </div>
+            <div class="palette">
+                <div class="swatch" style="background: var(--primary); color: #000">#ECC94B</div>
+                <div class="swatch" style="background: var(--secondary)">#DD6B20</div>
+                <div class="swatch" style="background: var(--accent); color: #000">#F6E05E</div>
+                <div class="swatch" style="background: var(--bg-color)">BG</div>
+            </div>
+            <div class="preview-section">
+                <div class="component-group">
+                    <div class="component-label">Buttons</div>
+                    <button class="btn btn-primary">Open Gift</button>
+                    <button class="btn btn-secondary">View Gallery</button>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Card Element</div>
+                    <div class="card">
+                        <div style="font-weight: bold; margin-bottom: 8px;">Christmas 2023</div>
+                        <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 12px;">A wonderful time with family.</div>
+                        <span class="tag">Favorite</span>
+                    </div>
+                </div>
+                <div class="component-group">
+                    <div class="component-label">Notification</div>
+                    <div class="alert">
+                        <strong>Memory Unlocked!</strong> Click to view details.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

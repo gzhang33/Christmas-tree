@@ -1,0 +1,138 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>2</storyId>
+    <title>Global State Implementation (Zustand)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>e:/OpenSources/Christmas-tree/docs/stories/1-2-global-state.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>Developer</asA>
+    <iWant>implement a global Zustand store with persistence</iWant>
+    <soThat>3D and UI components can share state (theme, particles, explosion status) efficiently without prop drilling</soThat>
+    <tasks>
+- [ ] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
+- [ ] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
+- [ ] Implement state logic:
+    - [ ] `theme`: default from config (or 'midnight')
+    - [ ] `particleCount`: default 5000 (or similar)
+    - [ ] `isExploded`: default false
+    - [ ] `activePhotoId`: default null
+- [ ] Implement actions:
+    - [ ] `setTheme(theme)`
+    - [ ] `setParticleCount(count)`
+    - [ ] `triggerExplosion()` -> sets `isExploded: true`
+    - [ ] `resetExplosion()` -> sets `isExploded: false`
+    - [ ] `setActivePhoto(id)`
+- [ ] Verify store persistence (AC: 2)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. `src/store/useStore.ts` is created.
+2. Zustand store is initialized with `persist` middleware for LocalStorage.
+3. State interface includes: `theme` (string), `particleCount` (number), `isExploded` (boolean), `activePhotoId` (string | null).
+4. Actions included: `setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`, `setActivePhoto`.
+5. Type definitions are exported for State and Actions.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements</section>
+        <snippet>FR26: System able to save user preferences to LocalStorage. FR27: System able to restore user preferences on reload.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision Document</title>
+        <section>3. Decision Summary Table</section>
+        <snippet>State Management: Zustand (v4.5+) - Lightweight, transient updates, perfect for bridging R3F loop and React UI.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision Document</title>
+        <section>6. Implementation Patterns</section>
+        <snippet>Communication: Use the useStore hook. UI: useStore.setState({ isExploded: true }). 3D: const isExploded = useStore(state => state.isExploded).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.2: Global State Implementation (Zustand)</section>
+        <snippet>State interface includes: theme (string), particleCount (number), isExploded (boolean), activePhotoId (string | null). Actions included: setTheme, setParticleCount, triggerExplosion, resetExplosion, setActivePhoto.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>3.1 Color System</section>
+        <snippet>Theme: Midnight Magic. Primary: #D53F8C (Neon Pink), Secondary: #805AD5 (Electric Purple), Accent: #38B2AC (Teal), Background: #1A202C (Dark Slate).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/types.ts</path>
+        <kind>file</kind>
+        <symbol>UIState, AppConfig</symbol>
+        <lines>1-26</lines>
+        <reason>Existing state interfaces that this story will replace/refactor into the global store.</reason>
+      </item>
+      <item>
+        <path>src/components/ui/Controls.tsx</path>
+        <kind>component</kind>
+        <symbol>Controls</symbol>
+        <lines>18-21</lines>
+        <reason>Current consumer of UIState; will need to be updated to use the new useStore hook.</reason>
+      </item>
+    </code>
+    <dependencies>
+      <dep ecosystem="npm">zustand: ^5.0.9</dep>
+      <dep ecosystem="npm">framer-motion: ^12.23.25</dep>
+      <dep ecosystem="npm">tailwindcss: ^4.1.17</dep>
+      <dep ecosystem="npm">react: ^18.2.0</dep>
+      <dep ecosystem="npm">@react-three/fiber: ^8.16.8</dep>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Must use `persist` middleware for LocalStorage (FR26/FR27).</constraint>
+    <constraint>Must implement the "Midnight Magic" color theme as defaults.</constraint>
+    <constraint>State must be accessible outside of React context (Zustand capability) to support potential non-React 3D logic if needed, though R3F is React-based.</constraint>
+    <constraint>Avoid prop drilling for `theme`, `particleCount`, `isExploded`.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AppState</name>
+      <kind>TypeScript Interface</kind>
+      <signature>
+interface AppState {
+  theme: string;
+  particleCount: number;
+  isExploded: boolean;
+  activePhotoId: string | null;
+  // Actions
+  setTheme: (theme: string) => void;
+  setParticleCount: (count: number) => void;
+  triggerExplosion: () => void;
+  resetExplosion: () => void;
+  setActivePhoto: (id: string | null) => void;
+}
+      </signature>
+      <path>src/store/useStore.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>No existing testing framework detected (e.g., Vitest/Jest). Manual verification required. Ensure state persistence works across reloads.</standards>
+    <locations>Manual testing in browser.</locations>
+    <ideas>
+      <idea>Verify `localStorage` is updated when `setTheme` is called.</idea>
+      <idea>Verify `isExploded` toggles correctly and triggers UI updates.</idea>
+      <idea>Verify state is restored after page reload.</idea>
+    </ideas>
+  </tests>
+</story-context>
