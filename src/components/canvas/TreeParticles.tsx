@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { AppConfig } from '../types.ts';
+import { AppConfig } from '../../types.ts';
 
 interface TreeParticlesProps {
   isExploded: boolean;
@@ -115,12 +115,8 @@ const getGalaxyPos = (radius: number): [number, number, number] => {
 };
 
 // === COLOR PALETTE ===
-const COLORS = {
-  // Pink theme
-  pinkLight: new THREE.Color('#FFD1DC'),
-  pinkBase: new THREE.Color('#FFC0CB'),
-  pinkDeep: new THREE.Color('#E8A0B0'),
-  pinkDark: new THREE.Color('#DB7093'),
+// === COLOR PALETTE ===
+const DEFAULT_COLORS = {
   // Neutrals
   white: new THREE.Color('#FFFFFF'),
   cream: new THREE.Color('#FFF8F0'),
@@ -187,9 +183,25 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
 
+  // === DYNAMIC THEME COLORS ===
+  const themeColors = useMemo(() => {
+    const base = new THREE.Color(config.treeColor);
+    const hsl = { h: 0, s: 0, l: 0 };
+    base.getHSL(hsl);
+
+    return {
+      base: base,
+      light: new THREE.Color().setHSL(hsl.h, hsl.s * 0.8, Math.min(hsl.l + 0.2, 0.95)),
+      deep: new THREE.Color().setHSL(hsl.h, hsl.s * 1.2, Math.max(hsl.l - 0.15, 0.2)),
+      dark: new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(hsl.l - 0.3, 0.1)),
+    };
+  }, [config.treeColor]);
+
   // === ENTITY LAYER (70% - Normal Blending) ===
   const entityLayerData = useMemo(() => {
-    const count = Math.floor(Math.max(config.particleCount * 1.5, 20000) * 0.7); // 70% for entity layer
+    // Remove the hardcoded minimum of 20000 to allow lower particle counts
+    const totalParticles = Math.max(config.particleCount * 1.5, 1000);
+    const count = Math.floor(totalParticles * 0.7); // 70% for entity layer
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -242,11 +254,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       let c: THREE.Color;
       if (isTip) {
-        c = Math.random() > 0.4 ? COLORS.cream : COLORS.pinkLight;
+        c = Math.random() > 0.4 ? DEFAULT_COLORS.cream : themeColors.light;
       } else if (isInner) {
-        c = COLORS.pinkDeep;
+        c = themeColors.deep;
       } else {
-        c = COLORS.pinkBase.clone().lerp(COLORS.pinkLight, heightFactor * 0.5);
+        c = themeColors.base.clone().lerp(themeColors.light, heightFactor * 0.5);
       }
 
       col[i * 3] = c.r;
@@ -258,11 +270,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
-  }, [config.particleCount, config.explosionRadius]);
+  }, [config.particleCount, config.explosionRadius, themeColors]);
 
   // === GLOW LAYER (30% - Additive Blending) ===
   const glowLayerData = useMemo(() => {
-    const count = Math.floor(Math.max(config.particleCount * 1.5, 20000) * 0.3); // 30% for glow layer
+    const totalParticles = Math.max(config.particleCount * 1.5, 1000);
+    const count = Math.floor(totalParticles * 0.3); // 30% for glow layer
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -305,13 +318,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       let intensity: number;
 
       if (colorChoice < 0.5) {
-        c = COLORS.white;
+        c = DEFAULT_COLORS.white;
         intensity = 1.5 + Math.random() * 0.5;
       } else if (colorChoice < 0.75) {
-        c = COLORS.pinkLight;
+        c = themeColors.light;
         intensity = 1.3 + Math.random() * 0.4;
       } else {
-        c = COLORS.gold;
+        c = DEFAULT_COLORS.gold;
         intensity = 1.8 + Math.random() * 0.5;
       }
 
@@ -324,7 +337,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, flickerPhase, count };
-  }, [config.particleCount, config.explosionRadius]);
+  }, [config.particleCount, config.explosionRadius, themeColors]);
 
   // === ORNAMENTS - British themed with distribution algorithm ===
   const ornamentData = useMemo(() => {
@@ -384,7 +397,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       tGalaxy[idx * 3 + 1] = gy;
       tGalaxy[idx * 3 + 2] = gz;
 
-      const c = i % 3 === 0 ? COLORS.pearl : COLORS.silver;
+      const c = i % 3 === 0 ? DEFAULT_COLORS.pearl : DEFAULT_COLORS.silver;
       col[idx * 3] = c.r * 1.5;
       col[idx * 3 + 1] = c.g * 1.5;
       col[idx * 3 + 2] = c.b * 1.5;
@@ -424,25 +437,25 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         let c: THREE.Color;
         switch (cluster.type) {
           case 'BUS':
-            c = COLORS.londonRed;
+            c = DEFAULT_COLORS.londonRed;
             break;
           case 'FLAG':
-            c = p % 3 === 0 ? COLORS.ukRed : p % 3 === 1 ? COLORS.ukBlue : COLORS.white;
+            c = p % 3 === 0 ? DEFAULT_COLORS.ukRed : p % 3 === 1 ? DEFAULT_COLORS.ukBlue : DEFAULT_COLORS.white;
             break;
           case 'CORGI':
-            c = COLORS.corgiTan;
+            c = DEFAULT_COLORS.corgiTan;
             break;
           case 'BIG_BEN':
-            c = COLORS.silver;
+            c = DEFAULT_COLORS.silver;
             break;
           case 'CROWN':
-            c = COLORS.gold;
+            c = DEFAULT_COLORS.gold;
             break;
           case 'GIFT':
-            c = Math.random() > 0.5 ? COLORS.pinkBase : COLORS.white;
+            c = Math.random() > 0.5 ? themeColors.base : DEFAULT_COLORS.white;
             break;
           default:
-            c = COLORS.silver;
+            c = DEFAULT_COLORS.silver;
         }
 
         col[idx * 3] = c.r;
@@ -454,7 +467,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius]);
+  }, [config.explosionRadius, themeColors]);
 
   // === CRYSTAL CROWN - Enhanced with HDR glow ===
   const crownData = useMemo(() => {
@@ -574,16 +587,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const tGalaxy = new Float32Array(count * 3);
 
     const gifts = [
-      { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: COLORS.pinkBase, rib: COLORS.white },
-      { r: 2.3, ang: 1.2, w: 1.8, h: 1.6, c: COLORS.silver, rib: COLORS.pinkDark },
-      { r: 2.1, ang: 2.5, w: 2.5, h: 1.8, c: COLORS.pinkDark, rib: COLORS.gold },
-      { r: 2.4, ang: 3.8, w: 1.6, h: 2.2, c: COLORS.white, rib: COLORS.ukRed },
-      { r: 2.2, ang: 5.0, w: 2.0, h: 1.5, c: COLORS.cream, rib: COLORS.silver },
-      { r: 3.2, ang: 0.6, w: 1.4, h: 1.2, c: COLORS.pinkLight, rib: COLORS.silver },
-      { r: 3.5, ang: 2.0, w: 1.6, h: 1.4, c: COLORS.white, rib: COLORS.pinkBase },
-      { r: 3.3, ang: 3.5, w: 1.3, h: 1.1, c: COLORS.silver, rib: COLORS.gold },
-      { r: 3.6, ang: 4.8, w: 1.5, h: 1.3, c: COLORS.pinkDark, rib: COLORS.white },
-      { r: 3.8, ang: 5.8, w: 1.2, h: 1.0, c: COLORS.ukBlue, rib: COLORS.white },
+      { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: themeColors.base, rib: DEFAULT_COLORS.white },
+      { r: 2.3, ang: 1.2, w: 1.8, h: 1.6, c: DEFAULT_COLORS.silver, rib: themeColors.dark },
+      { r: 2.1, ang: 2.5, w: 2.5, h: 1.8, c: themeColors.dark, rib: DEFAULT_COLORS.gold },
+      { r: 2.4, ang: 3.8, w: 1.6, h: 2.2, c: DEFAULT_COLORS.white, rib: DEFAULT_COLORS.ukRed },
+      { r: 2.2, ang: 5.0, w: 2.0, h: 1.5, c: DEFAULT_COLORS.cream, rib: DEFAULT_COLORS.silver },
+      { r: 3.2, ang: 0.6, w: 1.4, h: 1.2, c: themeColors.light, rib: DEFAULT_COLORS.silver },
+      { r: 3.5, ang: 2.0, w: 1.6, h: 1.4, c: DEFAULT_COLORS.white, rib: themeColors.base },
+      { r: 3.3, ang: 3.5, w: 1.3, h: 1.1, c: DEFAULT_COLORS.silver, rib: DEFAULT_COLORS.gold },
+      { r: 3.6, ang: 4.8, w: 1.5, h: 1.3, c: themeColors.dark, rib: DEFAULT_COLORS.white },
+      { r: 3.8, ang: 5.8, w: 1.2, h: 1.0, c: DEFAULT_COLORS.ukBlue, rib: DEFAULT_COLORS.white },
     ];
 
     const perGift = Math.floor(count / gifts.length);
@@ -647,7 +660,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius]);
+  }, [config.explosionRadius, themeColors]);
 
   // === ANIMATION FRAME ===
   const { camera } = useThree();
@@ -706,7 +719,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
   });
 
-  const treeKey = `tree-${config.particleCount}`;
+  const treeKey = `tree-${config.particleCount}-${config.treeColor}`;
 
   return (
     <group onClick={(e) => { e.stopPropagation(); onParticlesClick(); }}>

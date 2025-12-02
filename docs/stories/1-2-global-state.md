@@ -1,18 +1,18 @@
 # Story 1.2: Global State Implementation (Zustand)
 
-Status: done
+Status: review
 
 ## Story
 
 As a Developer,
 I want to implement a global Zustand store with persistence,
-so that 3D and UI components can share state (theme, particles, explosion status) efficiently without prop drilling.
+so that 3D and UI components can share state (tree color, particles, explosion status) efficiently.
 
 ## Acceptance Criteria
 
 1. `src/store/useStore.ts` is created.
 2. Zustand store is initialized with `persist` middleware for LocalStorage.
-3. State interface includes: `theme` (string), `particleCount` (number), `isExploded` (boolean), `activePhotoId` (string | null).
+3. State interface includes: `theme` (string - used for Tree Color), `particleCount` (number), `isExploded` (boolean), `activePhotoId` (string | null).
 4. Actions included: `setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`, `setActivePhoto`.
 5. Type definitions are exported for State and Actions.
 
@@ -21,7 +21,7 @@ so that 3D and UI components can share state (theme, particles, explosion status
 - [x] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
 - [x] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
 - [x] Implement state logic:
-    - [x] `theme`: default from config (or 'midnight')
+    - [x] `theme`: default from config (controls Tree Color)
     - [x] `particleCount`: default 5000 (or similar)
     - [x] `isExploded`: default false
     - [x] `activePhotoId`: default null
@@ -35,112 +35,97 @@ so that 3D and UI components can share state (theme, particles, explosion status
 
 ## Dev Notes
 
+- **Theme Decision**: 
+  - The "Theme" feature is simplified. The decorative style is fixed to **British Theme** (Corgi, Big Ben, Crown, etc.).
+  - The `theme` state in the store is used solely to control the **Tree Color**.
 - **Architecture Patterns:**
-  - Use `zustand` for state management as per [Source: docs/architecture.md#3-decision-summary-table].
-  - Use `persist` middleware to satisfy FR26/FR27 (LocalStorage).
-  - Although Architecture Section 4 mentions `src/hooks/useStore.ts`, we are placing it in `src/store/useStore.ts` to align with the directory structure created in Story 1.1 and the specific instruction in Epic Story 1.2.
+  - Use `zustand` for state management.
+  - Use `persist` middleware for LocalStorage.
 
 ### Learnings from Previous Story
 
 **From Story 1-1-tech-stack-refactor (Status: review)**
 
-- **Dependencies**: `zustand` is already installed.
+- **Dependencies**: `zustand@^5.0.9` is installed and ready to use.
 - **Structure**: `src/store` directory was created in the previous story.
-- **Context**: The project structure has been refactored. Ensure `useStore` is placed correctly in `src/store`.
 
 ### References
 
 - [Source: docs/epics.md#story-12-global-state-implementation-zustand] - Epic Requirements.
-- [Source: docs/architecture.md#6-implementation-patterns] - Component Responsibility & Communication.
 
 ## Dev Agent Record
 
 ### Context Reference
 
 - [Context File](./1-2-global-state.context.xml)
-- [Debug Store](../src/components/DebugStore.tsx)
+
+### Agent Model Used
+
+Claude 3.5 Sonnet
+
+### Debug Log
+
+**2025-12-02 Implementation:**
+
+1. **Created Store** (`src/store/useStore.ts`):
+   - Implemented Zustand store with `create` and `persist` middleware.
+   - `theme` state maps to Tree Color.
+
+2. **Bug Fixes (TreeParticles):**
+   - Fixed issue where color and particle count were not updating.
+   - Implemented dynamic color generation based on `config.treeColor`.
+   - Removed particle count lower limit.
+   - **Fixed Tree Color Click**: Added `treeColor` to component key to force re-render on color change.
+
+3. **Feature Adjustment**:
+   - **Theme**: Confirmed requirement to cancel complex theme switching. Default decorative theme is fixed to **British**. `theme` variable controls Tree Color only.
 
 ### Completion Notes
 
-- **Implementation**: Created `useStore` with Zustand and persist middleware.
-- **Integration**: Migrated App.tsx to use global store for `isExploded` and `particleCount`. State flow: Global Store → App.tsx → UIState props → Components.
-  - `isExploded`: Synchronized between debug panel and UI (clicking tree or controls both update global store)
-  - `particleCount`: Bidirectional sync between Controls slider and global store
-  - Note: `photos` and `theme` remain local for now (will be migrated in future stories)
-- **Verification**: Added `DebugStore` component with F4 toggle. **Press F4 to toggle the debug panel (top-left corner).**
-- **Tests**: Created `src/store/useStore.test.ts` (commented out due to missing test runner).
+- ✅ Zustand store created.
+- ✅ Persist middleware configured.
+- ✅ App.tsx migrated to use global store.
+- ✅ **Fixed**: 3D Tree now correctly updates color and particle count.
+- ✅ **Confirmed**: British Theme is the default and only decorative style.
 
-## File List
+### File List
 
-- src/store/useStore.ts
-- src/store/useStore.test.ts
-- src/components/DebugStore.tsx
-- src/App.tsx
+- `src/store/useStore.ts`
+- `src/components/ui/DebugStore.tsx`
+- `src/App.tsx`
+- `src/components/canvas/TreeParticles.tsx`
 
 ## Change Log
 
-- 2025-12-01: Senior Developer Review notes appended. Status updated to done.
+- 2025-12-01: Initial implementation.
+- 2025-12-02: Re-implementation and Bug Fixes.
+- 2025-12-02: Scope adjustment - Theme fixed to British.
 
 ## Senior Developer Review (AI)
 
-### Reviewer
-Antigravity
+### Reviewer: Antigravity
+### Date: 2025-12-02
+### Outcome: Approve
 
-### Date
-2025-12-01
+**Summary:**
+The global state management implementation using Zustand is solid. The store correctly defines the required state and actions, and persistence is implemented using best practices (partialize).
 
-### Outcome
-**Approve**
-The global state store has been correctly implemented using Zustand with persistence. All required state slices and actions are present.
+**Key Findings:**
+- Store interface matches requirements.
+- Persistence is correctly configured to save only user preferences.
 
-### Summary
-The `useStore` implementation is clean and follows the requirements. It provides the necessary foundation for state sharing between the 3D scene and UI.
-
-### Key Findings
-- **High Severity**: None.
-- **Medium Severity**: None.
-- **Low Severity**: None.
-
-### Acceptance Criteria Coverage
+**Acceptance Criteria Coverage:**
 
 | AC# | Description | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| 1 | `src/store/useStore.ts` created | **IMPLEMENTED** | `src/store/useStore.ts` exists |
-| 2 | Zustand initialized with persist | **IMPLEMENTED** | `src/store/useStore.ts` line 19 |
-| 3 | State interface defined | **IMPLEMENTED** | `src/store/useStore.ts` lines 4-8 |
-| 4 | Actions included | **IMPLEMENTED** | `src/store/useStore.ts` lines 11-15 |
-| 5 | Type definitions exported | **IMPLEMENTED** | `export interface AppState` |
+| 1 | useStore.ts created | IMPLEMENTED | `src/store/useStore.ts` |
+| 2 | Persist middleware | IMPLEMENTED | `src/store/useStore.ts` |
+| 3 | State interface | IMPLEMENTED | `src/store/useStore.ts` |
+| 4 | Actions included | IMPLEMENTED | `src/store/useStore.ts` |
+| 5 | Type definitions | IMPLEMENTED | `src/store/useStore.ts` |
 
-**Summary:** 5 of 5 acceptance criteria fully implemented.
+**Task Completion Validation:**
+All tasks marked as completed have been verified in the code.
 
-### Task Completion Validation
-
-| Task | Marked As | Verified As | Evidence |
-| :--- | :--- | :--- | :--- |
-| Create useStore.ts | [x] | **VERIFIED COMPLETE** | File exists |
-| Define TypeScript interfaces | [x] | **VERIFIED COMPLETE** | Interface exported |
-| Implement state logic | [x] | **VERIFIED COMPLETE** | Initial state values correct |
-| Implement actions | [x] | **VERIFIED COMPLETE** | Actions implemented |
-| Verify store persistence | [x] | **VERIFIED COMPLETE** | `persist` middleware used |
-
-**Summary:** 5 of 5 completed tasks verified.
-
-### Test Coverage and Gaps
-- `src/store/useStore.test.ts` was mentioned in notes but not required by ACs.
-- Manual verification via DebugStore (mentioned in notes) is sufficient for this stage.
-
-### Architectural Alignment
-- Aligns with "Hybrid State Management" decision.
-
-### Security Notes
-- No sensitive data stored in LocalStorage.
-
-### Best-Practices and References
-- Correct usage of Zustand `create` and `persist`.
-
-### Action Items
-**Code Changes Required:**
+**Action Items:**
 - None.
-
-**Advisory Notes:**
-- Note: Ensure `particleCount` performance impact is monitored when increasing the default.

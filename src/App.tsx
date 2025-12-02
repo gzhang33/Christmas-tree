@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Experience } from './components/Experience.tsx';
-import { Controls } from './components/Controls.tsx';
+import { Experience } from './components/canvas/Experience.tsx';
+import { Controls } from './components/ui/Controls.tsx';
+import { DebugStore } from './components/ui/DebugStore.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
-import { usePerformanceMonitor, PerformanceOverlay } from './components/PerformanceMonitor.tsx';
+import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
+import { useStore } from './store/useStore.ts';
 import * as THREE from 'three';
+import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
 // 1. HDR color conversion (handled by Three.js tone mapping)
@@ -30,8 +33,16 @@ const PerformanceMonitorWrapper: React.FC<{
 };
 
 function App() {
-  // State Management
-  const [isExploded, setIsExploded] = useState(false);
+  // Global State from Zustand Store
+  const treeColor = useStore((state) => state.treeColor);
+  const particleCount = useStore((state) => state.particleCount);
+  const isExploded = useStore((state) => state.isExploded);
+  const setTreeColor = useStore((state) => state.setTreeColor);
+  const setParticleCount = useStore((state) => state.setParticleCount);
+  const triggerExplosion = useStore((state) => state.triggerExplosion);
+  const resetExplosion = useStore((state) => state.resetExplosion);
+
+  // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
@@ -47,9 +58,10 @@ function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isHeroTextCompact, setIsHeroTextCompact] = useState(false);
 
+  // Local config (non-persisted settings)
   const [config, setConfig] = useState<AppConfig>({
-    treeColor: '#FFC0CB',
-    particleCount: 18000,
+    treeColor: treeColor, // Synced from store
+    particleCount: particleCount, // Synced from store
     snowDensity: 1500,
     rotationSpeed: 0.6,
     photoSize: 1.5,
@@ -57,6 +69,15 @@ function App() {
     snowSpeed: 1.2,
     windStrength: 0.4,
   });
+
+  // Sync store changes to local config
+  useEffect(() => {
+    setConfig((prev) => ({
+      ...prev,
+      treeColor: treeColor,
+      particleCount: particleCount,
+    }));
+  }, [treeColor, particleCount]);
 
   // Estimate total particles
   const estimatedParticleCount = Math.floor(
@@ -126,12 +147,24 @@ function App() {
 
   // Handlers
   const updateConfig = useCallback((key: keyof AppConfig, value: any) => {
+    // Update local config
     setConfig((prev) => ({ ...prev, [key]: value }));
-  }, []);
+
+    // Sync specific keys to global store
+    if (key === 'treeColor') {
+      setTreeColor(value);
+    } else if (key === 'particleCount') {
+      setParticleCount(value);
+    }
+  }, [setTreeColor, setParticleCount]);
 
   const toggleExplosion = useCallback(() => {
-    setIsExploded((prev) => !prev);
-  }, []);
+    if (isExploded) {
+      resetExplosion();
+    } else {
+      triggerExplosion();
+    }
+  }, [isExploded, triggerExplosion, resetExplosion]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -244,6 +277,9 @@ function App() {
 
       {/* UI Overlay */}
       <Controls uiState={uiState} />
+
+      {/* Debug Store Panel (F4 to toggle) */}
+      <DebugStore />
 
       {/* Performance Monitor Overlay */}
       <PerformanceOverlay visible={showPerformance} data={performanceData} />

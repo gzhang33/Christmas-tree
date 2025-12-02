@@ -28,8 +28,12 @@
 # - Stories can be worked in parallel if team capacity allows
 # - SM typically drafts next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+#
+# CHANGE LOG:
+# - 2025-12-02: Post-rollback status update - Changed story status from 'done' to 'in-progress'
+#   for stories requiring re-implementation after code rollback (1-1, 1-2, 1-3, 2-1)
 
-generated: 2025-12-02T15:31:44Z
+generated: 2025-12-02T16:00:00Z
 project: Christmas-tree
 project_key: TBD
 tracking_system: file-system
@@ -43,8 +47,8 @@ development_status:
   epic-1-retrospective: completed
 
   epic-2: contexted
-  2-0-test-infra: backlog
-  2-1-theme-config: done
+  2-0-test-infra: drafted
+  2-1-theme-config: in-progress
   2-2-explosion-physics: backlog
   2-3-morphing-effect: backlog
   epic-2-retrospective: optional

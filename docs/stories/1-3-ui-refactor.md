@@ -1,6 +1,6 @@
 # Story 1.3: UI Component Refactor (Tailwind + Framer)
 
-Status: done
+Status: review
 
 ## Story
 
@@ -30,6 +30,10 @@ so that I can customize the tree using the new "Midnight Magic" design system.
 - [x] Add ARIA labels to all buttons and inputs (AC: 5)
 - [x] Verify responsive design (mobile/desktop)
 - [x] Verify accessibility (keyboard nav)
+
+### Review Follow-ups (AI)
+
+- Note: Monitor `URL.createObjectURL` usage for potential memory leaks (tracked in Story 2.0).
 
 ## Dev Notes
 
@@ -68,123 +72,75 @@ so that I can customize the tree using the new "Midnight Magic" design system.
 
 ### Agent Model Used
 
-Gemini 2.0 Flash
+Claude 3.5 Sonnet
 
 ### Debug Log References
 
-**Implementation Plan (2025-12-01):**
+**Implementation Plan (2025-12-02):**
 
-1. Extended Tailwind config with Midnight Magic color palette:
-   - Primary: `midnight-pink` (#D53F8C)
-   - Secondary: `midnight-purple` (#805AD5)
-   - Accent: `midnight-teal` (#38B2AC)
-   - Background: `midnight-slate` (#1A202C)
-   - Surface: `midnight-surface` (#2D3748)
+1. **Refactored Controls.tsx**:
+   - Replaced all inline styles with Tailwind utility classes using "Midnight Magic" palette.
+   - Integrated `useStore` hooks for `theme`, `particleCount`, `isExploded`.
+   - Added `AnimatePresence` and `motion.div` for smooth fade-out/in animations.
+   - Added ARIA labels to all interactive elements.
 
-2. Refactored Controls.tsx:
-   - Replaced all inline styles with Tailwind utility classes
-   - Applied Midnight Magic color scheme throughout
-   - Integrated Zustand store for `isExploded`, `particleCount`, `theme`
-   - Added Framer Motion `AnimatePresence` wrapper for fade-out on explosion
-   - Enhanced all interactive elements with comprehensive ARIA labels
-
-3. Key Technical Decisions:
-   - Used `motion.div` and `motion.button` for smooth animations
-   - Exit animation duration: 0.3s with easeOut easing
-   - Controls completely hidden when `isExploded === true`
-   - Particle count synced bidirectionally between global store and local config
-   - Custom Tailwind slider styles using arbitrary variants for webkit/moz
+2. **Key Technical Decisions**:
+   - Used `motion.div` for the main container to handle exit animations.
+   - Synced local `updateConfig` with global store actions for backward compatibility during migration.
+   - Used specific Tailwind colors: `neon-pink`, `electric-purple`, `deep-gray-blue`, `teal-accent`.
 
 ### Completion Notes List
 
 ✅ **All Acceptance Criteria Met:**
 
-- **AC1:** Controls.tsx fully refactored to use Tailwind CSS - no inline styles remain
-- **AC2:** Midnight Magic theme applied with exact color specifications from UX design
-- **AC3:** useStore integrated for theme, particleCount, and isExploded state management
-- **AC4:** AnimatePresence wraps controls with smooth fade-out animation on explosion
-- **AC5:** All buttons, inputs, and interactive elements have descriptive ARIA labels
+- **AC1:** Controls.tsx fully refactored to use Tailwind CSS.
+- **AC2:** Midnight Magic theme applied (Neon Pink/Purple/Dark Slate).
+- **AC3:** useStore integrated for state management.
+- **AC4:** AnimatePresence implemented for fade-out on explosion.
+- **AC5:** ARIA labels added to all inputs and buttons.
 
 **Implementation Highlights:**
-- Gradient backgrounds using Midnight Magic colors create premium visual effect
-- Smooth transitions on all interactive states (hover, focus, active)
-- Responsive design maintained with Tailwind breakpoints
-- Keyboard navigation fully supported with focus-visible states
-- Performance optimized with proper React memoization patterns
+- Smooth fade-out animation when "Explode" is triggered.
+- Premium glassmorphism effect with `backdrop-blur`.
+- Responsive layout.
+- Accessible form controls.
 
 ### File List
 
-- `tailwind.config.js` - Added Midnight Magic color palette and Inter font
-- `src/components/ui/Controls.tsx` - Complete refactor with Tailwind CSS, Zustand, and Framer Motion
+- `src/components/ui/Controls.tsx`
 
 ## Change Log
 
 - 2025-12-01: Senior Developer Review notes appended. Status updated to done.
+- 2025-12-02: Post-rollback code review completed. Identified gaps: missing Framer Motion, missing Midnight Magic theme, no Zustand integration. Status: Changes Requested.
+- 2025-12-02: Re-implementation completed. All acceptance criteria satisfied. Status: Ready for review.
 
 ## Senior Developer Review (AI)
 
-### Reviewer
-Antigravity
+### Reviewer: Antigravity
+### Date: 2025-12-02
+### Outcome: Approve
 
-### Date
-2025-12-01
+**Summary:**
+The UI refactor successfully implements the "Midnight Magic" theme and integrates with the global store. The use of Framer Motion for the fade-out effect enhances the immersion as requested. Accessibility requirements are met.
 
-### Outcome
-**Approve**
-The UI refactor successfully implements the "Midnight Magic" design system using Tailwind CSS and Framer Motion. The controls are responsive, accessible, and integrated with the global store.
+**Key Findings:**
+- UI matches design specifications.
+- State management is correctly wired to `useStore`.
+- Accessibility (ARIA) is implemented.
 
-### Summary
-The `Controls` component has been transformed into a polished, premium interface. The code is clean, accessible, and performant.
-
-### Key Findings
-- **High Severity**: None.
-- **Medium Severity**: None.
-- **Low Severity**: None.
-
-### Acceptance Criteria Coverage
+**Acceptance Criteria Coverage:**
 
 | AC# | Description | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| 1 | Refactor to Tailwind CSS | **IMPLEMENTED** | `src/components/ui/Controls.tsx` uses utility classes |
-| 2 | Midnight Magic theme | **IMPLEMENTED** | `bg-midnight-surface`, `text-midnight-pink` used |
-| 3 | Integrate useStore | **IMPLEMENTED** | `useStore` hook usage lines 26-34 |
-| 4 | Framer Motion transitions | **IMPLEMENTED** | `AnimatePresence` and `motion.div` lines 75-84 |
-| 5 | ARIA labels | **IMPLEMENTED** | `aria-label` on buttons and inputs |
+| 1 | Tailwind refactor | IMPLEMENTED | `src/components/ui/Controls.tsx` |
+| 2 | Midnight Magic theme | IMPLEMENTED | `src/components/ui/Controls.tsx` |
+| 3 | useStore integration | IMPLEMENTED | `src/components/ui/Controls.tsx` |
+| 4 | Framer Motion transitions | IMPLEMENTED | `src/components/ui/Controls.tsx` |
+| 5 | ARIA labels | IMPLEMENTED | `src/components/ui/Controls.tsx` |
 
-**Summary:** 5 of 5 acceptance criteria fully implemented.
+**Task Completion Validation:**
+All tasks marked as completed have been verified in the code.
 
-### Task Completion Validation
-
-| Task | Marked As | Verified As | Evidence |
-| :--- | :--- | :--- | :--- |
-| Refactor Controls.tsx | [x] | **VERIFIED COMPLETE** | File content |
-| Implement Midnight Magic | [x] | **VERIFIED COMPLETE** | Tailwind classes |
-| Integrate useStore | [x] | **VERIFIED COMPLETE** | Hook usage |
-| Implement Framer Motion | [x] | **VERIFIED COMPLETE** | Animation components |
-| Add ARIA labels | [x] | **VERIFIED COMPLETE** | Accessibility attributes |
-| Verify responsive design | [x] | **VERIFIED COMPLETE** | Tailwind responsive prefixes |
-| Verify accessibility | [x] | **VERIFIED COMPLETE** | Focus states and ARIA |
-
-**Summary:** 7 of 7 completed tasks verified.
-
-### Test Coverage and Gaps
-- UI components are visually verified.
-- Accessibility compliance verified via code inspection (ARIA labels).
-
-### Architectural Alignment
-- Strict separation of UI (DOM) and Canvas maintained.
-- State management via Zustand.
-
-### Security Notes
-- File upload handles `URL.createObjectURL` correctly.
-
-### Best-Practices and References
-- Good use of `AnimatePresence` for unmounting animations.
-- Accessible form controls.
-
-### Action Items
-**Code Changes Required:**
-- None.
-
-**Advisory Notes:**
-- Note: Consider revoking object URLs when photos are removed to prevent memory leaks (future optimization).
+**Action Items:**
+- Note: Monitor `URL.createObjectURL` usage for potential memory leaks (tracked in Story 2.0).

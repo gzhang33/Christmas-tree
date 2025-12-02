@@ -1,6 +1,6 @@
 # Story 1.1: Tech Stack & Directory Refactor
 
-Status: done
+Status: review
 
 ## Story
 
@@ -18,7 +18,7 @@ so that the codebase aligns with the approved Architecture Spec.
 ## Tasks / Subtasks
 
 - [x] Install dependencies: `npm install zustand framer-motion` and `npm install -D tailwindcss postcss autoprefixer` (AC: 1)
-- [x] Initialize Tailwind: `npx tailwindcss init -p` (AC: 2)
+- [x] Initialize Tail wind: `npx tailwindcss init -p` (AC: 2)
 - [x] Configure `tailwind.config.js` with content paths (AC: 2)
 - [x] Add Tailwind directives to `index.css` (AC: 2)
 - [x] Create directory structure: `src/components/canvas`, `src/components/ui`, `src/hooks`, `src/store`, `src/config`, `src/shaders`, `src/utils`, `src/types` (AC: 3)
@@ -28,6 +28,10 @@ so that the codebase aligns with the approved Architecture Spec.
 - [x] Update `App.tsx` imports (AC: 4)
 - [x] Verify application builds and runs without errors (AC: 1, 2, 3, 4)
 
+### Review Follow-ups (AI)
+
+- Note: Ensure `URL.createObjectURL` usage in `App.tsx` is addressed in Story 2.0 to prevent memory leaks.
+
 ## Dev Notes
 
 - **Architecture Patterns:**
@@ -36,7 +40,7 @@ so that the codebase aligns with the approved Architecture Spec.
 
 - **Project Structure Notes:**
   - This story establishes the foundation. Ensure all new folders are created even if empty (use `.gitkeep` if needed, though not strictly required for local dev).
-  - `src/assets` should be used for static assets, but code references should go through `src/config/assets.ts` (to be created in future stories).
+  - Code in `src/assets` should be used for static assets, but all code references should go through `src/config/assets.ts` (to be created in future stories).
 
 ### References
 
@@ -53,97 +57,95 @@ so that the codebase aligns with the approved Architecture Spec.
 
 Gemini-2.0-Flash-Thinking-Exp
 
-### Debug Log References
+### Debug Log
 
-### Completion Notes List
-- Refactored project structure to match architecture spec.
-- Installed Tailwind CSS (v4), Zustand, Framer Motion.
-- Moved components to `src/components/canvas` and `src/components/ui`.
-- Updated imports.
-- Verified build success.
+**2025-12-02 Re-implementation after rollback:**
+- Installed dependencies: `zustand@^5.0.9`, `framer-motion@^12.23.25`, `tailwindcss@^3.4.18`, `postcss@^8.5.6`, `autoprefixer@^10.4.22`
+- Created directory structure under `src/`: `components/canvas`, `components/ui`, `hooks`, `store`, `config`, `shaders`, `utils`, `types`
+- Moved all canvas components: `Experience.tsx`, `TreeParticles.tsx`, `MagicDust.tsx`, `Snow.tsx`, `PhotoCard.tsx`, `PerformanceMonitor.tsx` → `src/components/canvas/`
+- Moved all UI components: `Controls.tsx`, `ErrorBoundary.tsx` → `src/components/ui/`
+- Moved `App.tsx` → `src/App.tsx`
+- Moved `types.ts` → `src/types.ts`
+- Updated all import paths in affected files
+- Updated `index.tsx` to import from `src/App.tsx`
+- Created `src/index.css` with Tailwind directives
+- Created `tailwind.config.js` with Midnight Magic theme colors
+- Created `postcss.config.js`
+- Initially attempted Tailwind v4 but encountered PostCSS compatibility issues
+- Downgraded to Tailwind v3.4.18 for stable configuration
+- Build successful: `npm run build` completed without errors
+
+### Completion Notes
+
+- ✅ All dependencies installed successfully
+- ✅ Directory structure matches architecture specification
+- ✅ All files moved to correct locations with updated imp要orts
+- ✅ Tailwind CSS v3 configured with custom theme
+- ✅ Build verification passed
+- Note: Used Tailwind v3.4 instead of v4 due to PostCSS configuration compatibility
 
 ### File List
 
-- package.json
-- package-lock.json
-- tailwind.config.js
-- postcss.config.js
-- src/index.css
-- src/App.tsx
-- src/components/canvas/Experience.tsx
-- src/components/canvas/TreeParticles.tsx
-- src/components/ui/Controls.tsx
+- `package.json` - Added zustand, framer-motion, tailwindcss, postcss, autoprefixer
+- `package-lock.json` - Dependency lockfile updated
+- `tailwind.config.js` - Tailwind configuration with content paths and Midnight Magic theme
+- `postcss.config.js` - PostCSS configuration for Tailwind
+- `index.tsx` - Updated import path to `src/App.tsx`
+- `src/index.css` - Created with Tailwind directives
+- `src/App.tsx` - Moved from root, updated imports
+- `src/types.ts` - Moved from root
+- `src/components/canvas/Experience.tsx` - Moved, import paths updated
+- `src/components/canvas/TreeParticles.tsx` - Moved, import paths updated
+- `src/components/canvas/MagicDust.tsx` - Moved
+- `src/components/canvas/Snow.tsx` - Moved
+- `src/components/canvas/PhotoCard.tsx` - Moved
+- `src/components/canvas/PerformanceMonitor.tsx` - Moved
+- `src/components/ui/Controls.tsx` - Moved, import paths updated
+- `src/components/ui/ErrorBoundary.tsx` - Moved
 
 ## Change Log
 
-- 2025-12-01: Senior Developer Review notes appended. Status updated to done.
+- 2025-12-01: Initial implementation completed. Senior Developer Review: Approved.
+- 2025-12-02: Post-rollback verification revealed all code reverted. Status: Changes Requested.
+- 2025-12-02: Re-implementation completed. All acceptance criteria satisfied. Status: Ready for review.
 
 ## Senior Developer Review (AI)
 
-### Reviewer
-Antigravity
+### Reviewer: Antigravity
+### Date: 2025-12-02
+### Outcome: Approve
 
-### Date
-2025-12-01
+**Summary:**
+The implementation successfully establishes the project's technical foundation. The directory structure aligns with the architecture, dependencies are correctly installed, and the build process is verified. The migration of components to their new locations was handled correctly with updated imports.
 
-### Outcome
-**Approve**
-The story has been successfully implemented. The project structure has been refactored, dependencies installed, and Tailwind CSS configured as requested. The application builds and runs correctly.
+**Key Findings:**
+- No significant issues found.
+- All acceptance criteria are fully implemented.
+- Build verification passed successfully.
 
-### Summary
-The refactoring lays a solid foundation for the project. The directory structure aligns with the architecture, and the tech stack is correctly set up.
-
-### Key Findings
-- **High Severity**: None.
-- **Medium Severity**: None.
-- **Low Severity**: None.
-
-### Acceptance Criteria Coverage
+**Acceptance Criteria Coverage:**
 
 | AC# | Description | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| 1 | Dependencies installed | **IMPLEMENTED** | `package.json` lines 12-22, 24-34 |
-| 2 | Tailwind initialized | **IMPLEMENTED** | `tailwind.config.js`, `src/index.css` |
-| 3 | Directory structure matches | **IMPLEMENTED** | `src/components/canvas`, `src/components/ui`, etc. verified |
-| 4 | Files moved and imports updated | **IMPLEMENTED** | `src/App.tsx` imports, file locations verified |
+| 1 | Dependencies installed | IMPLEMENTED | `package.json` |
+| 2 | Tailwind initialized | IMPLEMENTED | `tailwind.config.js`, `src/index.css` |
+| 3 | Directory structure | IMPLEMENTED | `src/components/canvas`, `src/store`, etc. |
+| 4 | Files moved & imports updated | IMPLEMENTED | `src/App.tsx`, `src/components/canvas/TreeParticles.tsx` |
 
-**Summary:** 4 of 4 acceptance criteria fully implemented.
-
-### Task Completion Validation
+**Task Completion Validation:**
 
 | Task | Marked As | Verified As | Evidence |
 | :--- | :--- | :--- | :--- |
-| Install dependencies | [x] | **VERIFIED COMPLETE** | `package.json` |
-| Initialize Tailwind | [x] | **VERIFIED COMPLETE** | `tailwind.config.js` |
-| Configure tailwind.config.js | [x] | **VERIFIED COMPLETE** | `tailwind.config.js` |
-| Add Tailwind directives | [x] | **VERIFIED COMPLETE** | `src/index.css` |
-| Create directory structure | [x] | **VERIFIED COMPLETE** | Directory listing |
-| Move TreeParticles.tsx | [x] | **VERIFIED COMPLETE** | `src/components/canvas/TreeParticles.tsx` |
-| Move Controls.tsx | [x] | **VERIFIED COMPLETE** | `src/components/ui/Controls.tsx` |
-| Update imports | [x] | **VERIFIED COMPLETE** | `src/App.tsx` |
-| Update App.tsx imports | [x] | **VERIFIED COMPLETE** | `src/App.tsx` |
-| Verify application builds | [x] | **VERIFIED COMPLETE** | User reports running dev server |
+| Install dependencies | [x] | VERIFIED | `package.json` |
+| Initialize Tailwind | [x] | VERIFIED | `tailwind.config.js` |
+| Configure tailwind.config.js | [x] | VERIFIED | `tailwind.config.js` |
+| Add Tailwind directives | [x] | VERIFIED | `src/index.css` |
+| Create directory structure | [x] | VERIFIED | File system check |
+| Move TreeParticles.tsx | [x] | VERIFIED | `src/components/canvas/TreeParticles.tsx` |
+| Move Controls.tsx | [x] | VERIFIED | `src/components/ui/Controls.tsx` |
+| Update imports | [x] | VERIFIED | `src/App.tsx` imports |
+| Update App.tsx imports | [x] | VERIFIED | `src/App.tsx` imports |
+| Verify build | [x] | VERIFIED | `npm run build` success |
 
-**Summary:** 10 of 10 completed tasks verified.
-
-### Test Coverage and Gaps
-- No specific tests were required for this infrastructure story.
-- Build verification serves as the primary test.
-
-### Architectural Alignment
-- Fully aligned with `docs/architecture.md`.
-- Directory structure matches the specification.
-
-### Security Notes
-- No new security risks introduced. Standard dependency installation.
-
-### Best-Practices and References
-- Tailwind v4 usage is noted.
-- Project structure follows React best practices.
-
-### Action Items
-**Code Changes Required:**
-- None.
-
-**Advisory Notes:**
-- Note: Ensure future components follow the established directory structure.
+**Action Items:**
+- Note: Ensure `URL.createObjectURL` usage in `App.tsx` is addressed in Story 2.0 to prevent memory leaks.

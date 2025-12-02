@@ -5,7 +5,7 @@ import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
 import { PhotoCard } from './PhotoCard.tsx';
-import { UIState } from '../types.ts';
+import { UIState } from '../../types.ts';
 import * as THREE from 'three';
 
 interface ExperienceProps {
