@@ -18,8 +18,7 @@ so that the codebase aligns with the approved Architecture Spec.
 ## Tasks / Subtasks
 
 - [x] Install dependencies: `npm install zustand framer-motion` and `npm install -D tailwindcss postcss autoprefixer` (AC: 1)
-- [x] Initialize Tail wind: `npx tailwindcss init -p` (AC: 2)
-- [x] Configure `tailwind.config.js` with content paths (AC: 2)
+- [x] Initialize Tailwind: `npx tailwindcss init -p` (AC: 2)- [x] Configure `tailwind.config.js` with content paths (AC: 2)
 - [x] Add Tailwind directives to `index.css` (AC: 2)
 - [x] Create directory structure: `src/components/canvas`, `src/components/ui`, `src/hooks`, `src/store`, `src/config`, `src/shaders`, `src/utils`, `src/types` (AC: 3)
 - [x] Move `TreeParticles.tsx` to `src/components/canvas/` (AC: 4)

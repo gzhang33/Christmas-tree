@@ -24,3 +24,11 @@ export interface UIState {
   isMuted: boolean;
   toggleMute: () => void;
 }
+
+export interface Asset {
+  id: string;
+  type: 'image' | 'video' | 'audio';
+  url: string;
+  videoUrl?: string;
+  label?: string;
+}

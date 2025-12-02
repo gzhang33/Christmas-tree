@@ -8,6 +8,7 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
 import { useStore } from './store/useStore.ts';
+import { usePhotos } from './hooks/usePhotos.ts';
 import * as THREE from 'three';
 import './index.css';
 
@@ -43,7 +44,7 @@ function App() {
   const resetExplosion = useStore((state) => state.resetExplosion);
 
   // Local State (not in global store)
-  const [photos, setPhotos] = useState<PhotoData[]>([]);
+  const { photos, addPhotos } = usePhotos();
   const [isMuted, setIsMuted] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
   const [performanceData, setPerformanceData] = useState({
@@ -95,6 +96,19 @@ function App() {
     if (!audio) return;
 
     audio.volume = 0.35;
+    let interactionListenersAdded = false;
+
+    const handleInteraction = async () => {
+      try {
+        await audio.play();
+        setIsMuted(false);
+      } catch (e) {
+        console.warn('Audio playback failed after interaction:', e);
+      }
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      interactionListenersAdded = false;
+    };
 
     const attemptPlay = async () => {
       try {
@@ -104,25 +118,21 @@ function App() {
         console.log('Audio autoplay prevented. Waiting for user interaction.');
         setIsMuted(true);
 
-        const handleInteraction = async () => {
-          try {
-            await audio.play();
-            setIsMuted(false);
-          } catch (e) {
-            console.warn('Audio playback failed after interaction:', e);
-          }
-          document.removeEventListener('click', handleInteraction);
-          document.removeEventListener('keydown', handleInteraction);
-        };
-
         document.addEventListener('click', handleInteraction);
         document.addEventListener('keydown', handleInteraction);
+        interactionListenersAdded = true;
       }
     };
 
     attemptPlay();
-  }, []);
 
+    return () => {
+      if (interactionListenersAdded) {
+        document.removeEventListener('click', handleInteraction);
+        document.removeEventListener('keydown', handleInteraction);
+      }
+    };
+  }, []);
   useEffect(() => {
     const handleResize = () => {
       setIsHeroTextCompact(window.innerWidth < 900);
@@ -179,13 +189,7 @@ function App() {
     });
   }, []);
 
-  const addPhotos = useCallback((files: FileList) => {
-    const newPhotos: PhotoData[] = Array.from(files).map((file) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      url: URL.createObjectURL(file),
-    }));
-    setPhotos((prev) => [...prev, ...newPhotos]);
-  }, []);
+
 
   const handlePerformanceUpdate = useCallback((data: any) => {
     setPerformanceData((prev) => ({ ...prev, ...data, particleCount: estimatedParticleCount }));

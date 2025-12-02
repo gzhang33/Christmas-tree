@@ -14,24 +14,28 @@
     <iWant>to set up the testing framework and prepare video assets</iWant>
     <soThat>the project is stable and supports the new video requirements</soThat>
     <tasks>
-- [ ] Install testing dependencies: `vitest`, `@testing-library/react`, `@testing-library/jest-dom` (AC: 1)
-- [ ] Configure Vitest in `vite.config.ts` or create `vitest.config.ts` (AC: 1)
-- [ ] Uncomment and update `src/store/useStore.test.ts` with proper imports and test setup (AC: 2)
-- [ ] Verify `src/config/assets.ts` contains video paths in `MEMORIES` array (AC: 3)
-- [ ] Fix memory leak in `App.tsx`:
-  - [ ] Add cleanup effect to revoke object URLs when photos are removed or component unmounts (AC: 4)
-  - [ ] Ensure `URL.revokeObjectURL` is called for all created object URLs (AC: 4)
-- [ ] Add `test` script to `package.json` (AC: 5)
-- [ ] Run tests to verify they pass (AC: 2, 5)
+- [ ] Install and configure testing dependencies (AC: 1)
+  - [ ] Install `vitest`, `@testing-library/react`, `jsdom`
+  - [ ] Configure `vite.config.ts` for testing
+  - [ ] Add `test` script to `package.json`
+- [ ] Create unit tests for Global Store (AC: 2)
+  - [ ] Create `src/store/useStore.test.ts`
+  - [ ] Test initial state
+  - [ ] Test actions (`setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`)
+- [ ] Update Asset Configuration (AC: 3)
+  - [ ] Update `Asset` type definition to support `videoUrl`
+  - [ ] Add video paths to `src/config/assets.ts`
+- [ ] Fix Memory Leak in Controls (AC: 4)
+  - [ ] Analyze `src/components/ui/Controls.tsx` for `URL.createObjectURL` usage
+  - [ ] Implement `URL.revokeObjectURL` cleanup in `useEffect` or appropriate lifecycle method
     </tasks>
   </story>
 
   <acceptanceCriteria>
 1. `vitest` and `@testing-library/react` are installed and configured.
-2. `src/store/useStore.test.ts` is uncommented and contains passing unit tests for `useStore`.
-3. `src/config/assets.ts` already includes video file paths in `MEMORIES` array (verified).
-4. The `URL.createObjectURL` memory leak in `App.tsx` is fixed with proper cleanup using `URL.revokeObjectURL`.
-5. A test script is added to `package.json` to run tests.
+2. Unit tests for `useStore` are implemented and passing.
+3. `src/config/assets.ts` is updated to include video file paths (supporting the new video requirement).
+4. The `URL.createObjectURL` memory leak in `src/components/ui/Controls.tsx` is identified and fixed.
   </acceptanceCriteria>
 
   <artifacts>
@@ -53,16 +57,6 @@ Acceptance Criteria:
         </snippet>
       </doc>
       <doc>
-        <path>docs/stories/epic-1-retro-2025-12-02.md</path>
-        <title>Epic 1 Retrospective</title>
-        <section>3. Action Items</section>
-        <snippet>
-Technical Debt &amp; Preparation (For Epic 2):
-1. [Critical] Configure Vitest: Install and configure Vitest to enable unit testing for `useStore` and future physics logic.
-2. [Medium] Memory Leak Fix: Implement `URL.revokeObjectURL` cleanup in `Controls.tsx`.
-        </snippet>
-      </doc>
-      <doc>
         <path>docs/architecture.md</path>
         <title>Architecture Decision Document</title>
         <section>6. Implementation Patterns</section>
@@ -75,50 +69,35 @@ Asset Management:
     </docs>
     <code>
       <item>
-        <path>src/store/useStore.test.ts</path>
-        <kind>file</kind>
-        <symbol>useStore.test</symbol>
-        <lines>1-62</lines>
-        <reason>Test file exists but is commented out. Needs to be uncommented and configured with Vitest.</reason>
-      </item>
-      <item>
         <path>src/App.tsx</path>
         <kind>file</kind>
         <symbol>addPhotos</symbol>
-        <lines>172-178</lines>
-        <reason>Contains `URL.createObjectURL` call without cleanup. Needs `URL.revokeObjectURL` in cleanup effect.</reason>
+        <lines>182-188</lines>
+        <reason>Contains `URL.createObjectURL` call which causes memory leak. Needs cleanup.</reason>
       </item>
       <item>
-        <path>src/config/assets.ts</path>
+        <path>src/components/ui/Controls.tsx</path>
         <kind>file</kind>
-        <symbol>MEMORIES</symbol>
-        <lines>24-38</lines>
-        <reason>Already contains video paths. Needs verification that structure matches requirements.</reason>
+        <symbol>Controls</symbol>
+        <lines>35-39</lines>
+        <reason>Calls `addPhotos` which triggers the memory leak.</reason>
       </item>
       <item>
         <path>package.json</path>
         <kind>file</kind>
-        <symbol>scripts</symbol>
-        <lines>6-10</lines>
-        <reason>Needs `test` script added to run Vitest.</reason>
-      </item>
-      <item>
-        <path>vite.config.ts</path>
-        <kind>file</kind>
-        <symbol>viteConfig</symbol>
-        <reason>May need Vitest configuration added, or separate `vitest.config.ts` created.</reason>
+        <symbol>dependencies</symbol>
+        <lines>11-22</lines>
+        <reason>Needs `vitest` and testing libraries added.</reason>
       </item>
     </code>
     <dependencies>
       <package name="vitest" version="latest" />
       <package name="@testing-library/react" version="latest" />
-      <package name="@testing-library/jest-dom" version="latest" />
-      <package name="zustand" version="^5.0.9" />
+      <package name="jsdom" version="latest" />
     </dependencies>
   </artifacts>
 
   <constraints>
-    <constraint>Vitest should be configured to work with Vite's existing setup.</constraint>
     <constraint>Tests must run in Node.js environment (not browser) for CI/CD compatibility.</constraint>
     <constraint>Memory leak fix must handle both component unmount and photo removal scenarios.</constraint>
     <constraint>Video asset structure in `assets.ts` should support both image and video URLs per memory item.</constraint>
@@ -137,19 +116,6 @@ interface PhotoData {
       <path>src/types.ts</path>
       <reason>Used in `addPhotos` function. May need to extend to support video URLs.</reason>
     </interface>
-    <interface>
-      <name>Memory</name>
-      <kind>type</kind>
-      <signature>
-type Memory = {
-    id: string;
-    image: string;
-    video: string | null;
-}
-      </signature>
-      <path>src/config/assets.ts</path>
-      <reason>Already supports video paths. Structure verified in this story.</reason>
-    </interface>
   </interfaces>
 
   <tests>
@@ -167,9 +133,6 @@ type Memory = {
       Test that `setParticleCount` updates the particle count.
       Test that `triggerExplosion` and `resetExplosion` toggle the explosion state.
       Test that `setActivePhoto` updates the active photo ID.
-      Test that persistence middleware saves and restores state from LocalStorage.
     </ideas>
   </tests>
 </story-context>
-
-

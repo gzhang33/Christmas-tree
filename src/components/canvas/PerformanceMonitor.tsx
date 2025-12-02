@@ -90,8 +90,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     memoryUsage: 0,
   });
 
-  const [isExpanded, setIsExpanded] = useState(true);
-
   // Estimate memory usage
   useEffect(() => {
     // Rough estimate: each particle uses ~64 bytes (position, color, size, etc.)
@@ -130,7 +128,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     </>
   );
 };
-
 // Separate overlay component to be rendered outside Canvas
 export const PerformanceOverlay: React.FC<{
   visible: boolean;

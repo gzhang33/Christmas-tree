@@ -1,6 +1,6 @@
 # Story 2.0: Test Infrastructure & Video Prep
 
-Status: drafted
+Status: review
 
 ## Story
 
@@ -17,20 +17,19 @@ so that the project is stable and supports the new video requirements.
 
 ## Tasks / Subtasks
 
-- [ ] Install and configure testing dependencies (AC: 1)
-  - [ ] Install `vitest`, `@testing-library/react`, `jsdom`
-  - [ ] Configure `vite.config.ts` for testing
-  - [ ] Add `test` script to `package.json`
-- [ ] Create unit tests for Global Store (AC: 2)
-  - [ ] Create `src/store/useStore.test.ts`
-  - [ ] Test initial state
-  - [ ] Test actions (`setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`)
-- [ ] Update Asset Configuration (AC: 3)
-  - [ ] Update `Asset` type definition to support `videoUrl`
-  - [ ] Add video paths to `src/config/assets.ts`
-- [ ] Fix Memory Leak in Controls (AC: 4)
-  - [ ] Analyze `src/components/ui/Controls.tsx` for `URL.createObjectURL` usage
-  - [ ] Implement `URL.revokeObjectURL` cleanup in `useEffect` or appropriate lifecycle method
+- [x] Install and configure testing dependencies (AC: 1)
+  - [x] Install `vitest`, `@testing-library/react`, `jsdom`
+  - [x] Configure `vite.config.ts` for testing
+  - [x] Add `test` script to `package.json`
+- [x] Create unit tests for Global Store (AC: 2)
+  - [x] Create `src/store/useStore.test.ts`
+  - [x] Test initial state
+  - [x] Test actions (`setTreeColor`, `setParticleCount`, `triggerExplosion`, `resetExplosion`)- [x] Update Asset Configuration (AC: 3)
+  - [x] Update `Asset` type definition to support `videoUrl`
+  - [x] Add video paths to `src/config/assets.ts`
+- [x] Fix Memory Leak in Controls (AC: 4)
+  - [x] Analyze `src/components/ui/Controls.tsx` for `URL.createObjectURL` usage
+  - [x] Implement `URL.revokeObjectURL` cleanup in `useEffect` or appropriate lifecycle method
 
 ## Dev Notes
 
@@ -64,7 +63,7 @@ so that the project is stable and supports the new video requirements.
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- [Context File](docs/stories/2-0-test-infra.context.xml)
 
 ### Agent Model Used
 
@@ -75,3 +74,15 @@ so that the project is stable and supports the new video requirements.
 ### Completion Notes List
 
 ### File List
+- vite.config.ts
+- package.json
+- src/store/useStore.test.ts
+- src/test/setup.ts
+- src/types.ts
+- src/config/assets.ts
+- src/config/assets.test.ts
+- src/hooks/usePhotos.ts
+- src/hooks/usePhotos.test.ts
+- src/App.tsx
+- docs/stories/sprint-status.yaml
+- docs/stories/2-0-test-infra.md

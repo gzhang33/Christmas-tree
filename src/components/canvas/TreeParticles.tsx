@@ -163,6 +163,61 @@ const getLODLevel = (cameraDistance: number): LODLevel => {
   return LOD_LEVELS[LOD_LEVELS.length - 1];
 };
 
+// === PARTICLE RESOURCE ALLOCATION CONFIGURATION ===
+// UI/UX Design: Centralized resource distribution for all visual elements
+// Total allocation must equal 100% of config.particleCount
+// 
+// Design rationale:
+// - Entity Layer (55%): Primary visual element, tree body needs substantial particles for density
+// - Glow Layer (20%): Atmospheric enhancement, additive blending creates visual impact with fewer particles
+// - Ornaments (15%): Decorative elements distributed across tree, need sufficient density for visibility
+// - Crown (5%): Top focal point, smaller area but needs detail for visual prominence
+// - Gifts (5%): Bottom elements, supporting role, balanced but not overwhelming
+//
+// To modify allocations: Update the values below ensuring they sum to 1.0 (100%)
+const PARTICLE_ALLOCATION = {
+  // Main tree body layers (75% total)
+  entityLayer: 0.55,      // 55% - Tree body particles (Normal blending)
+  glowLayer: 0.20,         // 20% - Atmospheric glow particles (Additive blending)
+
+  // Decoration elements (25% total)
+  decorations: {
+    ornaments: 0.15,       // 15% - British themed ornaments and pearl strings
+    crown: 0.05,           // 5% - Crystal crown topper
+    gifts: 0.05,           // 5% - Gift boxes at base
+  },
+} as const;
+
+// Validation: Ensure total equals 100%
+const TOTAL_ALLOCATION =
+  PARTICLE_ALLOCATION.entityLayer +
+  PARTICLE_ALLOCATION.glowLayer +
+  PARTICLE_ALLOCATION.decorations.ornaments +
+  PARTICLE_ALLOCATION.decorations.crown +
+  PARTICLE_ALLOCATION.decorations.gifts;
+
+if (Math.abs(TOTAL_ALLOCATION - 1.0) > 0.001) {
+  console.warn(
+    `Particle allocation error: Total is ${(TOTAL_ALLOCATION * 100).toFixed(2)}%, expected 100%. ` +
+    `Please adjust PARTICLE_ALLOCATION values to sum to 1.0.`
+  );
+}
+
+// Decoration sub-allocation ratios (for internal decoration distribution)
+// These ratios determine how decoration particles are split among ornament types
+// Original historical ratios: ornaments 3000, crown 1800, gifts 5500 (total 10300)
+// Normalized to: 30:18:55 (simplified from 3000:1800:5500)
+const DECORATION_RATIOS = {
+  ornaments: 30,
+  crown: 18,
+  gifts: 55,
+} as const;
+
+const DECORATION_TOTAL =
+  DECORATION_RATIOS.ornaments +
+  DECORATION_RATIOS.crown +
+  DECORATION_RATIOS.gifts;
+
 // === MAIN COMPONENT ===
 export const TreeParticles: React.FC<TreeParticlesProps> = ({
   isExploded,
@@ -197,11 +252,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
   }, [config.treeColor]);
 
-  // === ENTITY LAYER (70% - Normal Blending) ===
+  // === ENTITY LAYER (Normal Blending) ===
   const entityLayerData = useMemo(() => {
-    // Remove the hardcoded minimum of 20000 to allow lower particle counts
-    const totalParticles = Math.max(config.particleCount * 1.5, 1000);
-    const count = Math.floor(totalParticles * 0.7); // 70% for entity layer
+    // Use centralized allocation configuration
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.entityLayer);
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -272,10 +326,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
   }, [config.particleCount, config.explosionRadius, themeColors]);
 
-  // === GLOW LAYER (30% - Additive Blending) ===
+  // === GLOW LAYER (Additive Blending) ===
   const glowLayerData = useMemo(() => {
-    const totalParticles = Math.max(config.particleCount * 1.5, 1000);
-    const count = Math.floor(totalParticles * 0.3); // 30% for glow layer
+    // Use centralized allocation configuration
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.glowLayer);
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -341,7 +395,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   // === ORNAMENTS - British themed with distribution algorithm ===
   const ornamentData = useMemo(() => {
-    const count = 3000;
+    // Use centralized allocation configuration
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.decorations.ornaments);
+
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -351,7 +407,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const treeHeight = 14;
     const treeBottom = -5.5;
 
-    // Generate ornament clusters
+    // Generate ornament clusters (scale cluster count with particle count)
+    // Original design: 80 clusters for 3000 particles
+    // Scale proportionally to maintain visual density
+    const baseClusterCount = 80;
+    const baseParticleCount = 3000;
+    const clusterCount = Math.max(20, Math.floor(baseClusterCount * (count / baseParticleCount)));
     const clusters: Array<{
       y: number;
       angle: number;
@@ -359,7 +420,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       baseSize: number;
     }> = [];
 
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < clusterCount; i++) {
       const t = 0.05 + Math.random() * 0.9;
       const y = treeBottom + t * treeHeight;
       const heightRatio = t;
@@ -372,8 +433,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     let idx = 0;
 
-    // Pearl strings spiraling around tree
-    const pearlCount = 1400;
+    // Pearl strings spiraling around tree (scale with count)
+    // Original design: 1400 pearls for 3000 total ornament particles
+    const basePearlCount = 1400;
+    const baseOrnamentCount = 3000;
+    const pearlCount = Math.floor(count * (basePearlCount / baseOrnamentCount));
     for (let i = 0; i < pearlCount; i++) {
       if (idx >= count) break;
       const t = i / pearlCount;
@@ -407,7 +471,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     // British themed ornament clusters
     clusters.forEach((cluster) => {
-      const particlesPerCluster = 18;
+      // Scale particles per cluster based on available count
+      // Original design: 18 particles per cluster for 3000 total
+      const baseParticlesPerCluster = 18;
+      const baseOrnamentCount = 3000;
+      const particlesPerCluster = Math.max(3, Math.floor(baseParticlesPerCluster * (count / baseOrnamentCount)));
       const baseR = (1 - (cluster.y + 5.5) / treeHeight) * 5 + 0.5;
       const cx = Math.cos(cluster.angle) * baseR;
       const cz = Math.sin(cluster.angle) * baseR;
@@ -467,11 +535,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius, themeColors]);
+  }, [config.particleCount, config.explosionRadius, themeColors]);
 
   // === CRYSTAL CROWN - Enhanced with HDR glow ===
   const crownData = useMemo(() => {
-    const count = 1800;
+    // Use centralized allocation configuration
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.decorations.crown);
+
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -481,10 +551,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const crownY = 8.8;
     let idx = 0;
 
-    // Crown base ring
-    for (let i = 0; i < 350; i++) {
+    // Crown base ring (scale with count)
+    // Original design: 350 base ring particles for 1800 total crown particles
+    const baseRingParticleCount = 350;
+    const baseCrownCount = 1800;
+    const baseRingCount = Math.max(50, Math.floor(baseRingParticleCount * (count / baseCrownCount)));
+    for (let i = 0; i < baseRingCount; i++) {
       if (idx >= count) break;
-      const theta = (i / 350) * Math.PI * 2;
+      const theta = (i / baseRingCount) * Math.PI * 2;
       const r = 0.5 + Math.random() * 0.1;
       const x = Math.cos(theta) * r;
       const z = Math.sin(theta) * r;
@@ -510,12 +584,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       idx++;
     }
 
-    // Crown arches (8 points)
+    // Crown arches (8 points, scale arch particles with count)
+    // Original design: 100 particles per arch for 1800 total crown particles
+    const baseArchParticleCount = 100;
+    const archParticleCount = Math.max(10, Math.floor(baseArchParticleCount * (count / baseCrownCount)));
     for (let arch = 0; arch < 8; arch++) {
       const baseAngle = (arch / 8) * Math.PI * 2;
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < archParticleCount; i++) {
         if (idx >= count) break;
-        const t = i / 100;
+        const t = i / archParticleCount;
         const archHeight = Math.sin(t * Math.PI) * 0.9;
         const archRadius = 0.5 * (1 - t * 0.3);
 
@@ -575,11 +652,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
-  }, [config.explosionRadius]);
+  }, [config.particleCount, config.explosionRadius]);
 
   // === GIFT BOXES ===
   const giftData = useMemo(() => {
-    const count = 5500;
+    // Use centralized allocation configuration
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.decorations.gifts);
+
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
@@ -660,7 +739,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius, themeColors]);
+  }, [config.particleCount, config.explosionRadius, themeColors]);
 
   // === ANIMATION FRAME ===
   const { camera } = useThree();
@@ -684,11 +763,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const lerpSpeed = isExploded ? 0.02 : 0.04;
 
     layers.forEach(({ ref, tTree, tGalaxy, flickerPhase }) => {
-      if (!ref.current) return;
+      if (!ref.current || !ref.current.geometry || !ref.current.geometry.attributes.position) return;
 
       const currentPos = ref.current.geometry.attributes.position.array as Float32Array;
       const target = isExploded ? tGalaxy : tTree;
-      const len = Math.min(currentPos.length, target.length);
+
+      // Ensure arrays match in size to prevent buffer size mismatch errors
+      if (currentPos.length !== target.length) return;
+
+      const len = currentPos.length;
 
       // Position interpolation
       for (let i = 0; i < len; i++) {
@@ -701,16 +784,19 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         const colors = ref.current.geometry.attributes.color.array as Float32Array;
         const baseCols = glowLayerData.colors;
 
-        for (let i = 0; i < flickerPhase.length; i++) {
-          // Flicker frequency: 2-5Hz
-          const freq = 2 + (flickerPhase[i] % 1) * 3;
-          const flicker = 0.7 + Math.sin(time * freq * Math.PI * 2 + flickerPhase[i]) * 0.3;
+        // Ensure arrays match in size
+        if (colors.length === baseCols.length && flickerPhase.length * 3 === colors.length) {
+          for (let i = 0; i < flickerPhase.length; i++) {
+            // Flicker frequency: 2-5Hz
+            const freq = 2 + (flickerPhase[i] % 1) * 3;
+            const flicker = 0.7 + Math.sin(time * freq * Math.PI * 2 + flickerPhase[i]) * 0.3;
 
-          colors[i * 3] = baseCols[i * 3] * flicker;
-          colors[i * 3 + 1] = baseCols[i * 3 + 1] * flicker;
-          colors[i * 3 + 2] = baseCols[i * 3 + 2] * flicker;
+            colors[i * 3] = baseCols[i * 3] * flicker;
+            colors[i * 3 + 1] = baseCols[i * 3 + 1] * flicker;
+            colors[i * 3 + 2] = baseCols[i * 3 + 2] * flicker;
+          }
+          ref.current.geometry.attributes.color.needsUpdate = true;
         }
-        ref.current.geometry.attributes.color.needsUpdate = true;
       }
 
       // Rotation
@@ -764,7 +850,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </points>
 
       {/* Ornaments and pearls */}
-      <points ref={ornamentsRef}>
+      <points key={`ornaments-${treeKey}`} ref={ornamentsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={ornamentData.count} array={ornamentData.positions} itemSize={3} />
           <bufferAttribute attach="attributes-color" count={ornamentData.count} array={ornamentData.colors} itemSize={3} />
@@ -784,7 +870,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </points>
 
       {/* Crown topper */}
-      <points ref={crownRef}>
+      <points key={`crown-${treeKey}`} ref={crownRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={crownData.count} array={crownData.positions} itemSize={3} />
           <bufferAttribute attach="attributes-color" count={crownData.count} array={crownData.colors} itemSize={3} />
@@ -804,7 +890,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </points>
 
       {/* Gift boxes */}
-      <points ref={giftsRef}>
+      <points key={`gifts-${treeKey}`} ref={giftsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={giftData.count} array={giftData.positions} itemSize={3} />
           <bufferAttribute attach="attributes-color" count={giftData.count} array={giftData.colors} itemSize={3} />

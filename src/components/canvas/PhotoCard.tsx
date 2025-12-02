@@ -20,14 +20,24 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       setVisible(false);
       return;
     }
+    
+    let loadedTexture: THREE.Texture | null = null;
+    
     const loader = new THREE.TextureLoader();
     loader.load(url, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
+      loadedTexture = tex;
       setTexture(tex);
       setVisible(true);
     });
+    
+    // 清理函数：组件卸载时释放纹理资源
+    return () => {
+      if (loadedTexture) {
+        loadedTexture.dispose();
+      }
+    };
   }, [url, isExploded]);
-
   useFrame((state) => {
     if (!groupRef.current) return;
 

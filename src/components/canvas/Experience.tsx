@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { Snow } from './Snow.tsx';
@@ -24,6 +24,17 @@ interface ExperienceProps {
 const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
   const lightRef = useRef<THREE.PointLight>(null);
   const spotRef = useRef<THREE.SpotLight>(null);
+  const target = useMemo(() => {
+    const obj = new THREE.Object3D();
+    obj.position.set(0, -15, 0);
+    return obj;
+  }, []);
+
+  useEffect(() => {
+    if (spotRef.current) {
+      spotRef.current.target = target;
+    }
+  }, [target]);
 
   useFrame((state) => {
     if (!isExploded) {
@@ -65,7 +76,6 @@ const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
       <spotLight
         ref={spotRef}
         position={[0, 4, 0]}
-        target-position={[0, -15, 0]}
         color="#FFFFFF"
         intensity={2.5}
         angle={0.5}
@@ -73,6 +83,7 @@ const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
         decay={1.2}
         distance={25}
       />
+      <primitive object={target} />
     </group>
   );
 };
@@ -80,6 +91,22 @@ const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
 // Volumetric light rays component
 const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
   const raysRef = useRef<THREE.Group>(null);
+  const spotRefs = [useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null)];
+  const targets = useMemo(() => {
+    return [0, 1, 2, 3].map(() => {
+      const obj = new THREE.Object3D();
+      obj.position.set(0, -5, 0);
+      return obj;
+    });
+  }, []);
+
+  useEffect(() => {
+    spotRefs.forEach((spotRef, i) => {
+      if (spotRef.current) {
+        spotRef.current.target = targets[i];
+      }
+    });
+  }, [targets]);
 
   useFrame((state) => {
     if (raysRef.current && !isExploded) {
@@ -97,12 +124,12 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
         return (
           <spotLight
             key={i}
+            ref={spotRefs[i]}
             position={[
               Math.cos(angle) * 3,
               12,
               Math.sin(angle) * 3,
             ]}
-            target-position={[0, -5, 0]}
             color="#FFF0F5"
             intensity={0.4}
             angle={0.15}
@@ -112,12 +139,57 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
           />
         );
       })}
+      {targets.map((target, i) => (
+        <primitive key={`target-${i}`} object={target} />
+      ))}
     </group>
   );
 };
-
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
+  
+  // SpotLight refs
+  const mainSpotRef = useRef<THREE.SpotLight>(null);
+  const rimLightRef = useRef<THREE.SpotLight>(null);
+  const backRimRef = useRef<THREE.SpotLight>(null);
+  const topAccentRef = useRef<THREE.SpotLight>(null);
+
+  // Target objects for spotlights
+  const mainSpotTarget = useMemo(() => {
+    const obj = new THREE.Object3D();
+    obj.position.set(0, 0, 0);
+    return obj;
+  }, []);
+  const rimLightTarget = useMemo(() => {
+    const obj = new THREE.Object3D();
+    obj.position.set(0, 0, 0);
+    return obj;
+  }, []);
+  const backRimTarget = useMemo(() => {
+    const obj = new THREE.Object3D();
+    obj.position.set(0, 0, 0);
+    return obj;
+  }, []);
+  const topAccentTarget = useMemo(() => {
+    const obj = new THREE.Object3D();
+    obj.position.set(0, 9, 0);
+    return obj;
+  }, []);
+
+  useEffect(() => {
+    if (mainSpotRef.current) {
+      mainSpotRef.current.target = mainSpotTarget;
+    }
+    if (rimLightRef.current) {
+      rimLightRef.current.target = rimLightTarget;
+    }
+    if (backRimRef.current) {
+      backRimRef.current.target = backRimTarget;
+    }
+    if (topAccentRef.current) {
+      topAccentRef.current.target = topAccentTarget;
+    }
+  }, [mainSpotTarget, rimLightTarget, backRimTarget, topAccentTarget]);
 
   // Universe Photos positions
   const photoPositions = useMemo(() => {
@@ -144,158 +216,165 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
   return (
     <>
-      <OrbitControls
-        enablePan={false}
-        minDistance={10}
-        maxDistance={50}
-        autoRotate={isExploded}
-        autoRotateSpeed={0.3}
-        enableZoom={true}
-        maxPolarAngle={Math.PI / 2 - 0.02}
+    <OrbitControls
+      enablePan={false}
+      minDistance={10}
+      maxDistance={50}
+      autoRotate={isExploded}
+      autoRotateSpeed={0.3}
+      enableZoom={true}
+      maxPolarAngle={Math.PI / 2 - 0.02}
+    />
+
+    {/* === CINEMATIC LIGHTING SETUP (Per Specification) === */}
+
+    {/* Ambient Light - #FFFFFF intensity 0.15 */}
+    <ambientLight intensity={0.15} color="#FFFFFF" />
+
+    {/* 1. Main Spotlight - Position [-5, 10, -5], Color #FFB7C5, Intensity 1.2 */}
+    <spotLight
+      ref={mainSpotRef}
+      position={[-5, 10, -5]}
+      intensity={1.2}
+      color="#FFB7C5"
+      angle={0.7}
+      penumbra={1}
+      decay={1.5}
+      distance={50}
+      castShadow={false}
+    />
+    <primitive object={mainSpotTarget} />
+
+    {/* 2. Rim Light - Position [5, 8, 5], Color #E0F7FA, Intensity 0.8 */}
+    <spotLight
+      ref={rimLightRef}
+      position={[5, 8, 5]}
+      intensity={0.8}
+      color="#E0F7FA"
+      angle={0.6}
+      penumbra={1}
+      decay={1.5}
+      distance={40}
+    />
+    <primitive object={rimLightTarget} />
+
+    {/* 3. Fill Light - Soft pink from opposite side */}
+    <pointLight
+      position={[-10, 5, 10]}
+      intensity={1.2}
+      color="#FFB6C1"
+      distance={30}
+      decay={2}
+    />
+
+    {/* 4. Base/Gift Lighting - Warm accent from below */}
+    <pointLight
+      position={[0, -4, 8]}
+      intensity={1.8}
+      color="#FFC0CB"
+      distance={18}
+      decay={2}
+    />
+
+    {/* 5. Back Rim - Separation light */}
+    <spotLight
+      ref={backRimRef}
+      position={[-12, 6, -12]}
+      intensity={2.0}
+      color="#E6E6FA"
+      angle={0.5}
+      penumbra={1}
+      decay={1.5}
+      distance={35}
+    />
+    <primitive object={backRimTarget} />
+
+    {/* 6. Top Accent - Crown highlight */}
+    <spotLight
+      ref={topAccentRef}
+      position={[0, 22, 4]}
+      intensity={1.8}
+      color="#FFFFFF"
+      angle={0.25}
+      penumbra={0.9}
+      decay={1}
+      distance={30}
+    />
+    <primitive object={topAccentTarget} />
+
+    {/* Crown Glow Effect (Volumetric simulation) */}
+    <CrownGlow isExploded={isExploded} />
+
+    {/* Volumetric Light Rays */}
+    <VolumetricRays isExploded={isExploded} />
+
+    {/* === ENVIRONMENT === */}
+
+    {/* Deep space stars */}
+    <Stars
+      radius={150}
+      depth={60}
+      count={6000}
+      factor={4}
+      saturation={0.1}
+      fade
+      speed={0.3}
+    />
+
+    {/* Snow particles */}
+    <Snow count={Math.floor(config.snowDensity)} />
+
+    {/* Magic dust and fairy particles */}
+    <MagicDust count={1200} isExploded={isExploded} />
+
+    {/* === THE TREE === */}
+    <TreeParticles
+      isExploded={isExploded}
+      config={config}
+      onParticlesClick={toggleExplosion}
+    />
+
+    {/* === PHOTO CARDS (Exploded Universe) === */}
+    <group>
+      {photoPositions.map((data, i) => {
+        const photoUrl =
+          photos.length > 0
+            ? photos[i % photos.length].url
+            : `https://picsum.photos/seed/${i + 999}/300/360`;
+
+        return (
+          <PhotoCard
+            key={i}
+            url={photoUrl}
+            position={data.pos}
+            rotation={data.rot}
+            scale={config.photoSize}
+            isExploded={isExploded}
+          />
+        );
+      })}
+    </group>
+
+    {/* === FLOOR === */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.6, 0]} receiveShadow>
+      <circleGeometry args={[25, 64]} />
+      <meshStandardMaterial
+        color="#050001"
+        metalness={0.7}
+        roughness={0.3}
+        envMapIntensity={0.5}
       />
+    </mesh>
 
-      {/* === CINEMATIC LIGHTING SETUP (Per Specification) === */}
-
-      {/* Ambient Light - #FFFFFF intensity 0.15 */}
-      <ambientLight intensity={0.15} color="#FFFFFF" />
-
-      {/* 1. Main Spotlight - Position [-5, 10, -5], Color #FFB7C5, Intensity 1.2 */}
-      <spotLight
-        position={[-5, 10, -5]}
-        intensity={1.2}
-        color="#FFB7C5"
-        angle={0.7}
-        penumbra={1}
-        decay={1.5}
-        distance={50}
-        castShadow={false}
+    {/* Floor reflection glow */}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.55, 0]}>
+      <circleGeometry args={[8, 32]} />
+      <meshBasicMaterial
+        color="#3D1A2A"
+        transparent
+        opacity={0.3}
       />
-
-      {/* 2. Rim Light - Position [5, 8, 5], Color #E0F7FA, Intensity 0.8 */}
-      <spotLight
-        position={[5, 8, 5]}
-        intensity={0.8}
-        color="#E0F7FA"
-        angle={0.6}
-        penumbra={1}
-        decay={1.5}
-        distance={40}
-      />
-
-      {/* 3. Fill Light - Soft pink from opposite side */}
-      <pointLight
-        position={[-10, 5, 10]}
-        intensity={1.2}
-        color="#FFB6C1"
-        distance={30}
-        decay={2}
-      />
-
-      {/* 4. Base/Gift Lighting - Warm accent from below */}
-      <pointLight
-        position={[0, -4, 8]}
-        intensity={1.8}
-        color="#FFC0CB"
-        distance={18}
-        decay={2}
-      />
-
-      {/* 5. Back Rim - Separation light */}
-      <spotLight
-        position={[-12, 6, -12]}
-        intensity={2.0}
-        color="#E6E6FA"
-        angle={0.5}
-        penumbra={1}
-        decay={1.5}
-        distance={35}
-      />
-
-      {/* 6. Top Accent - Crown highlight */}
-      <spotLight
-        position={[0, 22, 4]}
-        target-position={[0, 9, 0]}
-        intensity={1.8}
-        color="#FFFFFF"
-        angle={0.25}
-        penumbra={0.9}
-        decay={1}
-        distance={30}
-      />
-
-      {/* Crown Glow Effect (Volumetric simulation) */}
-      <CrownGlow isExploded={isExploded} />
-
-      {/* Volumetric Light Rays */}
-      <VolumetricRays isExploded={isExploded} />
-
-      {/* === ENVIRONMENT === */}
-
-      {/* Deep space stars */}
-      <Stars
-        radius={150}
-        depth={60}
-        count={6000}
-        factor={4}
-        saturation={0.1}
-        fade
-        speed={0.3}
-      />
-
-      {/* Snow particles */}
-      <Snow count={Math.floor(config.snowDensity)} />
-
-      {/* Magic dust and fairy particles */}
-      <MagicDust count={1200} isExploded={isExploded} />
-
-      {/* === THE TREE === */}
-      <TreeParticles
-        isExploded={isExploded}
-        config={config}
-        onParticlesClick={toggleExplosion}
-      />
-
-      {/* === PHOTO CARDS (Exploded Universe) === */}
-      <group>
-        {photoPositions.map((data, i) => {
-          const photoUrl =
-            photos.length > 0
-              ? photos[i % photos.length].url
-              : `https://picsum.photos/seed/${i + 999}/300/360`;
-
-          return (
-            <PhotoCard
-              key={i}
-              url={photoUrl}
-              position={data.pos}
-              rotation={data.rot}
-              scale={config.photoSize}
-              isExploded={isExploded}
-            />
-          );
-        })}
-      </group>
-
-      {/* === FLOOR === */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.6, 0]} receiveShadow>
-        <circleGeometry args={[25, 64]} />
-        <meshStandardMaterial
-          color="#050001"
-          metalness={0.7}
-          roughness={0.3}
-          envMapIntensity={0.5}
-        />
-      </mesh>
-
-      {/* Floor reflection glow */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.55, 0]}>
-        <circleGeometry args={[8, 32]} />
-        <meshBasicMaterial
-          color="#3D1A2A"
-          transparent
-          opacity={0.3}
-        />
-      </mesh>
-    </>
-  );
+    </mesh>
+  </>
+);
 };
