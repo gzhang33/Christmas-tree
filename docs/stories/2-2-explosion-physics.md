@@ -1,6 +1,6 @@
 # Story 2.2: Explosion Physics & Shader Upgrade
 
-**Status:** drafted
+**Status:** ready-for-dev
 
 ## Story
 
@@ -18,20 +18,20 @@
 
 ## Tasks / Subtasks
 
-- [ ] **Shader Development**
-    - [ ] Create `src/shaders/particle.vert` implementing Quadratic Bezier interpolation (Start -> Control -> End).
-    - [ ] Create `src/shaders/particle.frag` handling basic color rendering (will be enhanced in 2.3).
-- [ ] **Component Update (`TreeParticles.tsx`)**
-    - [ ] Calculate `positionStart` (current tree positions).
-    - [ ] Calculate `positionEnd` (random floating positions in a cloud).
-    - [ ] Calculate `controlPoint` (Start + Explosion Vector) for the Bezier curve.
-    - [ ] Pass these as attributes to the `ShaderMaterial`.
-    - [ ] Pass uniforms: `uProgress`, `uTime`, `uColor` (base color).
-    - [ ] Implement `useFrame` loop to interpolate `uProgress` based on `isExploded` state (using damping/lerp).
-- [ ] **Integration & Verification**
-    - [ ] Connect `useStore` `isExploded` state.
-    - [ ] Verify explosion animation smoothness (>30fps).
-    - [ ] Verify "Implosion" (returning to tree) works by reversing `uProgress`.
+- [x] **Shader Development**
+    - [x] Create `src/shaders/particle.vert` implementing Quadratic Bezier interpolation (Start -> Control -> End).
+    - [x] Create `src/shaders/particle.frag` handling basic color rendering (will be enhanced in 2.3).
+- [x] **Component Update (`TreeParticles.tsx`)**
+    - [x] Calculate `positionStart` (current tree positions).
+    - [x] Calculate `positionEnd` (random floating positions in a cloud).
+    - [x] Calculate `controlPoint` (Start + Explosion Vector) for the Bezier curve.
+    - [x] Pass these as attributes to the `ShaderMaterial`.
+    - [x] Pass uniforms: `uProgress`, `uTime`, `uColor` (base color).
+    - [x] Implement `useFrame` loop to interpolate `uProgress` based on `isExploded` state (using damping/lerp).
+- [x] **Integration & Verification**
+    - [x] Connect `useStore` `isExploded` state.
+    - [x] Verify explosion animation smoothness (>30fps).
+    - [x] Verify "Implosion" (returning to tree) works by reversing `uProgress`.
 
 ## Dev Notes
 
