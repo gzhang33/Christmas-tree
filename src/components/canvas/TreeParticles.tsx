@@ -3,20 +3,38 @@ import { useFrame, useThree, extend } from '@react-three/fiber';
 import * as THREE from 'three';
 import { shaderMaterial } from '@react-three/drei';
 import { AppConfig } from '../../types.ts';
+import { useStore } from '../../store/useStore';
 import particleVertexShader from '../../shaders/particle.vert?raw';
 import particleFragmentShader from '../../shaders/particle.frag?raw';
 
-const ExplosionMaterial = shaderMaterial(
-  {
-    uTime: 0,
-    uProgress: 0,
-    uColor: new THREE.Color(),
-  },
-  particleVertexShader,
-  particleFragmentShader
-);
+// Create shader material with error handling
+let ExplosionMaterial: ReturnType<typeof shaderMaterial>;
+let shaderCompilationFailed = false;
 
-extend({ ExplosionMaterial });
+try {
+  ExplosionMaterial = shaderMaterial(
+    {
+      uTime: 0,
+      uProgress: 0,
+      uColor: new THREE.Color(),
+    },
+    particleVertexShader,
+    particleFragmentShader
+  );
+  extend({ ExplosionMaterial });
+} catch (error) {
+  console.error('[TreeParticles] Shader compilation failed:', error);
+  shaderCompilationFailed = true;
+  // Fallback: create a basic material that won't crash the app
+  ExplosionMaterial = shaderMaterial(
+    { uTime: 0, uProgress: 0, uColor: new THREE.Color() },
+    // Minimal vertex shader
+    `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = 5.0; }`,
+    // Minimal fragment shader
+    `void main() { gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0); }`
+  );
+  extend({ ExplosionMaterial });
+}
 
 // Add type definition for the new material
 declare global {
@@ -242,6 +260,16 @@ const DECORATION_TOTAL =
   DECORATION_RATIOS.crown +
   DECORATION_RATIOS.gifts;
 
+// === EXPLOSION PHYSICS CONFIGURATION ===
+// Control point distance affects the arc trajectory of the explosion
+// - Base distance: minimum distance for control point from particle position
+// - Random factor: additional random distance for variation
+// These values are now derived from config.explosionRadius for consistency
+const getControlPointDistance = (explosionRadius: number): { base: number; randomFactor: number } => ({
+  base: explosionRadius * 0.25,           // 25% of explosion radius as base
+  randomFactor: explosionRadius * 0.5,    // Additional 0-50% random variation
+});
+
 // === MAIN COMPONENT ===
 export const TreeParticles: React.FC<TreeParticlesProps> = ({
   isExploded,
@@ -327,7 +355,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const dirX = x / len;
       const dirY = finalY / len;
       const dirZ = z / len;
-      const dist = 5.0 + Math.random() * 10.0;
+      const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
       controlPoint[i * 3] = x + dirX * dist;
       controlPoint[i * 3 + 1] = finalY + dirY * dist;
       controlPoint[i * 3 + 2] = z + dirZ * dist;
@@ -393,7 +422,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Control Point
       const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const dist = 5.0 + Math.random() * 10.0;
+      const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
       controlPoint[i * 3] = x + (x / len) * dist;
       controlPoint[i * 3 + 1] = y + (y / len) * dist;
       controlPoint[i * 3 + 2] = z + (z / len) * dist;
@@ -487,7 +517,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Control Point
       const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const dist = 5.0 + Math.random() * 10.0;
+      const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
       controlPoint[idx * 3] = x + (x / len) * dist;
       controlPoint[idx * 3 + 1] = y + (y / len) * dist;
       controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -533,7 +564,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
         // Control Point
         const len = Math.sqrt(x * x + y * y + z * z) || 1;
-        const dist = 5.0 + Math.random() * 10.0;
+        const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = x + (x / len) * dist;
         controlPoint[idx * 3 + 1] = y + (y / len) * dist;
         controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -612,7 +644,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Control Point
       const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const dist = 5.0 + Math.random() * 10.0;
+      const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
       controlPoint[idx * 3] = x + (x / len) * dist;
       controlPoint[idx * 3 + 1] = y + (y / len) * dist;
       controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -652,7 +685,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
         // Control Point
         const len = Math.sqrt(x * x + y * y + z * z) || 1;
-        const dist = 5.0 + Math.random() * 10.0;
+        const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = x + (x / len) * dist;
         controlPoint[idx * 3 + 1] = y + (y / len) * dist;
         controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -689,7 +723,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Control Point
       const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const dist = 5.0 + Math.random() * 10.0;
+      const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
       controlPoint[i * 3] = x + (x / len) * dist;
       controlPoint[i * 3 + 1] = y + (y / len) * dist;
       controlPoint[i * 3 + 2] = z + (z / len) * dist;
@@ -778,7 +813,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
         // Control Point
         const len = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
-        const dist = 5.0 + Math.random() * 10.0;
+        const cpDist = getControlPointDistance(config.explosionRadius);
+      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = fx + (fx / len) * dist;
         controlPoint[idx * 3 + 1] = fy + (fy / len) * dist;
         controlPoint[idx * 3 + 2] = fz + (fz / len) * dist;
@@ -805,8 +841,47 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Refs for materials to update uniforms
   const materialsRef = useRef<THREE.ShaderMaterial[]>([]);
 
+  // Performance monitoring refs
+  const wasExplodedRef = useRef(isExploded);
+  const frameCountRef = useRef(0);
+  const lastFpsTimeRef = useRef(performance.now());
+  
+  // Get FPS update function from store
+  const setFps = useStore((state) => state.setFps);
+
+  // Cache for uColor to avoid unnecessary updates
+  const lastColorRef = useRef<string>('');
+
   useFrame((state) => {
     const time = state.clock.elapsedTime;
+
+    // Reset FPS when explosion state changes from true to false
+    if (wasExplodedRef.current && !isExploded) {
+      setFps(null);
+      wasExplodedRef.current = false;
+      frameCountRef.current = 0;
+      lastFpsTimeRef.current = performance.now();
+    } else if (!wasExplodedRef.current && isExploded) {
+      wasExplodedRef.current = true;
+      frameCountRef.current = 0;
+      lastFpsTimeRef.current = performance.now();
+    }
+
+    // Performance monitoring: update FPS in store once per second during explosion
+    // This allows F4 debug panel to display FPS without console output
+    if (isExploded) {
+      frameCountRef.current++;
+      const now = performance.now();
+      const deltaTime = now - lastFpsTimeRef.current;
+      
+      // Update FPS every second (1000ms)
+      if (deltaTime >= 1000) {
+        const fps = Math.round((frameCountRef.current * 1000) / deltaTime);
+        setFps(fps);
+        frameCountRef.current = 0;
+        lastFpsTimeRef.current = now;
+      }
+    }
 
     // Update LOD based on camera distance
     const cameraDistance = camera.position.length();
@@ -814,6 +889,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     // Update uniforms
     const targetProgress = isExploded ? 1.0 : 0.0;
+
+    // Check if color has changed to avoid unnecessary uniform updates
+    const colorChanged = lastColorRef.current !== config.treeColor;
+    if (colorChanged) {
+      lastColorRef.current = config.treeColor;
+    }
 
     // Smoothly interpolate uProgress
     // We can use a shared value or update each material
@@ -828,7 +909,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           targetProgress,
           isExploded ? 0.02 : 0.04
         );
-        mat.uniforms.uColor.value.set(config.treeColor);
+        // Only update uColor when it changes
+        if (colorChanged) {
+          mat.uniforms.uColor.value.set(config.treeColor);
+        }
       }
     });
 

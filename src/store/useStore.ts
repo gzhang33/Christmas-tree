@@ -13,6 +13,10 @@ export interface AppState {
     particleCount: number;
     isExploded: boolean;
     activePhotoId: string | null;
+    
+    // Performance monitoring (runtime only, not persisted)
+    currentFps: number | null;
+    isLowFps: boolean;
 
     // Actions
     setTreeColor: (color: string) => void;
@@ -20,6 +24,7 @@ export interface AppState {
     triggerExplosion: () => void;
     resetExplosion: () => void;
     setActivePhoto: (id: string | null) => void;
+    setFps: (fps: number) => void;
 }
 
 /**
@@ -41,6 +46,10 @@ export const useStore = create<AppState>()(
             particleCount: 18000, // Default particle count
             isExploded: false,
             activePhotoId: null,
+            
+            // Performance monitoring (runtime only)
+            currentFps: null,
+            isLowFps: false,
 
             // Actions
             setTreeColor: (color) => set({ treeColor: color }),
@@ -48,6 +57,10 @@ export const useStore = create<AppState>()(
             triggerExplosion: () => set({ isExploded: true }),
             resetExplosion: () => set({ isExploded: false }),
             setActivePhoto: (id) => set({ activePhotoId: id }),
+            setFps: (fps) => set({ 
+                currentFps: fps, 
+                isLowFps: fps < 30 
+            }),
         }),
         {
             name: 'christmas-tree-storage', // LocalStorage key

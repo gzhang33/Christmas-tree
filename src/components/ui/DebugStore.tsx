@@ -20,6 +20,8 @@ export const DebugStore: React.FC = () => {
     const particleCount = useStore((state) => state.particleCount);
     const isExploded = useStore((state) => state.isExploded);
     const activePhotoId = useStore((state) => state.activePhotoId);
+    const currentFps = useStore((state) => state.currentFps);
+    const isLowFps = useStore((state) => state.isLowFps);
 
     // Subscribe to actions
     const setTreeColor = useStore((state) => state.setTreeColor);
@@ -75,6 +77,24 @@ export const DebugStore: React.FC = () => {
                     <span className="text-cyan-400">{activePhotoId || 'null'}</span>
                 </div>
             </div>
+
+            {/* Performance Monitoring Section */}
+            {isExploded && (
+                <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+                    <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Performance</div>
+                    <div className="flex justify-between">
+                        <span className="text-white/60">FPS:</span>
+                        <span className={isLowFps ? 'text-red-400 font-bold' : 'text-green-400'}>
+                            {currentFps !== null ? `${currentFps}` : 'N/A'}
+                        </span>
+                    </div>
+                    {isLowFps && (
+                        <div className="text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded">
+                            ⚠️ Low FPS detected (&lt;30fps)
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
                 <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Actions</div>

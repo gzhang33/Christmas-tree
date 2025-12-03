@@ -25,10 +25,30 @@ export interface UIState {
   toggleMute: () => void;
 }
 
-export interface Asset {
+// Base asset properties shared by all asset types
+interface BaseAsset {
   id: string;
-  type: 'image' | 'video' | 'audio';
   url: string;
-  videoUrl?: string;
   label?: string;
 }
+
+// Image asset type
+interface ImageAsset extends BaseAsset {
+  type: 'image';
+  videoUrl?: never;
+}
+
+// Video asset type - videoUrl is required
+interface VideoAsset extends BaseAsset {
+  type: 'video';
+  videoUrl: string;
+}
+
+// Audio asset type
+interface AudioAsset extends BaseAsset {
+  type: 'audio';
+  videoUrl?: never;
+}
+
+// Union type ensures videoUrl is required only for video assets
+export type Asset = ImageAsset | VideoAsset | AudioAsset;

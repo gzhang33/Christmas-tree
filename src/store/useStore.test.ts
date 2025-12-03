@@ -9,6 +9,8 @@ describe('useStore', () => {
             particleCount: 18000,
             isExploded: false,
             activePhotoId: null,
+            currentFps: null,
+            isLowFps: false,
         });
         localStorage.clear();
     });
@@ -45,5 +47,23 @@ describe('useStore', () => {
     it('should set active photo id', () => {
         useStore.getState().setActivePhoto('photo-1');
         expect(useStore.getState().activePhotoId).toBe('photo-1');
+    });
+
+    it('should update FPS and set low FPS flag', () => {
+        useStore.getState().setFps(25);
+        expect(useStore.getState().currentFps).toBe(25);
+        expect(useStore.getState().isLowFps).toBe(true);
+    });
+
+    it('should update FPS and clear low FPS flag when FPS is good', () => {
+        useStore.getState().setFps(60);
+        expect(useStore.getState().currentFps).toBe(60);
+        expect(useStore.getState().isLowFps).toBe(false);
+    });
+
+    it('should have correct initial FPS state', () => {
+        const state = useStore.getState();
+        expect(state.currentFps).toBeNull();
+        expect(state.isLowFps).toBe(false);
     });
 });

@@ -17,6 +17,27 @@ export const usePhotos = () => {
         setPhotos((prev) => [...prev, ...newPhotos]);
     }, []);
 
+    // Remove a single photo and cleanup its object URL
+    const removePhoto = useCallback((id: string) => {
+        setPhotos((prev) => {
+            const photo = prev.find((p) => p.id === id);
+            if (photo && photoUrlsRef.current.has(photo.url)) {
+                URL.revokeObjectURL(photo.url);
+                photoUrlsRef.current.delete(photo.url);
+            }
+            return prev.filter((p) => p.id !== id);
+        });
+    }, []);
+
+    // Clear all photos and cleanup all object URLs
+    const clearPhotos = useCallback(() => {
+        photoUrlsRef.current.forEach((url) => {
+            URL.revokeObjectURL(url);
+        });
+        photoUrlsRef.current.clear();
+        setPhotos([]);
+    }, []);
+
     // Cleanup object URLs on unmount
     useEffect(() => {
         return () => {
@@ -27,5 +48,5 @@ export const usePhotos = () => {
         };
     }, []);
 
-    return { photos, addPhotos };
+    return { photos, addPhotos, removePhoto, clearPhotos };
 };
