@@ -116,6 +116,13 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
   const starTexture = useMemo(() => createStarTexture(), []);
   const trailTexture = useMemo(() => createTrailTexture(), []);
 
+  // 组件卸载时释放纹理内存
+  useEffect(() => {
+    return () => {
+      starTexture?.dispose();
+      trailTexture?.dispose();
+    };
+  }, [starTexture, trailTexture]);
   // === SPIRAL MAGIC DUST with lifecycle ===
   const spiralData = useMemo((): ParticleData => {
     const positions = new Float32Array(count * 3);
@@ -255,15 +262,14 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
 
   useEffect(() => {
     // Initialize position history for trail effect
-    positionHistory.current = Array.from({ length: 4 }, () => 
+    positionHistory.current = Array.from({ length: 4 }, () =>
       new Float32Array(spiralData.positions)
     );
   }, [spiralData.positions]);
 
   // === ANIMATION LOOP ===
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
-    const deltaTime = 1 / 60; // Approximate delta
 
     // === SPIRAL PARTICLES ANIMATION ===
     if (spiralRef.current && !isExploded) {
@@ -274,7 +280,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
 
       for (let i = 0; i < spiralData.count; i++) {
         // Update age and check lifecycle
-        spiralData.ages[i] += deltaTime;
+        spiralData.ages[i] += delta;
         if (spiralData.ages[i] >= spiralData.lifetimes[i]) {
           // Respawn particle
           spiralData.ages[i] = 0;
@@ -326,7 +332,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
       spiralRef.current.geometry.attributes.position.needsUpdate = true;
       spiralRef.current.geometry.attributes.color.needsUpdate = true;
       spiralRef.current.geometry.attributes.size.needsUpdate = true;
-      spiralRef.current.rotation.y += 0.003;
+      spiralRef.current.rotation.y += 0.18 * delta;
 
       // Update position history for trails
       if (positionHistory.current.length > 0) {
@@ -361,7 +367,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
 
       trailRef.current.geometry.attributes.position.needsUpdate = true;
       trailRef.current.geometry.attributes.color.needsUpdate = true;
-      trailRef.current.rotation.y += 0.003;
+      trailRef.current.rotation.y += 0.18 * delta;
     }
 
     // === FLOATING PARTICLES ANIMATION ===
@@ -392,7 +398,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 1200, isExploded =
 
       floatingRef.current.geometry.attributes.position.needsUpdate = true;
       floatingRef.current.geometry.attributes.color.needsUpdate = true;
-      floatingRef.current.rotation.y += 0.0015;
+      floatingRef.current.rotation.y += 0.09 * delta;
     }
   });
 

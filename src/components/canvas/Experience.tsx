@@ -91,7 +91,7 @@ const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
 // Volumetric light rays component
 const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
   const raysRef = useRef<THREE.Group>(null);
-  const spotRefs = [useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null), useRef<THREE.SpotLight>(null)];
+  const spotRefs = useRef<(THREE.SpotLight | null)[]>([null, null, null, null]);
   const targets = useMemo(() => {
     return [0, 1, 2, 3].map(() => {
       const obj = new THREE.Object3D();
@@ -101,9 +101,9 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
   }, []);
 
   useEffect(() => {
-    spotRefs.forEach((spotRef, i) => {
-      if (spotRef.current) {
-        spotRef.current.target = targets[i];
+    spotRefs.current.forEach((spot, i) => {
+      if (spot) {
+        spot.target = targets[i];
       }
     });
   }, [targets]);
@@ -124,7 +124,9 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
         return (
           <spotLight
             key={i}
-            ref={spotRefs[i]}
+            ref={(el) => {
+              spotRefs.current[i] = el;
+            }}
             position={[
               Math.cos(angle) * 3,
               12,

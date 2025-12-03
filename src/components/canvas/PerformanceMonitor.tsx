@@ -103,21 +103,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
   if (!visible) return null;
 
-  // Determine FPS color
-  const getFpsColor = (fps: number) => {
-    if (fps >= 55) return '#4CAF50'; // Green
-    if (fps >= 40) return '#FFC107'; // Yellow
-    return '#F44336'; // Red
-  };
-
-  // Device tier based on FPS
-  const getDeviceTier = (fps: number) => {
-    if (fps >= 55) return { tier: 'High-end', limit: '35,000', color: '#4CAF50' };
-    if (fps >= 40) return { tier: 'Mid-range', limit: '18,000', color: '#FFC107' };
-    return { tier: 'Low-end', limit: '10,000', color: '#F44336' };
-  };
-
-  const deviceInfo = getDeviceTier(data.fps);
 
   return (
     <>

@@ -21,21 +21,41 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       return;
     }
     
+    // Dispose any existing texture from state before starting a new load
+    setTexture((prevTexture) => {
+      if (prevTexture) {
+        prevTexture.dispose();
+      }
+      return null;
+    });
+    
     let loadedTexture: THREE.Texture | null = null;
+    let isCancelled = false;
     
     const loader = new THREE.TextureLoader();
     loader.load(url, (tex) => {
+      if (isCancelled) {
+        tex.dispose();
+        return;
+      }
       tex.colorSpace = THREE.SRGBColorSpace;
       loadedTexture = tex;
       setTexture(tex);
       setVisible(true);
     });
     
-    // 清理函数：组件卸载时释放纹理资源
+    // Cleanup function: dispose whichever texture is currently set
     return () => {
+      isCancelled = true;
       if (loadedTexture) {
         loadedTexture.dispose();
       }
+      setTexture((prevTexture) => {
+        if (prevTexture) {
+          prevTexture.dispose();
+        }
+        return null;
+      });
     };
   }, [url, isExploded]);
   useFrame((state) => {

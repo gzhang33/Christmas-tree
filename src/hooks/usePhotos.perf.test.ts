@@ -122,6 +122,10 @@ describe('usePhotos Performance Benchmarks', () => {
             // Should complete within 200ms
             expect(duration).toBeLessThan(200);
             console.log(`50 add/remove cycles: ${duration.toFixed(2)}ms`);
+            
+            // Verify final state: after 50 iterations with removal logic,
+            // count should be capped at 11 (first 11 adds, then add+remove cycles)
+            expect(result.current.photos.length).toBeLessThanOrEqual(11);
         });
     });
 

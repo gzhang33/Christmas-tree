@@ -1,5 +1,4 @@
-<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
-  <metadata>
+<story-context id="1-2-global-state" v="1.0">  <metadata>
     <epicId>1</epicId>
     <storyId>2</storyId>
     <title>Global State Implementation (Zustand)</title>

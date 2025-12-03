@@ -13,7 +13,11 @@ import { useStore } from '../../store/useStore';
  * - State changes trigger re-renders
  */
 export const DebugStore: React.FC = () => {
-    const [isVisible, setIsVisible] = useState(false);
+    // Initialize from localStorage
+    const [isVisible, setIsVisible] = useState(() => {
+        const saved = localStorage.getItem('debugStoreVisible');
+        return saved === 'true';
+    });
 
     // Subscribe to all store state
     const treeColor = useStore((state) => state.treeColor);
@@ -29,6 +33,11 @@ export const DebugStore: React.FC = () => {
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
     const setActivePhoto = useStore((state) => state.setActivePhoto);
+
+    // Persist visibility to localStorage
+    useEffect(() => {
+        localStorage.setItem('debugStoreVisible', String(isVisible));
+    }, [isVisible]);
 
     // Toggle visibility with F4
     useEffect(() => {
@@ -129,7 +138,7 @@ export const DebugStore: React.FC = () => {
             </div>
 
             <div className="mt-3 pt-2 border-t border-white/10 text-[10px] text-white/40 text-center">
-                Press F4 to toggle • Check LocalStorage
+                Press F4 to toggle • Visibility saved to LocalStorage
             </div>
         </div>
     );

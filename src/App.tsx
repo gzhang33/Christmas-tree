@@ -82,10 +82,7 @@ function App() {
 
   // Estimate total particles
   const estimatedParticleCount = Math.floor(
-    config.particleCount * 1.5 + // Tree particles (entity + glow)
-    3000 + // Ornaments
-    1800 + // Crown
-    5500 + // Gifts
+    config.particleCount + // Tree particles (entity + glow + ornaments + crown + gifts)
     config.snowDensity + // Snow
     1200 // Magic dust
   );

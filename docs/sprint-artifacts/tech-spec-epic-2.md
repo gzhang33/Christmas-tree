@@ -126,13 +126,12 @@ const attributes = {
 2.  **Video Assets:** `assets.ts` exports video file paths and types support `videoUrl` (Story 2.0).
 3.  **Memory Leak Fix:** `URL.createObjectURL` is properly revoked in `Controls.tsx` (Story 2.0).
 4.  **Shader Implementation:** `particle.vert` and `particle.frag` are implemented and correctly handle the transition logic.
-2.  **Explosion Physics:** Clicking the tree triggers a smooth, non-linear explosion animation where particles travel along curved paths (Bezier).
-3.  **Morphing:** Particles visibly transform from small glowing dots to larger, textured rectangular "photos" as they explode.
-4.  **Texture Atlas:** Each "photo" particle displays a distinct image from a provided texture atlas (or array), not just a single repeated texture.
-5.  **Performance:** The explosion animation runs smoothly without significant frame drops on the target test device.
-6.  **Reversibility:** The animation is fully reversible; toggling `isExploded` off returns particles to the exact tree shape.
-7.  **Theme Integration:** The tree particles correctly use the color defined in the "Midnight Magic" theme config.
-
+5.  **Explosion Physics:** Clicking the tree triggers a smooth, non-linear explosion animation where particles travel along curved paths (Bezier).
+6.  **Morphing:** Particles visibly transform from small glowing dots to larger, textured rectangular "photos" as they explode.
+7.  **Texture Atlas:** Each "photo" particle displays a distinct image from a provided texture atlas (or array), not just a single repeated texture.
+8.  **Performance:** The explosion animation runs smoothly without significant frame drops on the target test device.
+9.  **Reversibility:** The animation is fully reversible; toggling `isExploded` off returns particles to the exact tree shape.
+10. **Theme Integration:** The tree particles correctly use the color defined in the "Midnight Magic" theme config.
 ## Traceability Mapping
 
 | AC ID | Spec Section | Component | Test Idea |

@@ -110,21 +110,21 @@ const createSparkleTexture = () => {
   ctx.lineTo(32, 60);
   ctx.moveTo(4, 32);
   ctx.lineTo(60, 32);
-  ctx.stroke();
+  type ThemeType = 'CROWN' | 'BIG_BEN' | 'FLAG' | 'BUS' | 'CORGI' | 'GIFT';
 
-  // Diagonal flares
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(12, 12);
-  ctx.lineTo(52, 52);
-  ctx.moveTo(52, 12);
-  ctx.lineTo(12, 52);
-  ctx.stroke();
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+  const assignThemeParticle = (heightRatio: number): ThemeType => {
+    const rand = Math.random();
+    if (heightRatio > 0.8) {
+      // Top 20%: Crown or Big Ben
+      return rand < 0.7 ? 'CROWN' : 'BIG_BEN';
+    } else if (heightRatio > 0.5) {
+      // Middle 30%: Flag or Bus
+      return rand < 0.4 ? 'FLAG' : 'BUS';
+    } else {
+      // Bottom 50%: Corgi or Gift
+      return rand < 0.3 ? 'CORGI' : 'GIFT';
+    }
+  };
 };
 
 // === BRITISH THEME DISTRIBUTION ALGORITHM ===
@@ -565,7 +565,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Control Point
         const len = Math.sqrt(x * x + y * y + z * z) || 1;
         const cpDist = getControlPointDistance(config.explosionRadius);
-      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
+        const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = x + (x / len) * dist;
         controlPoint[idx * 3 + 1] = y + (y / len) * dist;
         controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -686,7 +686,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Control Point
         const len = Math.sqrt(x * x + y * y + z * z) || 1;
         const cpDist = getControlPointDistance(config.explosionRadius);
-      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
+        const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = x + (x / len) * dist;
         controlPoint[idx * 3 + 1] = y + (y / len) * dist;
         controlPoint[idx * 3 + 2] = z + (z / len) * dist;
@@ -814,7 +814,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Control Point
         const len = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
         const cpDist = getControlPointDistance(config.explosionRadius);
-      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
+        const dist = cpDist.base + Math.random() * cpDist.randomFactor;
         controlPoint[idx * 3] = fx + (fx / len) * dist;
         controlPoint[idx * 3 + 1] = fy + (fy / len) * dist;
         controlPoint[idx * 3 + 2] = fz + (fz / len) * dist;
@@ -845,7 +845,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const wasExplodedRef = useRef(isExploded);
   const frameCountRef = useRef(0);
   const lastFpsTimeRef = useRef(performance.now());
-  
+
   // Get FPS update function from store
   const setFps = useStore((state) => state.setFps);
 
@@ -873,7 +873,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       frameCountRef.current++;
       const now = performance.now();
       const deltaTime = now - lastFpsTimeRef.current;
-      
+
       // Update FPS every second (1000ms)
       if (deltaTime >= 1000) {
         const fps = Math.round((frameCountRef.current * 1000) / deltaTime);

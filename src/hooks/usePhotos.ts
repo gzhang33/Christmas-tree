@@ -10,7 +10,7 @@ export const usePhotos = () => {
             const url = URL.createObjectURL(file);
             photoUrlsRef.current.add(url);
             return {
-                id: Math.random().toString(36).substring(2, 9),
+                id: crypto.randomUUID(),
                 url,
             };
         });
