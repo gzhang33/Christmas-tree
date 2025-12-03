@@ -1,6 +1,6 @@
 # Story 2.2: Explosion Physics & Shader Upgrade
 
-**Status:** ready-for-dev
+**Status:** drafted
 
 ## Story
 
