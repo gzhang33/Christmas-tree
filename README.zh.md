@@ -6,7 +6,7 @@
 
 中文 | [English](README.md)
 
-这是一个使用 React、Vite 和 React Three Fiber 构建的节日 3D 体验。应用会渲染一棵可交互的宇宙圣诞树，包含粒子效果、背景音乐和性能监控。本文档将帮助你在本地完成项目设置、配置环境变量，并了解可用的脚本。
+这是一个使用 React、Vite 和 React Three Fiber 构建的节日 3D 体验。应用会渲染一棵可交互的宇宙圣诞树，包含粒子效果、背景音乐和性能监控。本文档将帮助你在本地完成项目设置，并了解可用的脚本。
 
 在 AI Studio 查看你的应用：https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2buaXrokV1x
 
@@ -29,20 +29,11 @@
    ```bash
    npm install
    ```
-2. 复制示例环境文件并设置你的 Gemini API 密钥：
-   ```bash
-   cp .env.local .env
-   # 编辑 .env 并设置 GEMINI_API_KEY=<你的密钥>
-   ```
-3. 本地运行应用：
+2. 本地运行应用：
    ```bash
    npm run dev
    ```
-4. 在浏览器中打开终端打印的本地地址（默认：http://localhost:5173）。
-
-## 环境变量
-
-- `GEMINI_API_KEY` – Gemini 功能所需的密钥。运行应用前请在 `.env` 文件中设置。
+3. 在浏览器中打开终端打印的本地地址（默认：http://localhost:5173）。
 
 ## 可用脚本
 
@@ -52,15 +43,29 @@
 
 ## 项目结构
 
-- `src/` – React 源码
-  - `components/` – UI 与画布组件（树体验、控制面板、调试面板）
-  - `store/` – 基于 Zustand 的共享状态存储
-  - `shaders/` – GLSL 着色器，实现视觉效果
-  - `types.ts` – 公用 TypeScript 类型
-- `public/` – 由 Vite 提供的静态资源
-- `docs/` – 额外的项目文档
+```text
+.
+├─ src/
+│  ├─ App.tsx                # 场景组合与 UI 连接
+│  ├─ index.css              # 全局样式
+│  ├─ components/
+│  │  ├─ canvas/             # 3D 场景组件（Experience、Snow、MagicDust、TreeParticles、PerformanceMonitor、PhotoCard）
+│  │  └─ ui/                 # UI 外壳与覆盖层（Controls、DebugStore、ErrorBoundary）
+│  ├─ shaders/               # 粒子与光效的 GLSL 着色器
+│  ├─ store/                 # Zustand 状态（useStore.ts）
+│  └─ types.ts               # 公用 TypeScript 类型
+├─ public/
+│  ├─ photos/                # 示例挂饰素材
+│  ├─ textures/              # 场景材质贴图
+│  └─ *JingleBells.mp3       # 内置音乐资源
+├─ docs/                     # 架构、UX 与冲刺文档
+├─ index.html                # Vite HTML 入口
+├─ index.tsx                 # React 入口
+├─ package.json
+└─ vite.config.ts
+```
 
 ## 部署提示
 
 - 使用 `npm run build` 构建项目，并在任意静态主机上服务 `dist/` 目录。
-- 在部署到 AI Studio 时，确保 `.env` 文件（或平台密钥）包含 `GEMINI_API_KEY`。
+- 当前应用使用 `public/` 中的资源即可运行，不依赖外部密钥。若未来新增密钥，可放入 `.env.local` 并在部署平台配置对应的环境变量。

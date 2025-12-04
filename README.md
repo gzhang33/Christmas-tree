@@ -6,7 +6,7 @@
 
 English | [中文](README.zh.md)
 
-A festive 3D experience built with React, Vite, and React Three Fiber. The app renders an interactive cosmic Christmas tree with particle effects, ambient music, and performance monitoring. Use this README to set up the project locally, configure environment variables, and understand the available scripts.
+A festive 3D experience built with React, Vite, and React Three Fiber. The app renders an interactive cosmic Christmas tree with particle effects, ambient music, and performance monitoring. Use this README to set up the project locally and understand the available scripts.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2buaXrokV1x
 
@@ -29,20 +29,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2
    ```bash
    npm install
    ```
-2. Copy the sample environment file and set your Gemini API key:
-   ```bash
-   cp .env.local .env
-   # edit .env and set GEMINI_API_KEY=<your key>
-   ```
-3. Run the app locally:
+2. Run the app locally:
    ```bash
    npm run dev
    ```
-4. Open the printed local URL in your browser (default: http://localhost:5173).
-
-## Environment variables
-
-- `GEMINI_API_KEY` – required for Gemini-powered features. Set this in your `.env` file before running the app.
+3. Open the printed local URL in your browser (default: http://localhost:5173).
 
 ## Available scripts
 
@@ -52,15 +43,29 @@ View your app in AI Studio: https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2
 
 ## Project structure
 
-- `src/` – React source code
-  - `components/` – UI and canvas components (tree experience, controls, debug panels)
-  - `store/` – Zustand store for shared state
-  - `shaders/` – GLSL shaders for visual effects
-  - `types.ts` – shared TypeScript types
-- `public/` – static assets served by Vite
-- `docs/` – additional project documentation
+```text
+.
+├─ src/
+│  ├─ App.tsx                # scene composition and UI wiring
+│  ├─ index.css              # global styles
+│  ├─ components/
+│  │  ├─ canvas/             # 3D scene pieces (Experience, Snow, MagicDust, TreeParticles, PerformanceMonitor, PhotoCard)
+│  │  └─ ui/                 # UI shells and overlays (Controls, DebugStore, ErrorBoundary)
+│  ├─ shaders/               # GLSL shaders for particle and lighting effects
+│  ├─ store/                 # Zustand store (useStore.ts)
+│  └─ types.ts               # shared TypeScript types
+├─ public/
+│  ├─ photos/                # sample ornaments for uploads
+│  ├─ textures/              # scene materials
+│  └─ *JingleBells.mp3       # bundled music tracks
+├─ docs/                     # architecture, UX, and sprint documentation
+├─ index.html                # Vite HTML entry
+├─ index.tsx                 # React entry point
+├─ package.json
+└─ vite.config.ts
+```
 
 ## Deployment tips
 
 - Build the project with `npm run build` and serve the `dist/` folder with any static host.
-- For AI Studio deployment, ensure your `.env` file (or platform secrets) includes `GEMINI_API_KEY`.
+- For AI Studio deployment, the current app works without external secrets because media assets are bundled under `public/`. Add any future keys to `.env.local` and provide them in your hosting environment.
