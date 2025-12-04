@@ -1,4 +1,4 @@
-# Run and deploy your AI Studio app
+# 3D experience Christmas tree with exploration to memories.
 
 English | [中文](README.zh.md)
 
