@@ -49,7 +49,7 @@ development_status:
   epic-2: contexted
   2-0-test-infra: done
   2-1-color-config: done
-  2-2-explosion-physics: backlog
+  2-2-explosion-physics: ready-for-dev
   2-3-morphing-effect: backlog
   epic-2-retrospective: optional
 

@@ -60,7 +60,7 @@ src/
 │   │   └── Overlay.tsx
 │   └── effects/            # Post-processing wrappers
 ├── config/                 # Static configuration
-│   ├── theme.ts            # Colors, particle distributions
+│   ├── colors.ts           # Colors, particle distributions
 │   └── assets.ts           # Asset paths constants
 ├── hooks/                  # Custom Hooks
 │   ├── useStore.ts         # Zustand store
