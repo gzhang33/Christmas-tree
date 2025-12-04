@@ -83,7 +83,6 @@ function App() {
   const estimatedParticleCount = Math.floor(
     config.particleCount * 1.5 + // Tree particles (entity + glow)
     3000 + // Ornaments
-    1800 + // Crown
     5500 + // Gifts
     config.snowDensity + // Snow
     1200 // Magic dust
@@ -256,14 +255,6 @@ function App() {
               mipmapBlur
               intensity={0.8}
               radius={0.5}
-            />
-            {/* Tertiary Bloom - Crown HDR glow (threshold 1.0+) */}
-            <Bloom
-              luminanceThreshold={1.2}
-              luminanceSmoothing={0.3}
-              mipmapBlur
-              intensity={0.5}
-              radius={0.3}
             />
             {/* Cinematic Vignette (per spec) */}
             <Vignette

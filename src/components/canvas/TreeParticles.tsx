@@ -86,13 +86,13 @@ const createSparkleTexture = () => {
 };
 
 // === BRITISH THEME DISTRIBUTION ALGORITHM ===
-type ThemeType = 'CROWN' | 'BIG_BEN' | 'FLAG' | 'BUS' | 'CORGI' | 'GIFT' | 'PEARL' | 'BAUBLE';
+type ThemeType = 'BIG_BEN' | 'FLAG' | 'BUS' | 'CORGI' | 'GIFT' | 'PEARL' | 'BAUBLE';
 
 const assignThemeParticle = (heightRatio: number): ThemeType => {
   const rand = Math.random();
   if (heightRatio > 0.8) {
-    // Top 20%: Crown or Big Ben
-    return rand < 0.7 ? 'CROWN' : 'BIG_BEN';
+    // Top 20%: Big Ben
+    return 'BIG_BEN';
   } else if (heightRatio > 0.5) {
     // Middle 30%: Flag or Bus
     return rand < 0.4 ? 'FLAG' : 'BUS';
@@ -136,7 +136,6 @@ const SIZE_COEFFICIENTS: Record<ThemeType, number> = {
   FLAG: 1.0,
   CORGI: 0.9,
   BIG_BEN: 1.1,
-  CROWN: 1.3,
   GIFT: 1.0,
   PEARL: 0.8,
   BAUBLE: 1.0,
@@ -173,7 +172,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const entityLayerRef = useRef<THREE.Points>(null);
   const glowLayerRef = useRef<THREE.Points>(null);
   const ornamentsRef = useRef<THREE.Points>(null);
-  const crownRef = useRef<THREE.Points>(null);
   const giftsRef = useRef<THREE.Points>(null);
 
   // LOD state
@@ -448,9 +446,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           case 'BIG_BEN':
             c = DEFAULT_COLORS.silver;
             break;
-          case 'CROWN':
-            c = DEFAULT_COLORS.gold;
-            break;
           case 'GIFT':
             c = Math.random() > 0.5 ? themeColors.base : DEFAULT_COLORS.white;
             break;
@@ -469,113 +464,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
   }, [config.explosionRadius, themeColors]);
 
-  // === CRYSTAL CROWN - Enhanced with HDR glow ===
-  const crownData = useMemo(() => {
-    const count = 1800;
-    const pos = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-    const siz = new Float32Array(count);
-    const tTree = new Float32Array(count * 3);
-    const tGalaxy = new Float32Array(count * 3);
-
-    const crownY = 8.8;
-    let idx = 0;
-
-    // Crown base ring
-    for (let i = 0; i < 350; i++) {
-      if (idx >= count) break;
-      const theta = (i / 350) * Math.PI * 2;
-      const r = 0.5 + Math.random() * 0.1;
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
-      const y = crownY + Math.random() * 0.3;
-
-      pos[idx * 3] = x;
-      pos[idx * 3 + 1] = y;
-      pos[idx * 3 + 2] = z;
-      tTree[idx * 3] = x;
-      tTree[idx * 3 + 1] = y;
-      tTree[idx * 3 + 2] = z;
-
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      tGalaxy[idx * 3] = gx;
-      tGalaxy[idx * 3 + 1] = gy;
-      tGalaxy[idx * 3 + 2] = gz;
-
-      // HDR white for bloom
-      col[idx * 3] = 2.0;
-      col[idx * 3 + 1] = 1.9;
-      col[idx * 3 + 2] = 2.0;
-      siz[idx] = 0.6;
-      idx++;
-    }
-
-    // Crown arches (8 points)
-    for (let arch = 0; arch < 8; arch++) {
-      const baseAngle = (arch / 8) * Math.PI * 2;
-      for (let i = 0; i < 100; i++) {
-        if (idx >= count) break;
-        const t = i / 100;
-        const archHeight = Math.sin(t * Math.PI) * 0.9;
-        const archRadius = 0.5 * (1 - t * 0.3);
-
-        const x = Math.cos(baseAngle) * archRadius;
-        const z = Math.sin(baseAngle) * archRadius;
-        const y = crownY + 0.3 + archHeight;
-
-        pos[idx * 3] = x;
-        pos[idx * 3 + 1] = y;
-        pos[idx * 3 + 2] = z;
-        tTree[idx * 3] = x;
-        tTree[idx * 3 + 1] = y;
-        tTree[idx * 3 + 2] = z;
-
-        const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-        tGalaxy[idx * 3] = gx;
-        tGalaxy[idx * 3 + 1] = gy;
-        tGalaxy[idx * 3 + 2] = gz;
-
-        // Intense HDR glow
-        const intensity = 2.0 + Math.sin(t * Math.PI) * 1.0;
-        col[idx * 3] = intensity;
-        col[idx * 3 + 1] = intensity * 0.95;
-        col[idx * 3 + 2] = intensity;
-        siz[idx] = 0.5 + Math.sin(t * Math.PI) * 0.35;
-        idx++;
-      }
-    }
-
-    // Central crystal orb
-    for (let i = idx; i < count; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      const r = Math.random() * 0.4;
-
-      const x = Math.sin(phi) * Math.cos(theta) * r;
-      const y = crownY + 1.3 + Math.cos(phi) * r;
-      const z = Math.sin(phi) * Math.sin(theta) * r;
-
-      pos[i * 3] = x;
-      pos[i * 3 + 1] = y;
-      pos[i * 3 + 2] = z;
-      tTree[i * 3] = x;
-      tTree[i * 3 + 1] = y;
-      tTree[i * 3 + 2] = z;
-
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      tGalaxy[i * 3] = gx;
-      tGalaxy[i * 3 + 1] = gy;
-      tGalaxy[i * 3 + 2] = gz;
-
-      // Maximum HDR for crown jewel
-      col[i * 3] = 3.5;
-      col[i * 3 + 1] = 3.3;
-      col[i * 3 + 2] = 3.5;
-      siz[i] = 0.9 + Math.random() * 0.5;
-    }
-
-    return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
-  }, [config.explosionRadius]);
 
   // === GIFT BOXES ===
   const giftData = useMemo(() => {
@@ -677,7 +565,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       { ref: entityLayerRef, tTree: entityLayerData.targetTree, tGalaxy: entityLayerData.targetGalaxy },
       { ref: glowLayerRef, tTree: glowLayerData.targetTree, tGalaxy: glowLayerData.targetGalaxy, flickerPhase: glowLayerData.flickerPhase },
       { ref: ornamentsRef, tTree: ornamentData.targetTree, tGalaxy: ornamentData.targetGalaxy },
-      { ref: crownRef, tTree: crownData.targetTree, tGalaxy: crownData.targetGalaxy },
       { ref: giftsRef, tTree: giftData.targetTree, tGalaxy: giftData.targetGalaxy },
     ];
 
@@ -778,26 +665,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           opacity={1}
           depthWrite={false}
           size={0.5}
-          blending={THREE.AdditiveBlending}
-          sizeAttenuation
-        />
-      </points>
-
-      {/* Crown topper */}
-      <points ref={crownRef}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={crownData.count} array={crownData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={crownData.count} array={crownData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={crownData.count} array={crownData.sizes} itemSize={1} />
-        </bufferGeometry>
-        <pointsMaterial
-          vertexColors
-          map={sparkleTexture}
-          alphaMap={sparkleTexture}
-          transparent
-          opacity={1}
-          depthWrite={false}
-          size={0.75}
           blending={THREE.AdditiveBlending}
           sizeAttenuation
         />

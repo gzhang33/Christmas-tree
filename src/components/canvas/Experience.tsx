@@ -17,65 +17,7 @@ interface ExperienceProps {
 // |-------------|-----------------|-----------|-----------|-------------------|
 // | Main Spot   | [-5, 10, -5]    | #FFB7C5   | 1.2       | Tree main light   |
 // | Rim Light   | [5, 8, 5]       | #E0F7FA   | 0.8       | Depth enhancement |
-// | Crown Light | [0, tree+2, 0]  | #FFFFFF   | 3.0       | Crystal crown glow|
 // | Ambient     | -               | #FFFFFF   | 0.15      | Base lighting     |
-
-// Crown glow light component with volumetric simulation
-const CrownGlow: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
-  const lightRef = useRef<THREE.PointLight>(null);
-  const spotRef = useRef<THREE.SpotLight>(null);
-
-  useFrame((state) => {
-    if (!isExploded) {
-      // Pulsating glow effect for crown
-      const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.3 + 1;
-
-      if (lightRef.current) {
-        lightRef.current.intensity = 3.0 * pulse; // Crown light intensity from spec
-      }
-      if (spotRef.current) {
-        spotRef.current.intensity = 2.5 * pulse;
-      }
-    }
-  });
-
-  if (isExploded) return null;
-
-  // Crown position: tree top + 2 units
-  const crownY = 10.5;
-
-  return (
-    <group position={[0, crownY, 0]}>
-      {/* Main crown glow - #FFFFFF intensity 3.0 */}
-      <pointLight
-        ref={lightRef}
-        color="#FFFFFF"
-        intensity={3.0}
-        distance={18}
-        decay={2}
-      />
-      {/* Secondary warm pink glow */}
-      <pointLight
-        color="#FFD1DC"
-        intensity={2.0}
-        distance={12}
-        decay={2}
-      />
-      {/* Volumetric light simulation (spot from above) */}
-      <spotLight
-        ref={spotRef}
-        position={[0, 4, 0]}
-        target-position={[0, -15, 0]}
-        color="#FFFFFF"
-        intensity={2.5}
-        angle={0.5}
-        penumbra={1}
-        decay={1.2}
-        distance={25}
-      />
-    </group>
-  );
-};
 
 // Volumetric light rays component
 const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
@@ -210,21 +152,6 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         decay={1.5}
         distance={35}
       />
-
-      {/* 6. Top Accent - Crown highlight */}
-      <spotLight
-        position={[0, 22, 4]}
-        target-position={[0, 9, 0]}
-        intensity={1.8}
-        color="#FFFFFF"
-        angle={0.25}
-        penumbra={0.9}
-        decay={1}
-        distance={30}
-      />
-
-      {/* Crown Glow Effect (Volumetric simulation) */}
-      <CrownGlow isExploded={isExploded} />
 
       {/* Volumetric Light Rays */}
       <VolumetricRays isExploded={isExploded} />
