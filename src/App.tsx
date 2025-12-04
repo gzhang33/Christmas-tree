@@ -95,6 +95,19 @@ function App() {
 
     audio.volume = 0.35;
 
+    // Declare handleInteraction outside attemptPlay to ensure stable reference
+    const handleInteraction = async () => {
+      try {
+        await audio.play();
+        setIsMuted(false);
+      } catch (e) {
+        console.warn('Audio playback failed after interaction:', e);
+      }
+      // Remove listeners after successful interaction
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+    };
+
     const attemptPlay = async () => {
       try {
         await audio.play();
@@ -103,23 +116,18 @@ function App() {
         console.log('Audio autoplay prevented. Waiting for user interaction.');
         setIsMuted(true);
 
-        const handleInteraction = async () => {
-          try {
-            await audio.play();
-            setIsMuted(false);
-          } catch (e) {
-            console.warn('Audio playback failed after interaction:', e);
-          }
-          document.removeEventListener('click', handleInteraction);
-          document.removeEventListener('keydown', handleInteraction);
-        };
-
         document.addEventListener('click', handleInteraction);
         document.addEventListener('keydown', handleInteraction);
       }
     };
 
     attemptPlay();
+
+    // Cleanup function to remove listeners on unmount
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+    };
   }, []);
 
   useEffect(() => {
@@ -184,6 +192,36 @@ function App() {
       url: URL.createObjectURL(file),
     }));
     setPhotos((prev) => [...prev, ...newPhotos]);
+  }, []);
+
+  // Track current photos in a ref for cleanup on unmount
+  const photosRef = useRef<PhotoData[]>(photos);
+  photosRef.current = photos;
+
+  // Cleanup ObjectURLs when photos are removed
+  const prevPhotosRef = useRef<PhotoData[]>([]);
+  useEffect(() => {
+    const prevPhotos = prevPhotosRef.current;
+    const currentPhotoIds = new Set(photos.map((p) => p.id));
+    
+    // Revoke URLs for photos that were removed
+    prevPhotos.forEach((photo) => {
+      if (!currentPhotoIds.has(photo.id)) {
+        URL.revokeObjectURL(photo.url);
+      }
+    });
+    
+    // Update ref for next comparison (create a shallow copy)
+    prevPhotosRef.current = [...photos];
+  }, [photos]);
+
+  // Cleanup all ObjectURLs on component unmount
+  useEffect(() => {
+    return () => {
+      photosRef.current.forEach((photo) => {
+        URL.revokeObjectURL(photo.url);
+      });
+    };
   }, []);
 
   const handlePerformanceUpdate = useCallback((data: any) => {
