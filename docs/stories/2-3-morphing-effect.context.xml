@@ -1,0 +1,273 @@
+<story-context id="2-3-morphing-effect" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2-3</storyId>
+    <title>Morphing Effect (Particle to Photo)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-morphing-effect.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>User</asA>
+    <iWant>the particles to transform into photos</iWant>
+    <soThat>I understand the connection between the tree and the memories</soThat>
+    <tasks>
+- [ ] Create Texture Atlas System (AC: 1, 2)
+  - [ ] Load photo textures from `MEMORIES` array in `assets.ts`
+  - [ ] Create texture atlas or texture array for GPU-efficient photo mapping
+  - [ ] Generate `uvOffset` and `uvScale` attributes for each particle mapping to specific photo
+- [ ] Update Shader for Texture Mixing (AC: 2)
+  - [ ] Update `particle.frag` shader to support texture sampling from atlas
+  - [ ] Implement `mix()` function to cross-fade from vertex color (glow dot) to photo texture based on `uProgress`
+  - [ ] Ensure smooth transition (0.0 = tree color, 1.0 = photo texture)
+- [ ] Implement Scale Animation (AC: 1)
+  - [ ] Update vertex shader to scale particle size based on `uProgress`
+  - [ ] Scale from small glow dot (0.55) to card size (target size TBD, e.g., 2.0-3.0)
+  - [ ] Use smooth easing function for scale transition
+- [ ] Implement Floating State (AC: 3)
+  - [ ] Add floating drift animation using `uTime` uniform
+  - [ ] Apply gentle rotation and position drift to particles when `uProgress` approaches 1.0
+  - [ ] Ensure particles remain in view (no flying off-screen)
+- [ ] Integrate with TreeParticles Component (AC: 1, 2, 3)
+  - [ ] Update `TreeParticles.tsx` to use ShaderMaterial with texture atlas
+  - [ ] Generate texture atlas attributes (`uvOffset`, `uvScale`) for each particle
+  - [ ] Map particles to photos from `MEMORIES` array (distribute photos across particles)
+  - [ ] Update uniforms to drive morphing animation
+- [ ] Performance Optimization (AC: 4)
+  - [ ] Ensure texture atlas generation happens only once (useMemo)
+  - [ ] Verify FPS remains >30fps during morphing transition
+  - [ ] Optimize texture loading (preload or lazy load)
+- [ ] Verify Build and Lint
+  - [ ] Run type check
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **Given** the explosion animation is active, **When** `uProgress` increases, **Then** particles should scale up to "card size" [Source: docs/epics.md#story-23-morphing-effect-particle-to-photo].
+2. **And** the texture should cross-fade from "glow dot" to "photo texture" (FR10) [Source: docs/epics.md#story-23-morphing-effect-particle-to-photo].
+3. **And** the particles should end up in a floating, drifting state (FR11) [Source: docs/epics.md#story-23-morphing-effect-particle-to-photo].
+4. **And** performance should remain >30fps during morphing transition (FR1, FR9).
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 2.3: Morphing Effect (Particle to Photo)</section>
+        <snippet>
+As a User,
+I want the particles to transform into photos,
+So that I understand the connection between the tree and the memories.
+
+**Acceptance Criteria:**
+**Given** the explosion animation is active
+**When** `uProgress` increases
+**Then** particles should scale up to "card size"
+**And** the texture should cross-fade from "glow dot" to "photo texture" (FR10)
+**And** the particles should end up in a floating, drifting state (FR11)
+
+**Technical Notes:**
+- Shader needs `mix()` function for color/texture based on progress
+- Need a Texture Atlas or Array for the photos
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision Document</title>
+        <section>5. Novel Pattern Designs</section>
+        <snippet>
+### Pattern: GPU State Machine Interpolation
+
+**Problem:** Smoothly transitioning 20,000+ particles from a tree shape to scattered floating photos without CPU bottlenecks.
+
+**Solution:**
+A vertex-shader-driven animation system controlled by a single uniform.
+
+**Components:**
+1.  **Attributes:**
+    -   `positionStart` (vec3): The particle's position in the Tree.
+    -   `positionEnd` (vec3): The particle's target position in the Photo Cloud.
+    -   `controlPoint` (vec3): A calculated point for the Bezier curve (Start + Explosion Vector).
+    -   `uvOffset` &amp; `uvScale` (vec2): Mapping to the specific photo in the Texture Atlas.
+2.  **Uniforms:**
+    -   `uProgress` (float): 0.0 (Tree) -> 1.0 (Photos). Driven by React state (damped).
+    -   `uTime` (float): For floating noise.
+3.  **Logic (Vertex Shader):**
+    -   Use **Quadratic Bezier** interpolation based on `uProgress` to create an arc trajectory (Explosion -> Drift).
+    -   Mix vertex color (Tree) and Texture sample (Photo) based on `uProgress`.
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>2.2 Novel UX Patterns</section>
+        <snippet>
+**Pattern Name:** Particle Explosion to Memory Drift
+
+**Phases:**
+1.  **Explosion &amp; Morphing (Surprise):**
+    *   **Trigger:** Click on Christmas tree.
+    *   **Physics:** High-velocity particle explosion with rapid damping to a floating, weightless state (no flying off-screen).
+    *   **Visuals:** Particles morph from tree colors to Polaroid textures via cross-fade and scale-up.
+
+2.  **Floating &amp; Immersion:**
+    *   **Dynamics:** Photos drift with slow 3D rotation (random X/Y/Z axes).
+    *   **Visuals:** Double-sided Polaroid textures (no blank backs).
+    *   **Camera:** Automatic "Dolly In" movement to immerse the user in the cloud of memories without losing the overall composition.
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-2-explosion-physics.md</path>
+        <title>Story 2.2: Explosion Physics &amp; Shader Upgrade</title>
+        <section>Dev Agent Record</section>
+        <snippet>
+**Component Size Warning:** `TreeParticles.tsx` is becoming large (>900 lines). Consider extracting shader logic or attribute generation into custom hooks (e.g., `useExplosionAttributes`, `useParticleShader`) to maintain readability.
+**Performance:** Continue using `useEffect` for reactive updates where possible, but note that `ShaderMaterial` uniforms are best updated in `useFrame`.
+**Theme Integration:** Ensure the new `ShaderMaterial` continues to support the dynamic theme colors implemented in Story 2.1.
+        </snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/components/canvas/TreeParticles.tsx</path>
+        <kind>file</kind>
+        <symbol>TreeParticles</symbol>
+        <lines>1-698</lines>
+        <reason>Currently uses PointsMaterial with static textures (featherTexture, sparkleTexture). Needs to be upgraded to ShaderMaterial with texture atlas support for photo morphing. Must generate uvOffset and uvScale attributes for texture atlas mapping.</reason>
+      </item>
+      <item>
+        <path>src/config/assets.ts</path>
+        <kind>file</kind>
+        <symbol>MEMORIES</symbol>
+        <lines>22-83</lines>
+        <reason>Contains MEMORIES array with photo image paths. This should be used to load textures and create texture atlas. Each memory has id, image, and optional video fields.</reason>
+      </item>
+      <item>
+        <path>src/shaders/treeVertex.glsl</path>
+        <kind>file</kind>
+        <symbol>treeVertex</symbol>
+        <reason>Existing shader file. May need to create particle.vert.glsl and particle.frag.glsl for morphing effect, or update existing shader to support texture mixing.</reason>
+      </item>
+      <item>
+        <path>src/store/useStore.ts</path>
+        <kind>file</kind>
+        <symbol>useStore</symbol>
+        <lines>1-66</lines>
+        <reason>Provides `isExploded` state that drives `uProgress` uniform. The morphing animation should be synchronized with the explosion animation from Story 2.2.</reason>
+      </item>
+      <item>
+        <path>src/components/canvas/PhotoCard.tsx</path>
+        <kind>file</kind>
+        <symbol>PhotoCard</symbol>
+        <lines>1-63</lines>
+        <reason>Reference implementation for photo rendering. However, Story 2.3 should morph particles into photos within the particle system itself, not spawn separate PhotoCard components. The PhotoCard component may be used in Epic 3 for Lightbox interaction.</reason>
+      </item>
+      <item>
+        <path>src/components/canvas/Experience.tsx</path>
+        <kind>file</kind>
+        <symbol>Experience</symbol>
+        <lines>185-204</lines>
+        <reason>Currently renders PhotoCard components separately when exploded. Story 2.3 should integrate photo textures into the particle system instead, so particles themselves morph into photos.</reason>
+      </item>
+    </code>
+    <dependencies>
+      <package name="three" version="^0.165.0" />
+      <package name="@react-three/fiber" version="^8.15.0" />
+      <package name="zustand" version="^5.0.9" />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Texture atlas or texture array must be used for efficient GPU rendering - cannot load individual textures per particle.</constraint>
+    <constraint>Morphing must happen in shader (GPU-side) using `mix()` function, not CPU-side texture swapping.</constraint>
+    <constraint>Scale animation must be smooth and use easing function (e.g., ease-out) for natural feel.</constraint>
+    <constraint>Floating drift animation must keep particles in view - no particles should fly off-screen (FR11).</constraint>
+    <constraint>Performance must remain >30fps during morphing transition with 20k+ particles (FR1, FR9).</constraint>
+    <constraint>Texture atlas generation must happen only once using useMemo to avoid re-computation on re-render.</constraint>
+    <constraint>Photo distribution should map particles to photos from MEMORIES array - multiple particles can map to same photo if needed.</constraint>
+    <constraint>Shader must support both tree color (vertex color) and photo texture, mixing based on uProgress uniform.</constraint>
+    <constraint>Ensure morphing effect works with dynamic tree colors from Story 2.1 (treeColor from useStore).</constraint>
+    <constraint>Texture loading should be optimized - consider preloading or lazy loading to avoid frame drops.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AppState</name>
+      <kind>interface</kind>
+      <signature>
+export interface AppState {
+    treeColor: string;
+    particleCount: number;
+    isExploded: boolean;
+    activePhotoId: string | null;
+    setTreeColor: (color: string) => void;
+    setParticleCount: (count: number) => void;
+    triggerExplosion: () => void;
+    resetExplosion: () => void;
+    setActivePhoto: (id: string | null) => void;
+}
+      </signature>
+      <path>src/store/useStore.ts</path>
+      <reason>The `isExploded` boolean state drives the morphing animation via `uProgress` uniform. When `isExploded` is true, `uProgress` should animate from 0 to 1, triggering the morphing effect.</reason>
+    </interface>
+    <interface>
+      <name>Memory</name>
+      <kind>type</kind>
+      <signature>
+export type Memory = {
+  id: string;
+  image: string;
+  video: string | null;
+}
+      </signature>
+      <path>src/config/assets.ts</path>
+      <reason>Memory type defines photo data structure. The `image` field contains the path to the photo texture that should be loaded into the texture atlas.</reason>
+    </interface>
+    <interface>
+      <name>TreeParticlesProps</name>
+      <kind>interface</kind>
+      <signature>
+interface TreeParticlesProps {
+  isExploded: boolean;
+  config: AppConfig;
+  onParticlesClick: () => void;
+}
+      </signature>
+      <path>src/components/canvas/TreeParticles.tsx</path>
+      <reason>Component receives `isExploded` prop which should drive the morphing animation. The component needs to be updated to support texture atlas and shader-based morphing.</reason>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Verify that particles scale smoothly from small glow dots to card size as uProgress increases.
+      Verify that texture cross-fades smoothly from tree color to photo texture using mix() function.
+      Verify that particles enter floating, drifting state when uProgress approaches 1.0.
+      Verify that no particles fly off-screen during floating animation.
+      Verify performance remains >30fps during morphing transition.
+      Visually verify that photos are correctly mapped to particles (no misalignment or missing textures).
+      Check that texture atlas generation happens only once (no re-computation on re-render).
+    </standards>
+    <locations>
+      src/components/canvas/TreeParticles.tsx
+      src/shaders/particle.vert.glsl (to be created or updated)
+      src/shaders/particle.frag.glsl (to be created or updated)
+    </locations>
+    <ideas>
+      Test that texture atlas is correctly generated from MEMORIES array.
+      Test that uvOffset and uvScale attributes are correctly calculated for each particle.
+      Test that mix() function in fragment shader correctly blends tree color and photo texture based on uProgress.
+      Test that scale animation follows smooth easing curve (not linear).
+      Test that floating drift animation keeps particles within view bounds.
+      Test that morphing effect works in reverse when isExploded becomes false (implosion).
+      Test that performance remains acceptable with maximum particle count (20k+).
+      Test that texture loading doesn't cause frame drops or stuttering.
+      Test that multiple particles can correctly map to the same photo in texture atlas.
+      Test that morphing effect works with different tree colors from Story 2.1.
+    </ideas>
+  </tests>
+</story-context>
+
