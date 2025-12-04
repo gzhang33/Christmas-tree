@@ -22,19 +22,21 @@
 ## Acceptance Criteria
 
 - [ ] AC #1: Magic Halo粒子沿螺旋路径分布,围绕树旋转
-  - 螺旋半径约7.0 (比树基础半径5.5更宽)
-  - 螺旋从树底部(-5.5)到顶部(8.5)
-  - 粒子均匀分布在螺旋路径上
+  - **螺旋结构**: 与珍珠串完全匹配的 **8圈** 螺旋路径
+  - **轨道带宽**: 粒子紧贴光环外侧 (**±0.4单位** 带宽)
+  - **形状跟随**: 轨道半径跟随树锥形轮廓变化
+  - **独立旋转**: 每个粒子独立旋转 (0.102-0.104 rad/sec)
 
 - [ ] AC #2: 螺旋具有上升动画效果
-  - 粒子随时间向上移动
-  - 到达顶部后从底部重新出现(循环)
-  - 动画流畅,速度适中(可见但不分散注意力)
+  - **上升速度**: **0.03-0.07** 单位/秒
+  - **循环周期**: 10-20秒完成一圈螺旋, 到达顶部自动重生
+  - **轨道微扰**: 包含径向+垂直摆动, 模拟引力束缚
 
 - [ ] AC #3: 视觉效果符合"Midnight Magic"主题
-  - 颜色: 白色/金色/主题色的明亮光晕
-  - HDR强度: 1.5-2.5 (确保可见性)
-  - 粒子密度: 20%总粒子数
+  - **粒子数量**: 优化至 **600**
+  - **纹理**: 流星纹理 (彗星状光晕)
+  - **尾迹**: 6点尾迹系统
+  - **颜色**: 金色→白色颜色渐变, 3-5Hz闪烁效果
 
 - [ ] AC #4: 移动端适配良好
   - 螺旋在小屏幕上完整可见
@@ -58,8 +60,10 @@ const magicHaloData = useMemo(() => {
   // 螺旋参数
   const treeHeight = 14;
   const treeBottom = -5.5;
-  const baseRadius = 7.0;        // 螺旋基础半径
-  const spiralTurns = 10;        // 螺旋圈数
+  // 螺旋参数
+  const treeHeight = 14;
+  const treeBottom = -5.5;
+  const spiralTurns = 8;         // 8圈螺旋
   const totalTheta = spiralTurns * Math.PI * 2;
 
   for (let i = 0; i < count; i++) {
@@ -69,12 +73,12 @@ const magicHaloData = useMemo(() => {
     const theta = t * totalTheta;
     const y = treeBottom + t * treeHeight;
     
-    // 半径随高度略微收缩
-    const heightRatio = t;
-    const radius = baseRadius * (1.0 - heightRatio * 0.3);
+    // 半径跟随树锥形
+    const coneRadius = 5.5 * (1.0 - t);
+    const radius = coneRadius + 0.5;
     
-    // 添加径向噪声
-    const radialNoise = (Math.random() - 0.5) * 0.5;
+    // 轨道带宽 ±0.4
+    const radialNoise = (Math.random() - 0.5) * 0.8;
     const r = radius + radialNoise;
     
     // 螺旋位置
@@ -109,11 +113,12 @@ float animatedY = mod(position.y + uTime * 0.5, 14.0) - 5.5;
 
 ### Task 3: 参数调优
 调整以下参数以达到最佳视觉效果:
-- `baseRadius`: 螺旋半径 (当前: 7.0)
-- `spiralTurns`: 螺旋圈数 (当前: 10)
-- `radialNoise`: 径向变化 (当前: 0.5)
-- `yJitter`: 垂直抖动 (当前: 0.3)
-- 颜色强度: HDR boost值
+- `spiralTurns`: 锁定为 **8圈**
+- `rotationSpeed`: 0.102-0.104 rad/sec
+- `ascentSpeed`: 0.03-0.07 单位/秒
+- `radialNoise`: 锁定为 **±0.4**
+- `particleCount`: **600**
+- 尾迹长度: 6点
 
 ### Task 4: 移动端测试
 - 在小屏幕上验证螺旋完整可见
