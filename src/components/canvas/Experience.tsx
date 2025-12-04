@@ -6,6 +6,7 @@ import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
 import { PhotoCard } from './PhotoCard.tsx';
 import { UIState } from '../../types.ts';
+import { PLACEHOLDERS } from '../../config/assets.ts';
 import * as THREE from 'three';
 
 interface ExperienceProps {
@@ -188,7 +189,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
           const photoUrl =
             photos.length > 0
               ? photos[i % photos.length].url
-              : `https://picsum.photos/seed/${i + 999}/300/360`;
+              : PLACEHOLDERS.photoSeed.replace('{seed}', (i + 999).toString());
 
           return (
             <PhotoCard

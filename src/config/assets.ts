@@ -6,6 +6,20 @@
  */
 
 /**
+ * Audio assets
+ */
+export const AUDIO = {
+  jingleBells: '/child-Jingle Bells.mp3',
+} as const;
+
+/**
+ * Placeholder images
+ */
+export const PLACEHOLDERS = {
+  photoSeed: 'https://picsum.photos/seed/{seed}/300/360',
+} as const;
+
+/**
  * Memory type definition
  * Represents a memory item with both image and optional video
  */
@@ -81,5 +95,3 @@ export const MEMORIES: readonly Memory[] = [
     video: '/photos/IMG_6242.mp4',
   },
 ] as const;
-
-

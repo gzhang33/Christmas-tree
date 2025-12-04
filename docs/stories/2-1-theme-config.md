@@ -1,24 +1,3 @@
-# Story 2.1: Theme & Asset Configuration
-
-Status: done
-
-**Note (2025-12-02):** The current implementation provides a **color selection feature** for tree particles, not a full theme system. The naming "theme" in this story is historical and may be misleading. The actual feature allows users to select a color for the Christmas tree particles, with preset color options and a custom color picker.
-
-## Story
-
-As a Developer,
-I want to centralize theme and asset configuration,
-so that the application uses the correct "Midnight Magic" colors and textures.
-
-**Implementation Reality:** This story was implemented as a color selection system (`treeColor` in store) rather than a full theme system. The color selection is managed through:
-- Global store (`useStore`) with `treeColor` state
-- Preset color options in `src/config/colors.ts`
-- Custom color picker in Controls UI
-- Dynamic color variant generation in TreeParticles component
-
-## Acceptance Criteria
-
-1. `src/config` directory is created and populated.
 2. `src/config/theme.ts` exports "Midnight Magic" palette constants matching UX Spec.
 3. `src/config/assets.ts` defines paths for particle textures and photo placeholders.
 4. `TreeParticles` component is updated to consume color values from `useStore` (initialized from config) instead of hardcoded values.
@@ -217,29 +196,6 @@ The implementation successfully centralizes the theme and asset configuration as
 ### Suggestions for Future Refactoring
 1.  **Component Size:** `TreeParticles.tsx` is becoming quite large (>900 lines). Consider breaking it down into smaller sub-components (e.g., `EntityLayer`, `GlowLayer`, `OrnamentLayer`) or custom hooks (`useParticleLayer`) in a future refactor to improve maintainability.
 2.  **Magic Numbers:** There are still some magic numbers in the particle generation logic (e.g., `treeHeight = 14`, `count * 1.5`). Moving these to a `particle-config.ts` or similar would further improve maintainability.
-
-### Conclusion
-The story meets all acceptance criteria and adheres to the architecture guidelines. The code is ready for production.
-
----
-
-## Senior Developer Review (AI) - Post-Rollback Verification
-
-### Reviewer
-BMad Master
-
-### Date
-2025-12-02
-
-### Outcome
-**Changes Requested**
-
-**Critical Finding:** After project rollback, the theme and asset configuration files are missing. The centralized configuration system described in the previous review is not present in the current codebase.
-
-### Summary
-The current codebase does not contain the `src/config/theme.ts` and `src/config/assets.ts` files required by Story 2-1. The `TreeParticles` component and store are not using centralized theme configuration, and hardcoded values are likely still present.
-
-### Key Findings
 
 #### High Severity Issues
 

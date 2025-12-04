@@ -4,6 +4,7 @@ import { Experience } from './components/canvas/Experience.tsx';
 import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
+import { AUDIO } from './config/assets.ts';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
@@ -34,11 +35,8 @@ const PerformanceMonitorWrapper: React.FC<{
 
 function App() {
   // Global State from Zustand Store
-  const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
   const isExploded = useStore((state) => state.isExploded);
-  const setTreeColor = useStore((state) => state.setTreeColor);
-  const setParticleCount = useStore((state) => state.setParticleCount);
   const triggerExplosion = useStore((state) => state.triggerExplosion);
   const resetExplosion = useStore((state) => state.resetExplosion);
 
@@ -59,10 +57,7 @@ function App() {
   const [isHeroTextCompact, setIsHeroTextCompact] = useState(false);
 
   // Local config (non-persisted settings)
-  // Note: treeColor and particleCount are read directly from store when needed
   const [config, setConfig] = useState<AppConfig>({
-    treeColor: treeColor, // Read from store
-    particleCount: particleCount, // Read from store
     snowDensity: 1500,
     rotationSpeed: 0.6,
     photoSize: 1.5,
@@ -71,18 +66,9 @@ function App() {
     windStrength: 0.4,
   });
 
-  // Sync store changes to local config (for components that still use config object)
-  useEffect(() => {
-    setConfig((prev) => ({
-      ...prev,
-      treeColor: treeColor,
-      particleCount: particleCount,
-    }));
-  }, [treeColor, particleCount]);
-
   // Estimate total particles
   const estimatedParticleCount = Math.floor(
-    config.particleCount * 1.5 + // Tree particles (entity + glow)
+    particleCount * 1.5 + // Tree particles (entity + glow)
     3000 + // Ornaments
     5500 + // Gifts
     config.snowDensity + // Snow
@@ -154,15 +140,7 @@ function App() {
   }, []);
 
   // Handlers
-  // Note: treeColor and particleCount are managed directly by the store,
-  // so they should be updated via store actions, not through updateConfig
   const updateConfig = useCallback((key: keyof AppConfig, value: any) => {
-    // Skip store-managed keys (they should be updated via store actions)
-    if (key === 'treeColor' || key === 'particleCount') {
-      console.warn(`Attempted to update ${key} via updateConfig. Use store actions instead.`);
-      return;
-    }
-    // Update local config for non-store-managed settings
     setConfig((prev) => ({ ...prev, [key]: value }));
   }, []);
 
@@ -204,14 +182,14 @@ function App() {
   useEffect(() => {
     const prevPhotos = prevPhotosRef.current;
     const currentPhotoIds = new Set(photos.map((p) => p.id));
-    
+
     // Revoke URLs for photos that were removed
     prevPhotos.forEach((photo) => {
       if (!currentPhotoIds.has(photo.id)) {
         URL.revokeObjectURL(photo.url);
       }
     });
-    
+
     // Update ref for next comparison (create a shallow copy)
     prevPhotosRef.current = [...photos];
   }, [photos]);
@@ -246,7 +224,7 @@ function App() {
       {/* Background Music */}
       <audio
         ref={audioRef}
-        src="/child-Jingle Bells.mp3"
+        src={AUDIO.jingleBells}
         crossOrigin="anonymous"
         loop
         muted={isMuted}

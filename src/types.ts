@@ -1,6 +1,4 @@
 export interface AppConfig {
-  treeColor: string;
-  particleCount: number;
   snowDensity: number;
   rotationSpeed: number;
   photoSize: number;

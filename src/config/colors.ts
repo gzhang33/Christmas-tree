@@ -5,6 +5,8 @@
  * This is a color selection feature, not a full theme system.
  */
 
+import * as THREE from 'three';
+
 export interface ColorPreset {
   hex: string;
   name: string;
@@ -27,3 +29,17 @@ export const TREE_COLOR_PRESETS: readonly ColorPreset[] = [
  */
 export const DEFAULT_TREE_COLOR = '#D53F8C';
 
+/**
+ * Static colors used for ornaments and other elements
+ */
+export const STATIC_COLORS = {
+  white: new THREE.Color('#FFFFFF'),
+  cream: new THREE.Color('#FFF8F0'),
+  gold: new THREE.Color('#FFD700'),
+  silver: new THREE.Color('#C0C0C0'),
+  pearl: new THREE.Color('#FDEEF4'),
+  ukRed: new THREE.Color('#C8102E'),
+  ukBlue: new THREE.Color('#012169'),
+  londonRed: new THREE.Color('#CC0000'),
+  corgiTan: new THREE.Color('#D4A574'),
+};

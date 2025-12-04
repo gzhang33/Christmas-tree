@@ -29,7 +29,7 @@ export interface AppState {
  * Persists user preferences (treeColor, particleCount) to LocalStorage
  * to satisfy FR26/FR27 requirements.
  * 
- * Note: This is a color selection feature, not a full theme system.
+ * Note: This manages the color selection feature.
  * The treeColor controls the particle colors in the 3D tree visualization.
  * 
  * Usage:
