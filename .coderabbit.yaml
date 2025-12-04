@@ -1,0 +1,32 @@
+reviews:
+  path_filters:
+    - "!**/*.min.js"     # 忽略压缩文件
+    - "**/*.log"         # 忽略日志文件
+    - "dist/**"          # 忽略构建输出目录
+    - ".env*"            # 忽略环境变量文件
+reviews:
+  path_filters:
+    - "!**/*.min.js"     # 忽略压缩文件
+    - "**/*.log"         # 忽略日志文件
+    - "dist/**"          # 忽略构建输出目录
+    - ".env*"            # 忽略环境变量文件
+    - "docs/**"          # 忽略文档目录
+    - "tests/**"          # 忽略测试目录
+    - "src/components/canvas/**"          # 忽略组件目录
+    - "src/components/ui/**"          # 忽略组件目录
+    - "src/hooks/**"          # 忽略钩子目录
+    - "src/store/**"          # 忽略存储目录
+    - "src/config/**"          # 忽略配置目录
+    - "src/shaders/**"          # 忽略着色器目录
+    - "src/utils/**"          # 忽略工具目录
+    - "src/types/**"          # 忽略类型目录
+    - "src/assets/**"          # 忽略资产目录
+    - "src/public/**"          # 忽略公共目录
+    - "src/styles/**"          # 忽略样式目录
+    - "src/utils/**"          # 忽略工具目录
+    - "src/types/**"          # 忽略类型目录
+    - "src/assets/**"          # 忽略资产目录
+    - "src/public/**"          # 忽略公共目录
+    - "src/styles/**"          # 忽略样式目录
+    - "src/utils/**"          # 忽略工具目录
+    - "src/types/**"          # 忽略类型目录

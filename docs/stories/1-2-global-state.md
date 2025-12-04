@@ -21,28 +21,16 @@ so that 3D and UI components can share state (theme, particles, explosion status
 - [x] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
 - [x] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
 - [x] Implement state logic:
-- [ ] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
-- [ ] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
-- [ ] Implement state logic:
-  - [x] `theme`: default from config (or 'midnight')
+  - [x] `treeColor`: default from config (or 'midnight')
   - [x] `particleCount`: default 5000 (or similar)
   - [x] `isExploded`: default false
   - [x] `activePhotoId`: default null
-- [ ] Implement actions:
-  - [x] `setTheme(theme)`
+- [x] Implement actions:
+  - [x] `setTreeColor(color)`
   - [x] `setParticleCount(count)`
   - [x] `triggerExplosion()` -> sets `isExploded: true`
   - [x] `resetExplosion()` -> sets `isExploded: false`
   - [x] `setActivePhoto(id)`
-    - [x] `particleCount`: default 5000 (or similar)
-    - [x] `isExploded`: default false
-    - [x] `activePhotoId`: default null
-- [x] Implement actions:
-    - [x] `setTheme(theme)`
-    - [x] `setParticleCount(count)`
-    - [x] `triggerExplosion()` -> sets `isExploded: true`
-    - [x] `resetExplosion()` -> sets `isExploded: false`
-    - [x] `setActivePhoto(id)`
 - [x] Verify store persistence (AC: 2)
 
 ## Dev Notes

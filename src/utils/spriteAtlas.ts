@@ -59,9 +59,15 @@ export async function createSpriteAtlas(): Promise<SpriteAtlasResult> {
 
     if (spriteCount === 0) {
         console.warn('[SpriteAtlas] No sprites to create atlas');
-        // Return minimal valid result or throw error
+        // 返回一个最小的有效结果
+        const emptyTexture = new THREE.CanvasTexture(canvas);
+        return {
+            texture: emptyTexture,
+            cols: 1,
+            rows: 1,
+            mapping: new Map(),
+        };
     }
-
     // Clear canvas
     ctx.clearRect(0, 0, atlasWidth, atlasHeight);
     // Load all sprites

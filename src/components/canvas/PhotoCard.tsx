@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -55,9 +55,8 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       // 因为 loadedTexture 和 prevTexture 可能是同一个对象
       setTexture(null);
     };
-  };
-}, [url, isExploded]);
-useFrame((state) => {
+  }, [url, isExploded]);
+
   const targetVec = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((state) => {
@@ -71,10 +70,12 @@ useFrame((state) => {
     const targetScale = isExploded ? scale : 0;
     targetVec.set(targetScale, targetScale, targetScale);
     groupRef.current.scale.lerp(targetVec, 0.1);
-  });// Don't render anything when not exploded
-if (!isExploded && !visible) return null;
+  });
 
-return (
+  // Don't render anything when not exploded
+  if (!isExploded && !visible) return null;
+
+  return (
   <group ref={groupRef} position={position} rotation={rotation} scale={0}>
     {/* Polaroid Frame */}
     <mesh position={[0, 0, 0]}>
