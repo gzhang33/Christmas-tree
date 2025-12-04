@@ -19,8 +19,7 @@ Friends, family, and loved ones who want to share and relive memories in a uniqu
 
 ### 1.1 Design System Choice
 
-{{design_system_decision}}
-
+> **TODO:** 待确定设计系统选型（如 Material UI、Chakra UI 或自定义 Tailwind 组件）
 ---
 
 ## 2. Core User Experience
@@ -102,10 +101,7 @@ The defining experience is the seamless, physics-driven transition from a festiv
 ---
 
 ## 3. Visual Foundation
-
-### 3.1 Color System
-
-### 3.1 Color System
+### 3.1 Color System### 3.1 Color System
 
 **Theme: Midnight Magic**
 A modern, high-contrast, and vibrant palette evoking a cyberpunk Christmas eve.

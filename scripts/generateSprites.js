@@ -12,8 +12,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createCanvas } = require('canvas');
 
+// 检查 canvas 包是否已安装
+try {
+    require.resolve('canvas');
+} catch (e) {
+    console.error('❌ 错误：缺少 canvas 包');
+    console.error('💡 请先运行：npm install canvas');
+    process.exit(1);
+}
+
+const { createCanvas } = require('canvas');
 const OUTPUT_DIR = path.join(__dirname, '../public/sprites');
 const SIZE = 128;
 
@@ -36,6 +45,10 @@ function generateGiftBox() {
     const x = (SIZE - boxSize) / 2;
     const y = (SIZE - boxSize) / 2;
 
+    // Shadow for depth (drawn first so it appears behind the gift)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(x + boxSize * 0.05, y + boxSize * 0.05, boxSize, boxSize);
+
     // Box body (red)
     ctx.fillStyle = '#E74C3C';
     ctx.fillRect(x, y, boxSize, boxSize);
@@ -52,10 +65,6 @@ function generateGiftBox() {
     ctx.arc(x + boxSize / 2, y, boxSize * 0.2, 0, Math.PI * 2);
     ctx.fillStyle = '#F39C12';
     ctx.fill();
-
-    // Shadow for depth
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.fillRect(x + boxSize * 0.05, y + boxSize * 0.05, boxSize, boxSize);
 
     return canvas;
 }

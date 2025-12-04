@@ -83,7 +83,7 @@
     <dependencies>
       <dep name="zustand" version="^5.0.9" />
       <dep name="framer-motion" version="^12.23.25" />
-      <dep name="tailwindcss" version="^4.1.17" />
+      <dep name="tailwindcss" version="^4.1.12" />
       <dep name="lucide-react" version="^0.395.0" />
     </dependencies>
   </artifacts>

@@ -129,7 +129,7 @@ const attributes = {
 5.  **Explosion Physics:** Clicking the tree triggers a smooth, non-linear explosion animation where particles travel along curved paths (Bezier).
 6.  **Morphing:** Particles visibly transform from small glowing dots to larger, textured rectangular "photos" as they explode.
 7.  **Texture Atlas:** Each "photo" particle displays a distinct image from a provided texture atlas (or array), not just a single repeated texture.
-8.  **Performance:** The explosion animation runs smoothly without significant frame drops on the target test device.
+8.  **Performance:** The explosion animation must maintain >30 FPS on target mobile devices and >55 FPS on desktop devices. These measurements are taken on the target test device under normal load.
 9.  **Reversibility:** The animation is fully reversible; toggling `isExploded` off returns particles to the exact tree shape.
 10. **Theme Integration:** The tree particles correctly use the color defined in the "Midnight Magic" theme config.
 ## Traceability Mapping

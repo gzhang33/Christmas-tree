@@ -20,7 +20,7 @@ export interface UIState {
   photos: PhotoData[];
   addPhotos: (files: FileList) => void;
   config: AppConfig;
-  updateConfig: (key: keyof AppConfig, value: any) => void;
+  updateConfig: <K extends keyof AppConfig>(key: K, value: AppConfig[K]) => void;
   isMuted: boolean;
   toggleMute: () => void;
 }

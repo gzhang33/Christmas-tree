@@ -82,7 +82,7 @@ function App() {
 
   // Estimate total particles
   const estimatedParticleCount = Math.floor(
-    config.particleCount + // Tree particles (entity + glow + ornaments + crown + gifts)
+    config.particleCount + // 树的所有粒子（已包含各种装饰效果）
     config.snowDensity + // Snow
     1200 // Magic dust
   );
@@ -258,7 +258,7 @@ function App() {
               intensity={0.8}
               radius={0.5}
             />
-            {/* Tertiary Bloom - Crown HDR glow (threshold 1.0+) */}
+            {/* Tertiary Bloom - Magic Halo 高亮效果 (threshold 1.0+) */}
             <Bloom
               luminanceThreshold={1.2}
               luminanceSmoothing={0.3}

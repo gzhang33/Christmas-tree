@@ -79,37 +79,46 @@ Magic Halo Refactor - Spiral Animation System:
    - Particle density along helix
    - Color: Keep bright glow (white/gold/theme colors)
 
-**Progress Update (2025-12-04 00:03):**
+**Progress Update / 进度更新 (2025-12-04 00:03):**
+
+### Details / 详情
 
 遇到技术挑战: TreeParticles.tsx 文件较大(~1000行),使用 replace_file_content 工具进行多处修改时遇到格式匹配问题,导致文件结构被破坏。已回滚到工作状态。
 
-**新策略 - 分解为小步骤**:
-- [x] 子任务 1: 更新 PARTICLE_ALLOCATION 配置 (移除 crown, 重命名 glowLayer → magicHalo) ✅
-- [x] 子任务 2: 更新 refs 声明 (移除 crownRef, 重命名 glowLayerRef → magicHaloRef) ✅
-- [x] 子任务 3: 删除 crownData useMemo 整个代码块 ✅ (节省135行)
-- [x] 子任务 4: 重命名 glowLayerData → magicHaloData ✅
-- [ ] 子任务 5: 重写 magicHaloData 生成逻辑 (螺旋路径) - **推迟到下一个story**
-- [x] 子任务 6: 更新 JSX 渲染 (移除 crown points, 更新 halo points) ✅
-- [x] 子任务 7: 验证编译和运行 ✅
+**Technical Challenge Encountered:** The TreeParticles.tsx file is large (~1000 lines). When using the replace_file_content tool for multiple modifications, format matching issues occurred, causing the file structure to be corrupted. Rolled back to working state.
 
-**完成状态 (2025-12-04 00:13):**
+### New Strategy / 新策略 - Decompose into Small Steps / 分解为小步骤
 
-✅ **Crown层移除完成**:
-- 删除了135行Crown相关代码
-- 更新了粒子分配配置 (entityLayer: 55%→60%, 移除crown 5%)
-- 所有引用已清理,TypeScript编译通过 ✅
-- 代码可以正常运行
+- [x] **Subtask 1 / 子任务 1:** Update PARTICLE_ALLOCATION configuration (remove crown, rename glowLayer → magicHalo) / 更新 PARTICLE_ALLOCATION 配置 (移除 crown, 重命名 glowLayer → magicHalo) ✅
+- [x] **Subtask 2 / 子任务 2:** Update refs declarations (remove crownRef, rename glowLayerRef → magicHaloRef) / 更新 refs 声明 (移除 crownRef, 重命名 glowLayerRef → magicHaloRef) ✅
+- [x] **Subtask 3 / 子任务 3:** Delete entire crownData useMemo code block / 删除 crownData useMemo 整个代码块 ✅ (Saved 135 lines / 节省135行)
+- [x] **Subtask 4 / 子任务 4:** Rename glowLayerData → magicHaloData / 重命名 glowLayerData → magicHaloData ✅
+- [ ] **Subtask 5 / 子任务 5:** Rewrite magicHaloData generation logic (spiral path) - **Deferred to next story** / 重写 magicHaloData 生成逻辑 (螺旋路径) - **推迟到下一个story**
+- [x] **Subtask 6 / 子任务 6:** Update JSX rendering (remove crown points, update halo points) / 更新 JSX 渲染 (移除 crown points, 更新 halo points) ✅
+- [x] **Subtask 7 / 子任务 7:** Verify compilation and runtime / 验证编译和运行 ✅
 
-⏭️ **推迟工作 (移至新story)**:
-- Magic Halo螺旋逻辑实现 (当前仍是锥形分布)
-- 螺旋参数调优 (半径、圈数、密度、颜色)
-- 着色器上升动画实现
-- 移动端适配验证
+### Completion Status / 完成状态 (2025-12-04 00:13)
 
-**技术债务记录**:
+✅ **Crown Layer Removal Complete / Crown层移除完成:**
+- Deleted 135 lines of Crown-related code / 删除了135行Crown相关代码
+- Updated particle allocation configuration (entityLayer: 55%→60%, removed crown 5%) / 更新了粒子分配配置 (entityLayer: 55%→60%, 移除crown 5%)
+- All references cleaned up, TypeScript compilation passed ✅ / 所有引用已清理,TypeScript编译通过 ✅
+- Code runs normally / 代码可以正常运行
+
+⏭️ **Deferred Work (Moved to New Story) / 推迟工作 (移至新story):**
+- Magic Halo spiral logic implementation (currently still cone distribution) / Magic Halo螺旋逻辑实现 (当前仍是锥形分布)
+- Spiral parameter tuning (radius, turns, density, color) / 螺旋参数调优 (半径、圈数、密度、颜色)
+- Shader ascending animation implementation / 着色器上升动画实现
+- Mobile adaptation verification / 移动端适配验证
+
+**Technical Debt Record / 技术债务记录:**
+
 当前 `magicHaloData` 仍使用原 glowLayer 的锥形粒子生成逻辑。需要在后续story中重写为螺旋路径:
+
+**Current Status:** The `magicHaloData` still uses the original glowLayer's cone-shaped particle generation logic. Needs to be rewritten as a spiral path in a subsequent story:
+
 ```typescript
-// 目标: 螺旋参数化路径
+// Target: Parametric spiral path / 目标: 螺旋参数化路径
 const theta = (i / count) * spiralTurns * Math.PI * 2;
 const y = treeBottom + (i / count) * treeHeight;
 const radius = baseRadius * (1.0 - (i/count) * 0.3);
@@ -117,7 +126,7 @@ const x = Math.cos(theta) * radius;
 const z = Math.sin(theta) * radius;
 ```
 
-当前状态: Crown移除完成,基础重构成功
+**Current Status / 当前状态:** Crown removal complete, basic refactoring successful / Crown移除完成,基础重构成功
 
 ### Completion Notes
 - [x] Verified brightness balance.

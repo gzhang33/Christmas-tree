@@ -104,11 +104,11 @@ Registry: Use src/config/assets.ts
       <kind>interface</kind>
       <signature>
 export interface AppState {
-    theme: string;
+    treeColor: string;
     particleCount: number;
     isExploded: boolean;
     activePhotoId: string | null;
-    setTheme: (theme: string) => void;
+    setTreeColor: (color: string) => void;
     setParticleCount: (count: number) => void;
     triggerExplosion: () => void;
     resetExplosion: () => void;

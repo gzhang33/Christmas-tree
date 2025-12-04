@@ -76,6 +76,11 @@ export const Snow: React.FC<SnowProps> = ({ count, speed = 1.0, wind = 0.5 }) =>
     return texture;
   }, []);
 
+  useEffect(() => {
+    return () => {
+      snowflakeTexture.dispose();
+    };
+  }, [snowflakeTexture]);
   // Initialize particle data
   const particles = useMemo(() => {
     const temp = [];

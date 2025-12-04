@@ -20,7 +20,7 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       setVisible(false);
       return;
     }
-    
+
     // Dispose any existing texture from state before starting a new load
     setTexture((prevTexture) => {
       if (prevTexture) {
@@ -28,10 +28,10 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       }
       return null;
     });
-    
+
     let loadedTexture: THREE.Texture | null = null;
     let isCancelled = false;
-    
+
     const loader = new THREE.TextureLoader();
     loader.load(url, (tex) => {
       if (isCancelled) {
@@ -43,21 +43,23 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
       setTexture(tex);
       setVisible(true);
     });
-    
+
     // Cleanup function: dispose whichever texture is currently set
     return () => {
       isCancelled = true;
       if (loadedTexture) {
         loadedTexture.dispose();
+        loadedTexture = null;
       }
-      setTexture((prevTexture) => {
-        if (prevTexture) {
-          prevTexture.dispose();
-        }
-        return null;
-      });
+      // 仅重置状态，不再重复 dispose
+      // 因为 loadedTexture 和 prevTexture 可能是同一个对象
+      setTexture(null);
     };
-  }, [url, isExploded]);
+  };
+}, [url, isExploded]);
+useFrame((state) => {
+  const targetVec = useMemo(() => new THREE.Vector3(), []);
+
   useFrame((state) => {
     if (!groupRef.current) return;
 
@@ -67,27 +69,26 @@ export const PhotoCard: React.FC<PhotoCardProps> = ({ url, position, rotation, s
 
     // Scale animation based on explosion state
     const targetScale = isExploded ? scale : 0;
-    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-  });
+    targetVec.set(targetScale, targetScale, targetScale);
+    groupRef.current.scale.lerp(targetVec, 0.1);
+  });// Don't render anything when not exploded
+if (!isExploded && !visible) return null;
 
-  // Don't render anything when not exploded
-  if (!isExploded && !visible) return null;
+return (
+  <group ref={groupRef} position={position} rotation={rotation} scale={0}>
+    {/* Polaroid Frame */}
+    <mesh position={[0, 0, 0]}>
+      <boxGeometry args={[1, 1.2, 0.02]} />
+      <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} />
+    </mesh>
 
-  return (
-    <group ref={groupRef} position={position} rotation={rotation} scale={0}>
-      {/* Polaroid Frame */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[1, 1.2, 0.02]} />
-        <meshStandardMaterial color="#ffffff" roughness={0.4} metalness={0.1} />
+    {/* Photo Image */}
+    {texture && (
+      <mesh position={[0, 0.1, 0.02]}>
+        <planeGeometry args={[0.85, 0.85]} />
+        <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
       </mesh>
-      
-      {/* Photo Image */}
-      {texture && (
-        <mesh position={[0, 0.1, 0.02]}>
-          <planeGeometry args={[0.85, 0.85]} />
-          <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
-        </mesh>
-      )}
-    </group>
-  );
+    )}
+  </group>
+);
 };

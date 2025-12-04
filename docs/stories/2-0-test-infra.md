@@ -25,7 +25,7 @@ so that the project is stable and supports the new video requirements.
   - [x] Create `src/store/useStore.test.ts`
   - [x] Test initial state
   - [x] Test actions (`setTreeColor`, `setParticleCount`, `triggerExplosion`, `resetExplosion`)
-  - [x] Update Asset Configuration (AC: 3)  - [x] Update `Asset` type definition to support `videoUrl`
+  - [x] Update Asset Configuration (AC: 3)  - [x] Update Asset Configuration (AC: 3)  - [x] Update `Asset` type definition to support `videoUrl`
   - [x] Add video paths to `src/config/assets.ts`
 - [x] Fix Memory Leak in Controls (AC: 4)
   - [x] Analyze `src/components/ui/Controls.tsx` for `URL.createObjectURL` usage

@@ -52,11 +52,18 @@ export async function createSpriteAtlas(): Promise<SpriteAtlasResult> {
     const canvas = document.createElement('canvas');
     canvas.width = atlasWidth;
     canvas.height = atlasHeight;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        throw new Error('[SpriteAtlas] Failed to create 2D context');
+    }
+
+    if (spriteCount === 0) {
+        console.warn('[SpriteAtlas] No sprites to create atlas');
+        // Return minimal valid result or throw error
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, atlasWidth, atlasHeight);
-
     // Load all sprites
     const spriteImages = await Promise.all(
         SPRITE_ASSETS.map(sprite => loadSpriteImage(sprite.url, sprite.type))

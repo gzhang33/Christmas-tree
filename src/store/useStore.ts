@@ -30,12 +30,12 @@ export interface AppState {
 /**
  * Global Zustand Store with LocalStorage Persistence
  * 
- * Persists user preferences (theme, particleCount) to LocalStorage
+ * Persists user preferences (treeColor, particleCount) to LocalStorage
  * to satisfy FR26/FR27 requirements.
  * 
  * Usage:
- * - UI Components: `const theme = useStore(state => state.theme)`
- * - 3D Components: `const isExploded = useStore(state => state.isExploded)`
+ * Usage:
+ * - UI Components: `const treeColor = useStore(state => state.treeColor)` * - 3D Components: `const isExploded = useStore(state => state.isExploded)`
  * - Actions: `useStore.getState().triggerExplosion()`
  */
 export const useStore = create<AppState>()(

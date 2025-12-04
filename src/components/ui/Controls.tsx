@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
@@ -32,11 +32,52 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
   // Local state from props (for things not yet in store or specific to UI interaction)
   const { updateConfig, addPhotos, photos, isMuted, toggleMute } = uiState;
 
+  // Track object URLs to prevent memory leaks
+  const trackedUrlsRef = useRef<Set<string>>(new Set());
+  const previousPhotosRef = useRef<typeof photos>([]);
+
+  // Track new photo URLs when they're added
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       addPhotos(e.target.files);
+      // URLs will be tracked in the useEffect that watches photos array
     }
   };
+
+  // Track URLs from photos array and cleanup removed photos
+  useEffect(() => {
+    const currentPhotoIds = new Set(photos.map((p) => p.id));
+    const previousPhotoIds = new Set(previousPhotosRef.current.map((p) => p.id));
+
+    // Track URLs from new photos
+    photos.forEach((photo) => {
+      if (photo.url && !trackedUrlsRef.current.has(photo.url)) {
+        trackedUrlsRef.current.add(photo.url);
+      }
+    });
+
+    // Revoke URLs from removed photos
+    previousPhotosRef.current.forEach((prevPhoto) => {
+      if (!currentPhotoIds.has(prevPhoto.id) && prevPhoto.url) {
+        if (trackedUrlsRef.current.has(prevPhoto.url)) {
+          URL.revokeObjectURL(prevPhoto.url);
+          trackedUrlsRef.current.delete(prevPhoto.url);
+        }
+      }
+    });
+
+    previousPhotosRef.current = photos;
+  }, [photos]);
+
+  // Cleanup all tracked URLs on unmount
+  useEffect(() => {
+    return () => {
+      trackedUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      trackedUrlsRef.current.clear();
+    };
+  }, []);
 
   const handleToggleExplosion = () => {
     if (isExploded) {

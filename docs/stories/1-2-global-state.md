@@ -21,7 +21,19 @@ so that 3D and UI components can share state (theme, particles, explosion status
 - [x] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
 - [x] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
 - [x] Implement state logic:
-    - [x] `theme`: default from config (or 'midnight')
+- [ ] Create `src/store/useStore.ts` with Zustand and Persist middleware (AC: 1, 2)
+- [ ] Define TypeScript interfaces for `AppState` and `AppActions` (AC: 3, 4, 5)
+- [ ] Implement state logic:
+  - [x] `theme`: default from config (or 'midnight')
+  - [x] `particleCount`: default 5000 (or similar)
+  - [x] `isExploded`: default false
+  - [x] `activePhotoId`: default null
+- [ ] Implement actions:
+  - [x] `setTheme(theme)`
+  - [x] `setParticleCount(count)`
+  - [x] `triggerExplosion()` -> sets `isExploded: true`
+  - [x] `resetExplosion()` -> sets `isExploded: false`
+  - [x] `setActivePhoto(id)`
     - [x] `particleCount`: default 5000 (or similar)
     - [x] `isExploded`: default false
     - [x] `activePhotoId`: default null
@@ -35,10 +47,11 @@ so that 3D and UI components can share state (theme, particles, explosion status
 
 ## Dev Notes
 
-- **Architecture Patterns:**
-  - Use `zustand` for state management as per [Source: docs/architecture.md#3-decision-summary-table].
-  - Use `persist` middleware to satisfy FR26/FR27 (LocalStorage).
-  - Although Architecture Section 4 mentions `src/hooks/useStore.ts`, we are placing it in `src/store/useStore.ts` to align with the directory structure created in Story 1.1 and the specific instruction in Epic Story 1.2.
+## Architecture Patterns
+
+- Use `zustand` for state management as per [Source: docs/architecture.md#3-decision-summary-table].
+- Use `persist` middleware to satisfy FR26/FR27 (LocalStorage).
+- Although Architecture Section 4 mentions `src/hooks/useStore.ts`, we are placing it in `src/store/useStore.ts` to align with the directory structure created in Story 1.1 and the specific instruction in Epic Story 1.2.
 
 ### Learnings from Previous Story
 

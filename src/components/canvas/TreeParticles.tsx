@@ -110,21 +110,11 @@ const createSparkleTexture = () => {
   ctx.lineTo(32, 60);
   ctx.moveTo(4, 32);
   ctx.lineTo(60, 32);
-  type ThemeType = 'CROWN' | 'BIG_BEN' | 'FLAG' | 'BUS' | 'CORGI' | 'GIFT';
+  ctx.stroke();
 
-  const assignThemeParticle = (heightRatio: number): ThemeType => {
-    const rand = Math.random();
-    if (heightRatio > 0.8) {
-      // Top 20%: Crown or Big Ben
-      return rand < 0.7 ? 'CROWN' : 'BIG_BEN';
-    } else if (heightRatio > 0.5) {
-      // Middle 30%: Flag or Bus
-      return rand < 0.4 ? 'FLAG' : 'BUS';
-    } else {
-      // Bottom 50%: Corgi or Gift
-      return rand < 0.3 ? 'CORGI' : 'GIFT';
-    }
-  };
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 };
 
 // === BRITISH THEME DISTRIBUTION ALGORITHM ===
@@ -285,6 +275,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Textures
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
+
+  // Dispose textures on unmount or when textures change
+  useEffect(() => {
+    return () => {
+      featherTexture?.dispose();
+      sparkleTexture?.dispose();
+    };
+  }, [featherTexture, sparkleTexture]);
 
   // === DYNAMIC THEME COLORS ===
   const themeColors = useMemo(() => {

@@ -160,8 +160,7 @@ A vertex-shader-driven animation system controlled by a single uniform.
 ## 8. Next Steps
 
 1.  **Scaffold:** Run the project restructuring script.
-2.  **Dependencies:** `npm install zustand framer-motion -D tailwindcss postcss autoprefixer`.
-3.  **Init:** `npx tailwindcss init -p`.
+2.  **Dependencies:** `npm install zustand framer-motion && npm install -D tailwindcss postcss autoprefixer`.3.  **Init:** `npx tailwindcss init -p`.
 4.  **Shader Dev:** Create the basic `particle.vert` and `particle.frag`.
 
 This architecture provides a robust, high-performance foundation for the Christmas-tree application, ensuring the "Wow" factor is achieved through technical excellence.
