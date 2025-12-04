@@ -210,22 +210,20 @@ const getLODLevel = (cameraDistance: number): LODLevel => {
 // Total allocation must equal 100% of config.particleCount
 // 
 // Design rationale:
-// - Entity Layer (55%): Primary visual element, tree body needs substantial particles for density
-// - Glow Layer (20%): Atmospheric enhancement, additive blending creates visual impact with fewer particles
+// - Entity Layer (60%): Primary visual element, tree body needs substantial particles for density
+// - Magic Halo (20%): Spiral halo orbiting around the tree with ascending animation
 // - Ornaments (15%): Decorative elements distributed across tree, need sufficient density for visibility
-// - Crown (5%): Top focal point, smaller area but needs detail for visual prominence
 // - Gifts (5%): Bottom elements, supporting role, balanced but not overwhelming
 //
 // To modify allocations: Update the values below ensuring they sum to 1.0 (100%)
 const PARTICLE_ALLOCATION = {
-  // Main tree body layers (75% total)
-  entityLayer: 0.55,      // 55% - Tree body particles (Normal blending)
-  glowLayer: 0.20,         // 20% - Atmospheric glow particles (Additive blending)
+  // Main tree body layers (80% total)
+  entityLayer: 0.60,      // 60% - Tree body particles (Normal blending)
+  magicHalo: 0.20,        // 20% - Spiral halo particles (Additive blending)
 
-  // Decoration elements (25% total)
+  // Decoration elements (20% total)
   decorations: {
     ornaments: 0.15,       // 15% - British themed ornaments and pearl strings
-    crown: 0.05,           // 5% - Crystal crown topper
     gifts: 0.05,           // 5% - Gift boxes at base
   },
 } as const;
@@ -233,9 +231,8 @@ const PARTICLE_ALLOCATION = {
 // Validation: Ensure total equals 100%
 const TOTAL_ALLOCATION =
   PARTICLE_ALLOCATION.entityLayer +
-  PARTICLE_ALLOCATION.glowLayer +
+  PARTICLE_ALLOCATION.magicHalo +
   PARTICLE_ALLOCATION.decorations.ornaments +
-  PARTICLE_ALLOCATION.decorations.crown +
   PARTICLE_ALLOCATION.decorations.gifts;
 
 if (Math.abs(TOTAL_ALLOCATION - 1.0) > 0.001) {
@@ -278,9 +275,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 }) => {
   // Refs for each layer
   const entityLayerRef = useRef<THREE.Points>(null);
-  const glowLayerRef = useRef<THREE.Points>(null);
+  const magicHaloRef = useRef<THREE.Points>(null);
   const ornamentsRef = useRef<THREE.Points>(null);
-  const crownRef = useRef<THREE.Points>(null);
   const giftsRef = useRef<THREE.Points>(null);
 
   // LOD state
@@ -385,10 +381,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     return { posStart, posEnd, controlPoint, colors: col, random, count };
   }, [config.particleCount, config.explosionRadius, themeColors]);
 
-  // === GLOW LAYER (Additive Blending) ===
-  const glowLayerData = useMemo(() => {
+  // === MAGIC HALO (Additive Blending) ===
+  // Spiral halo orbiting around the tree with ascending animation
+  const magicHaloData = useMemo(() => {
     // Use centralized allocation configuration
-    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.glowLayer);
+    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.magicHalo);
     const posStart = new Float32Array(count * 3);
     const posEnd = new Float32Array(count * 3);
     const controlPoint = new Float32Array(count * 3);
@@ -607,140 +604,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     return { posStart, posEnd, controlPoint, colors: col, random, count: idx };
   }, [config.particleCount, config.explosionRadius, themeColors]);
 
-  // === CRYSTAL CROWN - Enhanced with HDR glow ===
-  const crownData = useMemo(() => {
-    // Use centralized allocation configuration
-    const count = Math.floor(config.particleCount * PARTICLE_ALLOCATION.decorations.crown);
-
-    const posStart = new Float32Array(count * 3);
-    const posEnd = new Float32Array(count * 3);
-    const controlPoint = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-    const random = new Float32Array(count);
-
-    const crownY = 8.8;
-    let idx = 0;
-
-    // Crown base ring (scale with count)
-    const baseRingParticleCount = 350;
-    const baseCrownCount = 1800;
-    const baseRingCount = Math.max(50, Math.floor(baseRingParticleCount * (count / baseCrownCount)));
-    for (let i = 0; i < baseRingCount; i++) {
-      if (idx >= count) break;
-      const theta = (i / baseRingCount) * Math.PI * 2;
-      const r = 0.5 + Math.random() * 0.1;
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
-      const y = crownY + Math.random() * 0.3;
-
-      posStart[idx * 3] = x;
-      posStart[idx * 3 + 1] = y;
-      posStart[idx * 3 + 2] = z;
-
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      posEnd[idx * 3] = gx;
-      posEnd[idx * 3 + 1] = gy;
-      posEnd[idx * 3 + 2] = gz;
-
-      // Control Point
-      const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const cpDist = getControlPointDistance(config.explosionRadius);
-      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
-      controlPoint[idx * 3] = x + (x / len) * dist;
-      controlPoint[idx * 3 + 1] = y + (y / len) * dist;
-      controlPoint[idx * 3 + 2] = z + (z / len) * dist;
-
-      // HDR white for bloom
-      col[idx * 3] = 2.0;
-      col[idx * 3 + 1] = 1.9;
-      col[idx * 3 + 2] = 2.0;
-
-      random[idx] = Math.random();
-      idx++;
-    }
-
-    // Crown arches
-    const baseArchParticleCount = 100;
-    const archParticleCount = Math.max(10, Math.floor(baseArchParticleCount * (count / baseCrownCount)));
-    for (let arch = 0; arch < 8; arch++) {
-      const baseAngle = (arch / 8) * Math.PI * 2;
-      for (let i = 0; i < archParticleCount; i++) {
-        if (idx >= count) break;
-        const t = i / archParticleCount;
-        const archHeight = Math.sin(t * Math.PI) * 0.9;
-        const archRadius = 0.5 * (1 - t * 0.3);
-
-        const x = Math.cos(baseAngle) * archRadius;
-        const z = Math.sin(baseAngle) * archRadius;
-        const y = crownY + 0.3 + archHeight;
-
-        posStart[idx * 3] = x;
-        posStart[idx * 3 + 1] = y;
-        posStart[idx * 3 + 2] = z;
-
-        const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-        posEnd[idx * 3] = gx;
-        posEnd[idx * 3 + 1] = gy;
-        posEnd[idx * 3 + 2] = gz;
-
-        // Control Point
-        const len = Math.sqrt(x * x + y * y + z * z) || 1;
-        const cpDist = getControlPointDistance(config.explosionRadius);
-        const dist = cpDist.base + Math.random() * cpDist.randomFactor;
-        controlPoint[idx * 3] = x + (x / len) * dist;
-        controlPoint[idx * 3 + 1] = y + (y / len) * dist;
-        controlPoint[idx * 3 + 2] = z + (z / len) * dist;
-
-        // Intense HDR glow
-        const intensity = 2.0 + Math.sin(t * Math.PI) * 1.0;
-        col[idx * 3] = intensity;
-        col[idx * 3 + 1] = intensity * 0.95;
-        col[idx * 3 + 2] = intensity;
-
-        random[idx] = Math.random();
-        idx++;
-      }
-    }
-
-    // Central crystal orb
-    for (let i = idx; i < count; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      const r = Math.random() * 0.4;
-
-      const x = Math.sin(phi) * Math.cos(theta) * r;
-      const y = crownY + 1.3 + Math.cos(phi) * r;
-      const z = Math.sin(phi) * Math.sin(theta) * r;
-
-      posStart[i * 3] = x;
-      posStart[i * 3 + 1] = y;
-      posStart[i * 3 + 2] = z;
-
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      posEnd[i * 3] = gx;
-      posEnd[i * 3 + 1] = gy;
-      posEnd[i * 3 + 2] = gz;
-
-      // Control Point
-      const len = Math.sqrt(x * x + y * y + z * z) || 1;
-      const cpDist = getControlPointDistance(config.explosionRadius);
-      const dist = cpDist.base + Math.random() * cpDist.randomFactor;
-      controlPoint[i * 3] = x + (x / len) * dist;
-      controlPoint[i * 3 + 1] = y + (y / len) * dist;
-      controlPoint[i * 3 + 2] = z + (z / len) * dist;
-
-      // Maximum HDR for crown jewel
-      col[i * 3] = 3.5;
-      col[i * 3 + 1] = 3.3;
-      col[i * 3 + 2] = 3.5;
-
-      random[i] = Math.random();
-    }
-
-    return { posStart, posEnd, controlPoint, colors: col, random, count };
-  }, [config.particleCount, config.explosionRadius]);
-
-
 
   // === GIFT BOXES ===
   const giftData = useMemo(() => {
@@ -946,15 +809,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         />
       </points>
 
-      {/* === GLOW LAYER (Additive Blending) === */}
-      <points key={`glow-${treeKey}`} ref={glowLayerRef}>
+      {/* === MAGIC HALO (Additive Blending) === */}
+      <points key={`halo-${treeKey}`} ref={magicHaloRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={glowLayerData.count} array={glowLayerData.posStart} itemSize={3} />
-          <bufferAttribute attach="attributes-aPositionStart" count={glowLayerData.count} array={glowLayerData.posStart} itemSize={3} />
-          <bufferAttribute attach="attributes-aPositionEnd" count={glowLayerData.count} array={glowLayerData.posEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-aControlPoint" count={glowLayerData.count} array={glowLayerData.controlPoint} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={glowLayerData.count} array={glowLayerData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aRandom" count={glowLayerData.count} array={glowLayerData.random} itemSize={1} />
+          <bufferAttribute attach="attributes-position" count={magicHaloData.count} array={magicHaloData.posStart} itemSize={3} />
+          <bufferAttribute attach="attributes-aPositionStart" count={magicHaloData.count} array={magicHaloData.posStart} itemSize={3} />
+          <bufferAttribute attach="attributes-aPositionEnd" count={magicHaloData.count} array={magicHaloData.posEnd} itemSize={3} />
+          <bufferAttribute attach="attributes-aControlPoint" count={magicHaloData.count} array={magicHaloData.controlPoint} itemSize={3} />
+          <bufferAttribute attach="attributes-aColor" count={magicHaloData.count} array={magicHaloData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-aRandom" count={magicHaloData.count} array={magicHaloData.random} itemSize={1} />
         </bufferGeometry>
         <explosionMaterial
           ref={(el: THREE.ShaderMaterial) => (materialsRef.current[1] = el)}
@@ -982,24 +845,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         />
       </points>
 
-      {/* Crown topper */}
-      <points key={`crown-${treeKey}`} ref={crownRef}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={crownData.count} array={crownData.posStart} itemSize={3} />
-          <bufferAttribute attach="attributes-aPositionStart" count={crownData.count} array={crownData.posStart} itemSize={3} />
-          <bufferAttribute attach="attributes-aPositionEnd" count={crownData.count} array={crownData.posEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-aControlPoint" count={crownData.count} array={crownData.controlPoint} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={crownData.count} array={crownData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aRandom" count={crownData.count} array={crownData.random} itemSize={1} />
-        </bufferGeometry>
-        <explosionMaterial
-          ref={(el: THREE.ShaderMaterial) => (materialsRef.current[3] = el)}
-          transparent
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </points>
-
       {/* Gift boxes */}
       <points key={`gifts-${treeKey}`} ref={giftsRef}>
         <bufferGeometry>
@@ -1011,7 +856,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aRandom" count={giftData.count} array={giftData.random} itemSize={1} />
         </bufferGeometry>
         <explosionMaterial
-          ref={(el: THREE.ShaderMaterial) => (materialsRef.current[4] = el)}
+          ref={(el: THREE.ShaderMaterial) => (materialsRef.current[3] = el)}
           transparent
           depthWrite={true}
           blending={THREE.NormalBlending}

@@ -37,6 +37,9 @@
 #   color generation from single base color in TreeParticles. Functionality complete.
 # - 2025-12-03: Stories 2-0 (test-infra) and 2-2 (explosion-physics) marked as 'done' after
 #   successful code review. All acceptance criteria met, code approved for production.
+# - 2025-12-03 17:30: Story 2-4 (visual-polish) code review completed. Status changed from
+#   'review' to 'in-progress' (changes requested). Found 2 MEDIUM severity issues requiring
+#   resolution: particle allocation mismatch and sprite rendering clarification needed.
 
 generated: 2025-12-02T16:00:00Z
 project: Christmas-tree
@@ -55,8 +58,11 @@ development_status:
   2-0-test-infra: done
   2-1-theme-config: done
   2-2-explosion-physics: done
-  2-3-morphing-effect: backlog
-  epic-2-retrospective: optional
+  2-3-morphing-effect: done
+  2-4-visual-polish: in-progress
+  2-5-magic-halo-spiral: drafted
+  2-6-ornament-refinement: drafted
+  epic-2-retrospective: completed
 
   epic-3: backlog
   3-1-magnetic-hover: backlog

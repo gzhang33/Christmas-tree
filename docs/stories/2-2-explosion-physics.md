@@ -1,6 +1,6 @@
 # Story 2.2: Explosion Physics & Shader Upgrade
 
-**Status:** done  # 或者 ready-for-review
+**Status:** done
 
 ## Story
 

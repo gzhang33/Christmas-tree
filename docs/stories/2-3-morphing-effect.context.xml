@@ -1,0 +1,130 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>epic-2</epicId>
+    <storyId>2-3</storyId>
+    <title>Morphing Effect (Particle to Photo)</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>e:\OpenSources\Christmas-tree\docs\stories\2-3-morphing-effect.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>User</asA>
+    <iWant>the particles to transform into photos</iWant>
+    <soThat>I understand the connection between the tree and the memories</soThat>
+    <tasks>
+- [ ] **Texture Atlas Generation** (AC: 4)
+  - [ ] Create utility/logic to load photo textures and create a Texture Atlas (or use `useTexture` with an atlas image if pre-generated).
+  - [ ] Pass texture atlas uniform (`uTextureAtlas`) to the shader.
+- [ ] **Shader Enhancement (`particle.vert`)** (AC: 1)
+  - [ ] Add attribute for `aUvOffset` (to select photo from atlas) and `aRandom` (for variation).
+  - [ ] Implement scaling logic: Increase `gl_PointSize` significantly as `uProgress` approaches 1.0 to match "card size".
+- [ ] **Shader Enhancement (`particle.frag`)** (AC: 2)
+  - [ ] Implement `mix()` logic: `mix(glowColor, textureColor, smoothstep(0.5, 1.0, uProgress))`.
+  - [ ] Sample from texture atlas using `gl_PointCoord` and `aUvOffset`.
+  - [ ] Apply "Polaroid" frame effect (optional, or part of texture).
+- [ ] **Component Update (`TreeParticles.tsx`)** (AC: 1, 4)
+  - [ ] Generate `aUvOffset` attributes for particles (assigning random photos to particles).
+  - [ ] Pass texture atlas to `ExplosionMaterial`.
+- [ ] **Integration & Verification** (AC: 3, 5)
+  - [ ] Verify smooth transition from dot to photo.
+  - [ ] Verify floating behavior (inherited from 2.2, ensure it looks good with cards).
+  - [ ] Verify performance >30fps.
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **Given** the explosion animation is active, **When** `uProgress` increases, **Then** particles should scale up to "card size".
+2. **And** the texture should cross-fade from "glow dot" to "photo texture" (FR10).
+3. **And** the particles should end up in a floating, drifting state (FR11).
+4. **And** a Texture Atlas is implemented to efficiently render multiple photos.
+5. **And** performance remains >30fps during the morphing effect.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/prd.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements</section>
+        <snippet>FR10: System can smoothly transform particle form to photo cards (scale + texture cross-fade) during explosion. FR11: System can make photos enter floating state (3D rotation + drift) after transformation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision Document</title>
+        <section>5. Novel Pattern Designs</section>
+        <snippet>GPU State Machine Interpolation: Attributes `uvOffset` &amp; `uvScale` map to specific photos in Texture Atlas. Vertex Shader mixes vertex color and Texture sample based on `uProgress`.</snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>2.2 Novel UX Patterns</section>
+        <snippet>Phase 1: Explosion &amp; Morphing - Particles morph from tree colors to Polaroid textures via cross-fade and scale-up. Phase 2: Floating &amp; Immersion - Double-sided Polaroid textures.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/components/canvas/TreeParticles.tsx</path>
+        <kind>component</kind>
+        <symbol>TreeParticles</symbol>
+        <reason>Main component handling particle generation and material. Needs to generate `aUvOffset` and pass texture atlas.</reason>
+      </item>
+      <item>
+        <path>src/shaders/particle.vert</path>
+        <kind>shader</kind>
+        <symbol>particle.vert</symbol>
+        <reason>Vertex shader needs to handle `aUvOffset` and scaling logic based on `uProgress`.</reason>
+      </item>
+      <item>
+        <path>src/shaders/particle.frag</path>
+        <kind>shader</kind>
+        <symbol>particle.frag</symbol>
+        <reason>Fragment shader needs to implement `mix()` logic for color/texture transition and sample from texture atlas.</reason>
+      </item>
+      <item>
+        <path>src/config/assets.ts</path>
+        <kind>config</kind>
+        <symbol>ASSETS</symbol>
+        <reason>Should define paths for photo textures or atlas.</reason>
+      </item>
+    </code>
+    <dependencies>
+      <item>three</item>
+      <item>@react-three/fiber</item>
+      <item>@react-three/drei</item>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Performance: Must maintain >30fps during morphing effect (FR5, NFR-P1).</constraint>
+    <constraint>Resource Optimization: Use Texture Atlas to reduce GPU calls (NFR-P5).</constraint>
+    <constraint>Visuals: Smooth transition using `smoothstep` and `mix` (Architecture).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ExplosionMaterial Uniforms</name>
+      <kind>Shader Uniforms</kind>
+      <signature>uniform float uProgress; uniform sampler2D uTextureAtlas; uniform float uTime;</signature>
+      <path>src/components/canvas/TreeParticles.tsx</path>
+    </interface>
+    <interface>
+      <name>Particle Attributes</name>
+      <kind>Buffer Attributes</kind>
+      <signature>attribute vec2 aUvOffset; attribute float aRandom;</signature>
+      <path>src/components/canvas/TreeParticles.tsx</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Visual regression testing (manual) for the morph effect. Performance monitoring (FPS).</standards>
+    <locations>Manual verification in browser.</locations>
+    <ideas>
+      <idea>Verify smooth transition from dot to photo as `uProgress` goes from 0 to 1.</idea>
+      <idea>Verify particles scale up to card size.</idea>
+      <idea>Verify texture atlas is correctly sampled (different photos on different particles).</idea>
+      <idea>Verify performance stays above 30fps with full particle count.</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -156,4 +156,4 @@ const attributes = {
 
 *   **Visual Regression:** Compare the "Tree" state and "Cloud" state against design mocks.
 *   **Performance Testing:** Stress test with 20,000 particles to ensure shader efficiency.
-*   **Device Testing:** Verify the explosion effect works on a mobile device (touch input).
+*   **Device Testing**: Verify the explosion effect works on a mobile device (touch input).

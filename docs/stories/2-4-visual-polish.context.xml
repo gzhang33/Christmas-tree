@@ -1,0 +1,122 @@
+<story-context id="2-4-visual-polish" v="1.2">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.4</storyId>
+    <title>Visual Polish & Magic Halo</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-12-03T20:44:24Z</generatedAt>
+    <generator>BMad Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-4-visual-polish.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>作为一名用户</asA>
+    <iWant>我希望圣诞树看起来视觉丰富（"午夜魔法"），并且交互流畅，同时拥有一个深邃的魔法光环</iWant>
+    <soThat>这样体验才会感觉高级和神奇，而不是像一个破碎的技术演示</soThat>
+    <tasks>
+      - [ ] **着色器修复 (particle.frag/vert)**
+        - [ ] 修复亮度梯度（移除/调整基于高度的衰减）。
+        - [ ] 实现变形过渡的平滑混合。
+        - [ ] 添加 `colorJitter` 逻辑以增加视觉多样性。
+      - [ ] **资产渲染修复 (TreeParticles.tsx)**
+        - [ ] 调试非照片粒子（礼物/装饰品）的 UV 映射。
+        - [ ] 确保纹理图集被这些类型正确采样。
+      - [ ] **调整**
+        - [ ] 增加粒子数量（如果性能允许）。
+        - [ ] 验证 "午夜魔法" 美学（颜色，发光）。
+      - [ ] **魔法光环重构 (Magic Halo Spiral)**
+        - [ ] **清理**: 移除 `TreeParticles.tsx` 中残留的 "Crown" 层代码。
+        - [ ] **生成逻辑**: 重构 `glowLayer` 以沿围绕树的螺旋路径 (Helical path) 生成粒子。
+        - [ ] **着色器更新**: 在 `particle.vert` 中实现 "上升" 动画 (Ascending animation)，使用 `mod(y + time, height)` 逻辑。
+        - [ ] **视觉微调**: 调整螺旋的紧密度、半径和粒子密度，创造 "魔法" 效果。
+        - [ ] **移动端检查**: 确保螺旋光环在移动设备屏幕上适配良好。
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. **视觉（亮度）：** 树的亮度必须从上到下平衡（修复 `vPosition.y` 着色器逻辑）。
+    2. **视觉（资产）：** "礼物"和"装饰品"粒子必须渲染为其特定的纹理/精灵，而不是通用的点。
+    3. **视觉（密度/颜色）：** 树必须感觉"饱满"和"梦幻"（增加粒子数量/密度并添加颜色抖动/多样性）。
+    4. **交互（变形）：** 从粒子到照片的过渡必须平滑且渐进（修复着色器中的 `mix` 和 `smoothstep` 逻辑）。
+    5. **视觉（光环）：** 魔法粒子必须形成一个围绕树的动态光环，而不是覆盖在树表面的圆锥体。
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      - path: docs/prd.md
+        title: Product Requirements Document
+        section: Functional Requirements
+        snippet: FR1: 系统能够渲染由数千个粒子组成的 3D 圣诞树形态。FR2: 系统能够为粒子应用用户选择的颜色主题。
+      - path: docs/architecture.md
+        title: Architecture Decision Document
+        section: Pattern: GPU State Machine Interpolation
+        snippet: A vertex-shader-driven animation system controlled by a single uniform. Use Quadratic Bezier interpolation based on uProgress.
+      - path: docs/epics.md
+        title: Epic Breakdown
+        section: Epic 2: Visual Engine Upgrade
+        snippet: Upgrade the core 3D experience to meet the "Midnight Magic" aesthetic and implement the specific physics-driven transitions.
+      - path: docs/ux-design-specification.md
+        title: UX Design Specification
+        section: Visual Style
+        snippet: Theme: Midnight Magic. Primary Color: #D53F8C (Neon Pink). Background: #1A202C (Dark Slate).
+    </docs>
+    <code>
+      - path: src/components/canvas/TreeParticles.tsx
+        kind: component
+        symbol: TreeParticles
+        reason: 核心粒子系统组件，负责生成粒子数据和渲染 Points 对象。
+      - path: src/shaders/particle.vert
+        kind: shader
+        symbol: main
+        reason: 顶点着色器，处理粒子位置插值（贝塞尔曲线）、大小缩放和颜色抖动。
+      - path: src/shaders/particle.frag
+        kind: shader
+        symbol: main
+        reason: 片元着色器，处理颜色混合、纹理采样和圆形/方形绘制。
+      - path: src/config/theme.ts
+        kind: config
+        symbol: THEME
+        reason: 定义颜色主题和粒子分布配置。
+    </code>
+    <dependencies>
+      - three: ^0.165.0
+      - @react-three/fiber: ^8.16.8
+      - @react-three/drei: ^9.108.3
+      - zustand: ^5.0.9
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - **性能**: 必须保持 60fps（桌面）/ 30fps（移动端）。粒子数量可能高达 20k+。
+    - **着色器**: 必须使用自定义 GLSL 着色器以利用 GPU 加速。
+    - **资源**: 纹理必须优化，使用图集或精灵表。
+    - **代码风格**: 遵循 React + TypeScript 最佳实践，组件与逻辑分离。
+    - **光环**: 必须与树体分离，不得遮挡树的主体结构。
+  </constraints>
+
+  <interfaces>
+    - name: IParticleData
+      kind: interface
+      signature: { position: vec3, color: vec3, size: float, type: float, uv: vec2 }
+      path: src/components/canvas/TreeParticles.tsx
+    - name: Uniforms
+      kind: shader_uniforms
+      signature: { uTime: float, uProgress: float, uColor: vec3, uTextureAtlas: sampler2D, uSpriteAtlas: sampler2D }
+      path: src/shaders/particle.vert
+  </interfaces>
+
+  <tests>
+    <standards>
+      使用 Vitest 进行单元测试。对于视觉效果，依赖手动验证和性能监控（FPS）。
+    </standards>
+    <locations>
+      - src/components/canvas/__tests__/
+    </locations>
+    <ideas>
+      - 验证粒子分配逻辑（总和为 100%）。
+      - 验证 UV 偏移计算是否在有效范围内。
+      - 验证着色器编译无错误。
+      - 验证光环半径生成逻辑是否在树半径之外。
+    </ideas>
+  </tests>
+</story-context>
