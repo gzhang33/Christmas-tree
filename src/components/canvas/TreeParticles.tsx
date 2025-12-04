@@ -181,8 +181,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
 
-  // === DYNAMIC THEME COLORS ===
-  const themeColors = useMemo(() => {
+  // === DYNAMIC COLOR VARIANTS ===
+  // Generates color variants (base, light, deep, dark) from the selected tree color
+  // This is a color selection feature, not a full theme system
+  const colorVariants = useMemo(() => {
     const base = new THREE.Color(config.treeColor);
     const hsl = { h: 0, s: 0, l: 0 };
     base.getHSL(hsl);
@@ -252,11 +254,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       let c: THREE.Color;
       if (isTip) {
-        c = Math.random() > 0.4 ? DEFAULT_COLORS.cream : themeColors.light;
+        c = Math.random() > 0.4 ? DEFAULT_COLORS.cream : colorVariants.light;
       } else if (isInner) {
-        c = themeColors.deep;
+        c = colorVariants.deep;
       } else {
-        c = themeColors.base.clone().lerp(themeColors.light, heightFactor * 0.5);
+        c = colorVariants.base.clone().lerp(colorVariants.light, heightFactor * 0.5);
       }
 
       col[i * 3] = c.r;
@@ -268,7 +270,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
-  }, [config.particleCount, config.explosionRadius, themeColors]);
+  }, [config.particleCount, config.explosionRadius, colorVariants]);
 
   // === GLOW LAYER (30% - Additive Blending) ===
   const glowLayerData = useMemo(() => {
@@ -319,7 +321,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         c = DEFAULT_COLORS.white;
         intensity = 1.5 + Math.random() * 0.5;
       } else if (colorChoice < 0.75) {
-        c = themeColors.light;
+        c = colorVariants.light;
         intensity = 1.3 + Math.random() * 0.4;
       } else {
         c = DEFAULT_COLORS.gold;
@@ -335,7 +337,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, flickerPhase, count };
-  }, [config.particleCount, config.explosionRadius, themeColors]);
+  }, [config.particleCount, config.explosionRadius, colorVariants]);
 
   // === ORNAMENTS - British themed with distribution algorithm ===
   const ornamentData = useMemo(() => {
@@ -447,7 +449,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             c = DEFAULT_COLORS.silver;
             break;
           case 'GIFT':
-            c = Math.random() > 0.5 ? themeColors.base : DEFAULT_COLORS.white;
+            c = Math.random() > 0.5 ? colorVariants.base : DEFAULT_COLORS.white;
             break;
           default:
             c = DEFAULT_COLORS.silver;
@@ -462,7 +464,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius, themeColors]);
+  }, [config.explosionRadius, colorVariants]);
 
 
   // === GIFT BOXES ===
@@ -475,15 +477,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const tGalaxy = new Float32Array(count * 3);
 
     const gifts = [
-      { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: themeColors.base, rib: DEFAULT_COLORS.white },
-      { r: 2.3, ang: 1.2, w: 1.8, h: 1.6, c: DEFAULT_COLORS.silver, rib: themeColors.dark },
-      { r: 2.1, ang: 2.5, w: 2.5, h: 1.8, c: themeColors.dark, rib: DEFAULT_COLORS.gold },
+      { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: colorVariants.base, rib: DEFAULT_COLORS.white },
+      { r: 2.3, ang: 1.2, w: 1.8, h: 1.6, c: DEFAULT_COLORS.silver, rib: colorVariants.dark },
+      { r: 2.1, ang: 2.5, w: 2.5, h: 1.8, c: colorVariants.dark, rib: DEFAULT_COLORS.gold },
       { r: 2.4, ang: 3.8, w: 1.6, h: 2.2, c: DEFAULT_COLORS.white, rib: DEFAULT_COLORS.ukRed },
       { r: 2.2, ang: 5.0, w: 2.0, h: 1.5, c: DEFAULT_COLORS.cream, rib: DEFAULT_COLORS.silver },
-      { r: 3.2, ang: 0.6, w: 1.4, h: 1.2, c: themeColors.light, rib: DEFAULT_COLORS.silver },
-      { r: 3.5, ang: 2.0, w: 1.6, h: 1.4, c: DEFAULT_COLORS.white, rib: themeColors.base },
+      { r: 3.2, ang: 0.6, w: 1.4, h: 1.2, c: colorVariants.light, rib: DEFAULT_COLORS.silver },
+      { r: 3.5, ang: 2.0, w: 1.6, h: 1.4, c: DEFAULT_COLORS.white, rib: colorVariants.base },
       { r: 3.3, ang: 3.5, w: 1.3, h: 1.1, c: DEFAULT_COLORS.silver, rib: DEFAULT_COLORS.gold },
-      { r: 3.6, ang: 4.8, w: 1.5, h: 1.3, c: themeColors.dark, rib: DEFAULT_COLORS.white },
+      { r: 3.6, ang: 4.8, w: 1.5, h: 1.3, c: colorVariants.dark, rib: DEFAULT_COLORS.white },
       { r: 3.8, ang: 5.8, w: 1.2, h: 1.0, c: DEFAULT_COLORS.ukBlue, rib: DEFAULT_COLORS.white },
     ];
 
@@ -548,7 +550,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
-  }, [config.explosionRadius, themeColors]);
+  }, [config.explosionRadius, colorVariants]);
 
   // === ANIMATION FRAME ===
   const { camera } = useThree();

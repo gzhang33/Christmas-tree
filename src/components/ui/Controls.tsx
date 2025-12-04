@@ -3,15 +3,7 @@ import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palet
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
-
-const TREE_COLORS = [
-  { hex: '#D53F8C', name: 'Neon Pink' },
-  { hex: '#805AD5', name: 'Electric Purple' },
-  { hex: '#38B2AC', name: 'Teal Accent' },
-  { hex: '#FFD700', name: 'Gold' },
-  { hex: '#C0C0C0', name: 'Silver' },
-  { hex: '#E53E3E', name: 'Red' },
-];
+import { TREE_COLOR_PRESETS } from '../../config/colors';
 
 interface ControlsProps {
   uiState: UIState; // Keeping for backward compatibility during migration, but will prefer store
@@ -124,13 +116,10 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     <span className="text-xs font-mono text-electric-purple">{treeColor}</span>
                   </label>
                   <div className="flex flex-wrap gap-3">
-                    {TREE_COLORS.map(({ hex, name }) => (
+                    {TREE_COLOR_PRESETS.map(({ hex, name }) => (
                       <button
                         key={hex}
-                        onClick={() => {
-                          setTreeColor(hex);
-                          updateConfig('treeColor', hex);
-                        }}
+                        onClick={() => setTreeColor(hex)}
                         aria-label={`Select color ${name}`}
                         className={`w-8 h-8 rounded-full border-2 transition-all ${treeColor === hex
                           ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
@@ -142,14 +131,11 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                       <input
                         type="color"
                         value={treeColor}
-                        onChange={(e) => {
-                          setTreeColor(e.target.value);
-                          updateConfig('treeColor', e.target.value);
-                        }}
+                        onChange={(e) => setTreeColor(e.target.value)}
                         className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                         aria-label="Custom color picker"
                       />
-                      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLORS.some(c => c.hex === treeColor)
+                      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => c.hex === treeColor)
                         ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                         : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
                         <Palette size={16} className="text-white" />
@@ -173,7 +159,6 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
                       setParticleCount(val);
-                      updateConfig('particleCount', val);
                     }}
                     className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
                     aria-label="Adjust particle count"

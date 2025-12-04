@@ -59,9 +59,10 @@ function App() {
   const [isHeroTextCompact, setIsHeroTextCompact] = useState(false);
 
   // Local config (non-persisted settings)
+  // Note: treeColor and particleCount are read directly from store when needed
   const [config, setConfig] = useState<AppConfig>({
-    treeColor: treeColor, // Synced from store
-    particleCount: particleCount, // Synced from store
+    treeColor: treeColor, // Read from store
+    particleCount: particleCount, // Read from store
     snowDensity: 1500,
     rotationSpeed: 0.6,
     photoSize: 1.5,
@@ -70,7 +71,7 @@ function App() {
     windStrength: 0.4,
   });
 
-  // Sync store changes to local config
+  // Sync store changes to local config (for components that still use config object)
   useEffect(() => {
     setConfig((prev) => ({
       ...prev,
@@ -153,17 +154,17 @@ function App() {
   }, []);
 
   // Handlers
+  // Note: treeColor and particleCount are managed directly by the store,
+  // so they should be updated via store actions, not through updateConfig
   const updateConfig = useCallback((key: keyof AppConfig, value: any) => {
-    // Update local config
-    setConfig((prev) => ({ ...prev, [key]: value }));
-
-    // Sync specific keys to global store
-    if (key === 'treeColor') {
-      setTreeColor(value);
-    } else if (key === 'particleCount') {
-      setParticleCount(value);
+    // Skip store-managed keys (they should be updated via store actions)
+    if (key === 'treeColor' || key === 'particleCount') {
+      console.warn(`Attempted to update ${key} via updateConfig. Use store actions instead.`);
+      return;
     }
-  }, [setTreeColor, setParticleCount]);
+    // Update local config for non-store-managed settings
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const toggleExplosion = useCallback(() => {
     if (isExploded) {

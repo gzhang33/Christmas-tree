@@ -2,11 +2,19 @@
 
 Status: done
 
+**Note (2025-12-02):** The current implementation provides a **color selection feature** for tree particles, not a full theme system. The naming "theme" in this story is historical and may be misleading. The actual feature allows users to select a color for the Christmas tree particles, with preset color options and a custom color picker.
+
 ## Story
 
 As a Developer,
 I want to centralize theme and asset configuration,
 so that the application uses the correct "Midnight Magic" colors and textures.
+
+**Implementation Reality:** This story was implemented as a color selection system (`treeColor` in store) rather than a full theme system. The color selection is managed through:
+- Global store (`useStore`) with `treeColor` state
+- Preset color options in `src/config/colors.ts`
+- Custom color picker in Controls UI
+- Dynamic color variant generation in TreeParticles component
 
 ## Acceptance Criteria
 

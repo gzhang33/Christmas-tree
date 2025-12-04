@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { DEFAULT_TREE_COLOR } from '../config/colors';
 
 /**
  * Global Application State Interface
@@ -25,11 +26,14 @@ export interface AppState {
 /**
  * Global Zustand Store with LocalStorage Persistence
  * 
- * Persists user preferences (theme, particleCount) to LocalStorage
+ * Persists user preferences (treeColor, particleCount) to LocalStorage
  * to satisfy FR26/FR27 requirements.
  * 
+ * Note: This is a color selection feature, not a full theme system.
+ * The treeColor controls the particle colors in the 3D tree visualization.
+ * 
  * Usage:
- * - UI Components: `const theme = useStore(state => state.theme)`
+ * - UI Components: `const treeColor = useStore(state => state.treeColor)`
  * - 3D Components: `const isExploded = useStore(state => state.isExploded)`
  * - Actions: `useStore.getState().triggerExplosion()`
  */
@@ -37,7 +41,7 @@ export const useStore = create<AppState>()(
     persist(
         (set) => ({
             // Initial State
-            treeColor: '#D53F8C', // Default Midnight Pink
+            treeColor: DEFAULT_TREE_COLOR,
             particleCount: 18000, // Default particle count
             isExploded: false,
             activePhotoId: null,
