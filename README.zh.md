@@ -1,5 +1,3 @@
-# 运行并部署你的 AI Studio 应用
-
 中文 | [English](README.md)
 
 这是一个使用 React、Vite 和 React Three Fiber 构建的节日 3D 体验。应用会渲染一棵可交互的宇宙圣诞树，包含粒子效果、背景音乐和性能监控。本文档将帮助你在本地完成项目设置，并了解可用的脚本。
