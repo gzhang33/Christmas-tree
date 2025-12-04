@@ -1,9 +1,13 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AppConfig } from '../../types.ts';
 import { useStore } from '../../store/useStore';
-import { STATIC_COLORS } from '../../config/colors';
+import { STATIC_COLORS, DEFAULT_TREE_COLOR } from '../../config/colors';
+
+// Shader imports using raw-loader syntax for Vite
+import particleVertexShader from '../../shaders/particle.vert?raw';
+import particleFragmentShader from '../../shaders/particle.frag?raw';
 
 interface TreeParticlesProps {
   isExploded: boolean;
@@ -104,15 +108,57 @@ const assignOrnamentType = (heightRatio: number): OrnamentType => {
   }
 };
 
-// Galaxy position helper
-const getGalaxyPos = (radius: number): [number, number, number] => {
+/**
+ * Calculate explosion target position in 3D space
+ * Creates a spherical distribution for the photo cloud
+ */
+const getExplosionTarget = (explosionRadius: number): [number, number, number] => {
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(Math.random() * 2 - 1);
-  const r = Math.random() * radius + 15;
+  const r = Math.random() * explosionRadius + 15;
   return [
     r * Math.sin(phi) * Math.cos(theta),
     r * Math.sin(phi) * Math.sin(theta),
     r * Math.cos(phi),
+  ];
+};
+
+/**
+ * Calculate Bezier control point for explosion arc
+ * Control Point = Start + Explosion Vector (radial outward * force)
+ */
+const calculateControlPoint = (
+  start: [number, number, number],
+  end: [number, number, number],
+  explosionForce: number = 8.0
+): [number, number, number] => {
+  // Direction from origin for radial explosion
+  const radialDir = [start[0], start[1], start[2]];
+  const radialLen = Math.sqrt(radialDir[0] ** 2 + radialDir[1] ** 2 + radialDir[2] ** 2);
+
+  if (radialLen > 0.001) {
+    radialDir[0] /= radialLen;
+    radialDir[1] /= radialLen;
+    radialDir[2] /= radialLen;
+  } else {
+    // Fallback to upward direction
+    radialDir[0] = 0;
+    radialDir[1] = 1;
+    radialDir[2] = 0;
+  }
+
+  // Add some randomization to the explosion direction
+  const randomOffset = [
+    (Math.random() - 0.5) * 2,
+    (Math.random() - 0.5) * 2,
+    (Math.random() - 0.5) * 2,
+  ];
+
+  // Control point is start + explosion vector
+  return [
+    start[0] + (radialDir[0] + randomOffset[0] * 0.3) * explosionForce,
+    start[1] + (radialDir[1] + randomOffset[1] * 0.3) * explosionForce + 2, // Slight upward bias
+    start[2] + (radialDir[2] + randomOffset[2] * 0.3) * explosionForce,
   ];
 };
 
@@ -148,6 +194,34 @@ const getLODLevel = (cameraDistance: number): LODLevel => {
   return LOD_LEVELS[LOD_LEVELS.length - 1];
 };
 
+// === CUSTOM SHADER MATERIAL ===
+/**
+ * Creates a custom ShaderMaterial for GPU-driven particle animation
+ * Implements the GPU State Machine pattern from architecture.md
+ */
+const createParticleShaderMaterial = (
+  treeColor: THREE.Color,
+  texture: THREE.Texture | null,
+  baseSize: number = 0.55
+): THREE.ShaderMaterial => {
+  return new THREE.ShaderMaterial({
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
+    uniforms: {
+      uProgress: { value: 0.0 },
+      uTime: { value: 0.0 },
+      uTreeColor: { value: treeColor },
+      uMap: { value: texture },
+      uBaseSize: { value: baseSize },
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+    vertexColors: true,
+  });
+};
+
+
 // === MAIN COMPONENT ===
 export const TreeParticles: React.FC<TreeParticlesProps> = ({
   isExploded,
@@ -163,6 +237,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const glowLayerRef = useRef<THREE.Points>(null);
   const ornamentsRef = useRef<THREE.Points>(null);
   const giftsRef = useRef<THREE.Points>(null);
+
+  // Shader material refs
+  const entityMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const glowMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const ornamentMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const giftMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+
+  // Animation state
+  const progressRef = useRef(0.0);
+  const targetProgressRef = useRef(0.0);
 
   // LOD state
   const lodRef = useRef<LODLevel>(LOD_LEVELS[0]);
@@ -192,11 +276,23 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Remove the hardcoded minimum of 20000 to allow lower particle counts
     const totalParticles = Math.max(particleCount * 1.5, 1000);
     const count = Math.floor(totalParticles * 0.7); // 70% for entity layer
+
+    // Standard position (used for initial render)
     const pos = new Float32Array(count * 3);
+    // Start positions for Bezier (tree shape)
+    const positionStart = new Float32Array(count * 3);
+    // End positions for Bezier (exploded)
+    const positionEnd = new Float32Array(count * 3);
+    // Control points for Bezier curve
+    const controlPoints = new Float32Array(count * 3);
+    // Particle colors
     const col = new Float32Array(count * 3);
+    // Particle scales
     const siz = new Float32Array(count);
-    const tTree = new Float32Array(count * 3);
-    const tGalaxy = new Float32Array(count * 3);
+    // Random seeds
+    const random = new Float32Array(count);
+    // Branch angles
+    const branchAngles = new Float32Array(count);
 
     const treeHeight = 14;
 
@@ -224,18 +320,32 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const z = Math.sin(branchAngle) * r + flockNoise;
       const finalY = y - droop + (Math.random() - 0.5) * 0.3;
 
+      // Store start position (tree shape)
+      const startPos: [number, number, number] = [x, finalY, z];
+      positionStart[i * 3] = x;
+      positionStart[i * 3 + 1] = finalY;
+      positionStart[i * 3 + 2] = z;
+
+      // Initial position is the same as start
       pos[i * 3] = x;
       pos[i * 3 + 1] = finalY;
       pos[i * 3 + 2] = z;
 
-      tTree[i * 3] = x;
-      tTree[i * 3 + 1] = finalY;
-      tTree[i * 3 + 2] = z;
+      // Calculate end position (exploded)
+      const endPos = getExplosionTarget(config.explosionRadius);
+      positionEnd[i * 3] = endPos[0];
+      positionEnd[i * 3 + 1] = endPos[1];
+      positionEnd[i * 3 + 2] = endPos[2];
 
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      tGalaxy[i * 3] = gx;
-      tGalaxy[i * 3 + 1] = gy;
-      tGalaxy[i * 3 + 2] = gz;
+      // Calculate control point for Bezier curve
+      const ctrlPt = calculateControlPoint(startPos, endPos);
+      controlPoints[i * 3] = ctrlPt[0];
+      controlPoints[i * 3 + 1] = ctrlPt[1];
+      controlPoints[i * 3 + 2] = ctrlPt[2];
+
+      // Store random and branch angle
+      random[i] = Math.random();
+      branchAngles[i] = branchAngle;
 
       // Color based on position
       const isTip = distFromTrunk > 0.75;
@@ -259,7 +369,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       siz[i] = 0.5 + Math.random() * 0.4 + (isTip ? 0.2 : 0);
     }
 
-    return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count };
+    return {
+      positions: pos,
+      positionStart,
+      positionEnd,
+      controlPoints,
+      colors: col,
+      sizes: siz,
+      random,
+      branchAngles,
+      count
+    };
   }, [particleCount, config.explosionRadius, colorVariants]);
 
   // === GLOW LAYER (30% - Additive Blending) ===
@@ -267,10 +387,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const totalParticles = Math.max(particleCount * 1.5, 1000);
     const count = Math.floor(totalParticles * 0.3); // 30% for glow layer
     const pos = new Float32Array(count * 3);
+    const positionStart = new Float32Array(count * 3);
+    const positionEnd = new Float32Array(count * 3);
+    const controlPoints = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
-    const tTree = new Float32Array(count * 3);
-    const tGalaxy = new Float32Array(count * 3);
+    const random = new Float32Array(count);
+    const branchAngles = new Float32Array(count);
     const flickerPhase = new Float32Array(count); // For sparkle animation
 
     const treeHeight = 14;
@@ -289,18 +412,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const x = Math.cos(branchAngle) * r;
       const z = Math.sin(branchAngle) * r;
 
+      const startPos: [number, number, number] = [x, y, z];
+      positionStart[i * 3] = x;
+      positionStart[i * 3 + 1] = y;
+      positionStart[i * 3 + 2] = z;
+
       pos[i * 3] = x;
       pos[i * 3 + 1] = y;
       pos[i * 3 + 2] = z;
 
-      tTree[i * 3] = x;
-      tTree[i * 3 + 1] = y;
-      tTree[i * 3 + 2] = z;
+      const endPos = getExplosionTarget(config.explosionRadius);
+      positionEnd[i * 3] = endPos[0];
+      positionEnd[i * 3 + 1] = endPos[1];
+      positionEnd[i * 3 + 2] = endPos[2];
 
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      tGalaxy[i * 3] = gx;
-      tGalaxy[i * 3 + 1] = gy;
-      tGalaxy[i * 3 + 2] = gz;
+      const ctrlPt = calculateControlPoint(startPos, endPos);
+      controlPoints[i * 3] = ctrlPt[0];
+      controlPoints[i * 3 + 1] = ctrlPt[1];
+      controlPoints[i * 3 + 2] = ctrlPt[2];
+
+      random[i] = Math.random();
+      branchAngles[i] = branchAngle;
 
       // Bright glow colors with HDR boost
       const colorChoice = Math.random();
@@ -326,17 +458,31 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       flickerPhase[i] = Math.random() * Math.PI * 2;
     }
 
-    return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, flickerPhase, count };
+    return {
+      positions: pos,
+      positionStart,
+      positionEnd,
+      controlPoints,
+      colors: col,
+      sizes: siz,
+      random,
+      branchAngles,
+      flickerPhase,
+      count
+    };
   }, [particleCount, config.explosionRadius, colorVariants]);
 
   // === ORNAMENTS - Special ornaments with distribution algorithm ===
   const ornamentData = useMemo(() => {
     const count = 3000;
     const pos = new Float32Array(count * 3);
+    const positionStart = new Float32Array(count * 3);
+    const positionEnd = new Float32Array(count * 3);
+    const controlPoints = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
-    const tTree = new Float32Array(count * 3);
-    const tGalaxy = new Float32Array(count * 3);
+    const random = new Float32Array(count);
+    const branchAngles = new Float32Array(count);
 
     const treeHeight = 14;
     const treeBottom = -5.5;
@@ -374,18 +520,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const x = Math.cos(theta) * baseR;
       const z = Math.sin(theta) * baseR;
 
+      const startPos: [number, number, number] = [x, y + Math.sin(theta * 3) * 0.1, z];
       pos[idx * 3] = x;
       pos[idx * 3 + 1] = y + Math.sin(theta * 3) * 0.1;
       pos[idx * 3 + 2] = z;
 
-      tTree[idx * 3] = x;
-      tTree[idx * 3 + 1] = y;
-      tTree[idx * 3 + 2] = z;
+      positionStart[idx * 3] = x;
+      positionStart[idx * 3 + 1] = y;
+      positionStart[idx * 3 + 2] = z;
 
-      const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-      tGalaxy[idx * 3] = gx;
-      tGalaxy[idx * 3 + 1] = gy;
-      tGalaxy[idx * 3 + 2] = gz;
+      const endPos = getExplosionTarget(config.explosionRadius);
+      positionEnd[idx * 3] = endPos[0];
+      positionEnd[idx * 3 + 1] = endPos[1];
+      positionEnd[idx * 3 + 2] = endPos[2];
+
+      const ctrlPt = calculateControlPoint(startPos, endPos);
+      controlPoints[idx * 3] = ctrlPt[0];
+      controlPoints[idx * 3 + 1] = ctrlPt[1];
+      controlPoints[idx * 3 + 2] = ctrlPt[2];
+
+      random[idx] = Math.random();
+      branchAngles[idx] = theta;
 
       const c = i % 3 === 0 ? STATIC_COLORS.pearl : STATIC_COLORS.silver;
       col[idx * 3] = c.r * 1.5;
@@ -410,18 +565,31 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         const oy = (Math.random() - 0.5) * cluster.baseSize * sizeCoef;
         const oz = (Math.random() - 0.5) * cluster.baseSize * sizeCoef;
 
-        pos[idx * 3] = cx + ox;
-        pos[idx * 3 + 1] = cluster.y + oy;
-        pos[idx * 3 + 2] = cz + oz;
+        const x = cx + ox;
+        const y = cluster.y + oy;
+        const z = cz + oz;
 
-        tTree[idx * 3] = cx + ox;
-        tTree[idx * 3 + 1] = cluster.y + oy;
-        tTree[idx * 3 + 2] = cz + oz;
+        const startPos: [number, number, number] = [x, y, z];
+        pos[idx * 3] = x;
+        pos[idx * 3 + 1] = y;
+        pos[idx * 3 + 2] = z;
 
-        const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-        tGalaxy[idx * 3] = gx;
-        tGalaxy[idx * 3 + 1] = gy;
-        tGalaxy[idx * 3 + 2] = gz;
+        positionStart[idx * 3] = x;
+        positionStart[idx * 3 + 1] = y;
+        positionStart[idx * 3 + 2] = z;
+
+        const endPos = getExplosionTarget(config.explosionRadius);
+        positionEnd[idx * 3] = endPos[0];
+        positionEnd[idx * 3 + 1] = endPos[1];
+        positionEnd[idx * 3 + 2] = endPos[2];
+
+        const ctrlPt = calculateControlPoint(startPos, endPos);
+        controlPoints[idx * 3] = ctrlPt[0];
+        controlPoints[idx * 3 + 1] = ctrlPt[1];
+        controlPoints[idx * 3 + 2] = ctrlPt[2];
+
+        random[idx] = Math.random();
+        branchAngles[idx] = cluster.angle;
 
         // Color by ornament type
         let c: THREE.Color;
@@ -453,7 +621,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       }
     });
 
-    return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
+    return {
+      positions: pos,
+      positionStart,
+      positionEnd,
+      controlPoints,
+      colors: col,
+      sizes: siz,
+      random,
+      branchAngles,
+      count: idx
+    };
   }, [config.explosionRadius, colorVariants]);
 
 
@@ -461,10 +639,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const giftData = useMemo(() => {
     const count = 5500;
     const pos = new Float32Array(count * 3);
+    const positionStart = new Float32Array(count * 3);
+    const positionEnd = new Float32Array(count * 3);
+    const controlPoints = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
     const siz = new Float32Array(count);
-    const tTree = new Float32Array(count * 3);
-    const tGalaxy = new Float32Array(count * 3);
+    const random = new Float32Array(count);
+    const branchAngles = new Float32Array(count);
 
     const gifts = [
       { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: colorVariants.base, rib: STATIC_COLORS.white },
@@ -515,17 +696,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         const fy = py + cy;
         const fz = rpz + cz;
 
+        const startPos: [number, number, number] = [fx, fy, fz];
         pos[idx * 3] = fx;
         pos[idx * 3 + 1] = fy;
         pos[idx * 3 + 2] = fz;
-        tTree[idx * 3] = fx;
-        tTree[idx * 3 + 1] = fy;
-        tTree[idx * 3 + 2] = fz;
 
-        const [gx, gy, gz] = getGalaxyPos(config.explosionRadius);
-        tGalaxy[idx * 3] = gx;
-        tGalaxy[idx * 3 + 1] = gy;
-        tGalaxy[idx * 3 + 2] = gz;
+        positionStart[idx * 3] = fx;
+        positionStart[idx * 3 + 1] = fy;
+        positionStart[idx * 3 + 2] = fz;
+
+        const endPos = getExplosionTarget(config.explosionRadius);
+        positionEnd[idx * 3] = endPos[0];
+        positionEnd[idx * 3 + 1] = endPos[1];
+        positionEnd[idx * 3 + 2] = endPos[2];
+
+        const ctrlPt = calculateControlPoint(startPos, endPos);
+        controlPoints[idx * 3] = ctrlPt[0];
+        controlPoints[idx * 3 + 1] = ctrlPt[1];
+        controlPoints[idx * 3 + 2] = ctrlPt[2];
+
+        random[idx] = Math.random();
+        branchAngles[idx] = gift.ang;
 
         // Ribbon pattern
         const isRibbon = Math.abs(ux) < 0.12 || Math.abs(uz) < 0.12;
@@ -539,62 +730,94 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       }
     });
 
-    return { positions: pos, colors: col, sizes: siz, targetTree: tTree, targetGalaxy: tGalaxy, count: idx };
+    return {
+      positions: pos,
+      positionStart,
+      positionEnd,
+      controlPoints,
+      colors: col,
+      sizes: siz,
+      random,
+      branchAngles,
+      count: idx
+    };
   }, [config.explosionRadius, colorVariants]);
+
+  // === SHADER MATERIAL CREATION ===
+  useEffect(() => {
+    const treeColorThree = new THREE.Color(treeColor);
+
+    // Create materials with proper base sizes matching original PointsMaterial
+    // Entity layer: size 0.55, normal blending
+    entityMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.55);
+    entityMaterialRef.current.depthWrite = true;
+
+    // Glow layer: size 0.45, additive blending
+    glowMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.45);
+    glowMaterialRef.current.blending = THREE.AdditiveBlending;
+
+    // Ornaments: size 0.5, additive blending
+    ornamentMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.5);
+    ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
+
+    // Gifts: size 0.5, normal blending
+    giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.5);
+    giftMaterialRef.current.depthWrite = true;
+
+    // Cleanup
+    return () => {
+      entityMaterialRef.current?.dispose();
+      glowMaterialRef.current?.dispose();
+      ornamentMaterialRef.current?.dispose();
+      giftMaterialRef.current?.dispose();
+    };
+  }, [treeColor, featherTexture, sparkleTexture]);
+
+  // === UPDATE TARGET PROGRESS ===
+  useEffect(() => {
+    targetProgressRef.current = isExploded ? 1.0 : 0.0;
+  }, [isExploded]);
 
   // === ANIMATION FRAME ===
   const { camera } = useThree();
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
+    const delta = state.clock.getDelta();
 
     // Update LOD based on camera distance
     const cameraDistance = camera.position.length();
     lodRef.current = getLODLevel(cameraDistance);
 
-    // Animation data for all layers
-    const layers = [
-      { ref: entityLayerRef, tTree: entityLayerData.targetTree, tGalaxy: entityLayerData.targetGalaxy },
-      { ref: glowLayerRef, tTree: glowLayerData.targetTree, tGalaxy: glowLayerData.targetGalaxy, flickerPhase: glowLayerData.flickerPhase },
-      { ref: ornamentsRef, tTree: ornamentData.targetTree, tGalaxy: ornamentData.targetGalaxy },
-      { ref: giftsRef, tTree: giftData.targetTree, tGalaxy: giftData.targetGalaxy },
+    // === GPU STATE MACHINE: Interpolate uProgress uniform ===
+    // Damping factor for smooth transition (satisfies AC#6: "Midnight Magic" aesthetic)
+    const dampingSpeed = isExploded ? 0.02 : 0.04; // Slower for explosion, faster for reset
+    const diff = targetProgressRef.current - progressRef.current;
+    progressRef.current += diff * dampingSpeed;
+
+    // Update all shader materials with new uniform values
+    const materials = [
+      entityMaterialRef.current,
+      glowMaterialRef.current,
+      ornamentMaterialRef.current,
+      giftMaterialRef.current,
     ];
 
-    const lerpSpeed = isExploded ? 0.02 : 0.04;
-
-    layers.forEach(({ ref, tTree, tGalaxy, flickerPhase }) => {
-      if (!ref.current) return;
-
-      const currentPos = ref.current.geometry.attributes.position.array as Float32Array;
-      const target = isExploded ? tGalaxy : tTree;
-      const len = Math.min(currentPos.length, target.length);
-
-      // Position interpolation
-      for (let i = 0; i < len; i++) {
-        currentPos[i] += (target[i] - currentPos[i]) * lerpSpeed;
+    materials.forEach((mat) => {
+      if (mat) {
+        mat.uniforms.uProgress.value = progressRef.current;
+        mat.uniforms.uTime.value = time;
       }
-      ref.current.geometry.attributes.position.needsUpdate = true;
+    });
 
-      // Sparkle animation for glow layer
-      if (flickerPhase && ref.current.geometry.attributes.color && !isExploded) {
-        const colors = ref.current.geometry.attributes.color.array as Float32Array;
-        const baseCols = glowLayerData.colors;
+    // Rotation animation for visual appeal
+    const layers = [entityLayerRef, glowLayerRef, ornamentsRef, giftsRef];
+    const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
 
-        for (let i = 0; i < flickerPhase.length; i++) {
-          // Flicker frequency: 2-5Hz
-          const freq = 2 + (flickerPhase[i] % 1) * 3;
-          const flicker = 0.7 + Math.sin(time * freq * Math.PI * 2 + flickerPhase[i]) * 0.3;
-
-          colors[i * 3] = baseCols[i * 3] * flicker;
-          colors[i * 3 + 1] = baseCols[i * 3 + 1] * flicker;
-          colors[i * 3 + 2] = baseCols[i * 3 + 2] * flicker;
-        }
-        ref.current.geometry.attributes.color.needsUpdate = true;
+    layers.forEach((ref) => {
+      if (ref.current) {
+        ref.current.rotation.y += rotSpeed;
       }
-
-      // Rotation
-      const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
-      ref.current.rotation.y += rotSpeed;
     });
   });
 
@@ -606,80 +829,60 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       <points key={`entity-${treeKey}`} ref={entityLayerRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={entityLayerData.count} array={entityLayerData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={entityLayerData.count} array={entityLayerData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={entityLayerData.count} array={entityLayerData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-positionStart" count={entityLayerData.count} array={entityLayerData.positionStart} itemSize={3} />
+          <bufferAttribute attach="attributes-positionEnd" count={entityLayerData.count} array={entityLayerData.positionEnd} itemSize={3} />
+          <bufferAttribute attach="attributes-controlPoint" count={entityLayerData.count} array={entityLayerData.controlPoints} itemSize={3} />
+          <bufferAttribute attach="attributes-aColor" count={entityLayerData.count} array={entityLayerData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-aScale" count={entityLayerData.count} array={entityLayerData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-aRandom" count={entityLayerData.count} array={entityLayerData.random} itemSize={1} />
+          <bufferAttribute attach="attributes-aBranchAngle" count={entityLayerData.count} array={entityLayerData.branchAngles} itemSize={1} />
         </bufferGeometry>
-        <pointsMaterial
-          vertexColors
-          map={featherTexture}
-          alphaMap={featherTexture}
-          transparent
-          opacity={0.95}
-          depthWrite={true}
-          size={0.55}
-          blending={THREE.NormalBlending}
-          sizeAttenuation
-        />
+        {entityMaterialRef.current && <primitive object={entityMaterialRef.current} attach="material" />}
       </points>
 
       {/* === GLOW LAYER (Additive Blending) === */}
       <points key={`glow-${treeKey}`} ref={glowLayerRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={glowLayerData.count} array={glowLayerData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={glowLayerData.count} array={glowLayerData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={glowLayerData.count} array={glowLayerData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-positionStart" count={glowLayerData.count} array={glowLayerData.positionStart} itemSize={3} />
+          <bufferAttribute attach="attributes-positionEnd" count={glowLayerData.count} array={glowLayerData.positionEnd} itemSize={3} />
+          <bufferAttribute attach="attributes-controlPoint" count={glowLayerData.count} array={glowLayerData.controlPoints} itemSize={3} />
+          <bufferAttribute attach="attributes-aColor" count={glowLayerData.count} array={glowLayerData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-aScale" count={glowLayerData.count} array={glowLayerData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-aRandom" count={glowLayerData.count} array={glowLayerData.random} itemSize={1} />
+          <bufferAttribute attach="attributes-aBranchAngle" count={glowLayerData.count} array={glowLayerData.branchAngles} itemSize={1} />
         </bufferGeometry>
-        <pointsMaterial
-          vertexColors
-          map={sparkleTexture}
-          alphaMap={sparkleTexture}
-          transparent
-          opacity={0.9}
-          depthWrite={false}
-          size={0.45}
-          blending={THREE.AdditiveBlending}
-          sizeAttenuation
-        />
+        {glowMaterialRef.current && <primitive object={glowMaterialRef.current} attach="material" />}
       </points>
 
       {/* Ornaments and pearls */}
       <points ref={ornamentsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={ornamentData.count} array={ornamentData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={ornamentData.count} array={ornamentData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={ornamentData.count} array={ornamentData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-positionStart" count={ornamentData.count} array={ornamentData.positionStart} itemSize={3} />
+          <bufferAttribute attach="attributes-positionEnd" count={ornamentData.count} array={ornamentData.positionEnd} itemSize={3} />
+          <bufferAttribute attach="attributes-controlPoint" count={ornamentData.count} array={ornamentData.controlPoints} itemSize={3} />
+          <bufferAttribute attach="attributes-aColor" count={ornamentData.count} array={ornamentData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-aScale" count={ornamentData.count} array={ornamentData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-aRandom" count={ornamentData.count} array={ornamentData.random} itemSize={1} />
+          <bufferAttribute attach="attributes-aBranchAngle" count={ornamentData.count} array={ornamentData.branchAngles} itemSize={1} />
         </bufferGeometry>
-        <pointsMaterial
-          vertexColors
-          map={sparkleTexture}
-          alphaMap={sparkleTexture}
-          transparent
-          opacity={1}
-          depthWrite={false}
-          size={0.5}
-          blending={THREE.AdditiveBlending}
-          sizeAttenuation
-        />
+        {ornamentMaterialRef.current && <primitive object={ornamentMaterialRef.current} attach="material" />}
       </points>
 
       {/* Gift boxes */}
       <points ref={giftsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={giftData.count} array={giftData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={giftData.count} array={giftData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={giftData.count} array={giftData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-positionStart" count={giftData.count} array={giftData.positionStart} itemSize={3} />
+          <bufferAttribute attach="attributes-positionEnd" count={giftData.count} array={giftData.positionEnd} itemSize={3} />
+          <bufferAttribute attach="attributes-controlPoint" count={giftData.count} array={giftData.controlPoints} itemSize={3} />
+          <bufferAttribute attach="attributes-aColor" count={giftData.count} array={giftData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-aScale" count={giftData.count} array={giftData.sizes} itemSize={1} />
+          <bufferAttribute attach="attributes-aRandom" count={giftData.count} array={giftData.random} itemSize={1} />
+          <bufferAttribute attach="attributes-aBranchAngle" count={giftData.count} array={giftData.branchAngles} itemSize={1} />
         </bufferGeometry>
-        <pointsMaterial
-          vertexColors
-          map={featherTexture}
-          alphaMap={featherTexture}
-          transparent
-          opacity={1}
-          depthWrite={true}
-          size={0.5}
-          blending={THREE.NormalBlending}
-          sizeAttenuation
-        />
+        {giftMaterialRef.current && <primitive object={giftMaterialRef.current} attach="material" />}
       </points>
     </group>
   );
