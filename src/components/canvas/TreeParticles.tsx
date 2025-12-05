@@ -18,6 +18,7 @@ import particleFragmentShader from "../../shaders/particle.frag?raw";
 import { PolaroidPhoto } from "./PolaroidPhoto";
 import { MEMORIES } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
+import { distributePhotos } from "../../utils/photoDistribution";
 import { PhotoData } from "../../types.ts";
 
 interface TreeParticlesProps {
@@ -298,17 +299,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Generate target positions for photos
     const photoPositions = generatePhotoPositions(PHOTO_COUNT, aspectRatio);
 
-    // Get available photo URLs
-    const photoUrls: string[] = [];
-    if (photos.length > 0) {
-      for (let i = 0; i < PHOTO_COUNT; i++) {
-        photoUrls.push(photos[i % photos.length].url);
-      }
-    } else {
-      for (let i = 0; i < PHOTO_COUNT; i++) {
-        photoUrls.push(MEMORIES[i % MEMORIES.length].image);
-      }
-    }
+    // Get available source URLs (unique set)
+    const sourceUrls = photos.length > 0
+      ? photos.map((p) => p.url)
+      : MEMORIES.map((m) => m.image);
+
+    // Distribute URLs to positions, avoiding neighbors having same photo
+    const photoUrls = distributePhotos(photoPositions, sourceUrls);
 
     return {
       positions: photoPositions,
@@ -1179,17 +1176,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       giftMaterialRef.current.uniforms
     ) {
       if (isExploded) {
-        // Keep boxes solid (uProgress = 0.0) while photos are printing
-        // After printingDuration elapses, resume following progressRef.current
-        const elapsedSinceExplosion = time - explosionStartTimeRef.current;
-        if (elapsedSinceExplosion < printingDuration) {
-          giftMaterialRef.current.uniforms.uProgress.value = 0.0;
-        } else {
-          giftMaterialRef.current.uniforms.uProgress.value =
-            progressRef.current;
-        }
+        // Fix for disappearing particles:
+        // Keep gift boxes solid and at their original position (uProgress = 0.0)
+        // throughout the entire explosion sequence. They serve as the anchor.
+        giftMaterialRef.current.uniforms.uProgress.value = 0.0;
       } else {
-        // Reset phase - follow main progress immediately
+        // When resetting, follow the main progress (which goes back to 0.0)
         giftMaterialRef.current.uniforms.uProgress.value = progressRef.current;
       }
       giftMaterialRef.current.uniforms.uTime.value = time;
