@@ -11,11 +11,16 @@ import { getTreeRadius } from '../../utils/treeUtils';
 // Shader imports using raw-loader syntax for Vite
 import particleVertexShader from '../../shaders/particle.vert?raw';
 import particleFragmentShader from '../../shaders/particle.frag?raw';
+import { PolaroidPhoto } from './PolaroidPhoto';
+import { MEMORIES } from '../../config/assets';
+import { preloadTextures } from '../../utils/texturePreloader';
+import { PhotoData } from '../../types.ts';
 
 interface TreeParticlesProps {
   isExploded: boolean;
   config: AppConfig;
   onParticlesClick: () => void;
+  photos: PhotoData[];
 }
 
 // === TEXTURE FACTORY ===
@@ -230,10 +235,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   isExploded,
   config,
   onParticlesClick,
+  photos,
 }) => {
   // Global State
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
+  const { viewport } = useThree();
+
+  // Local State
+  const [texturesLoaded, setTexturesLoaded] = React.useState(false);
+  const preloadStartedRef = useRef(false);
+  const explosionStartTimeRef = useRef(0);
 
   // Refs for each layer
   const entityLayerRef = useRef<THREE.Points>(null);
@@ -257,6 +269,50 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Textures
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
+
+  // === PHOTO DATA GENERATION ===
+  const photoData = useMemo(() => {
+    const aspectRatio = viewport.width / viewport.height;
+    // Generate target positions for photos
+    const photoPositions = generatePhotoPositions(PHOTO_COUNT, aspectRatio);
+
+    // Get available photo URLs
+    const photoUrls: string[] = [];
+    if (photos.length > 0) {
+      for (let i = 0; i < PHOTO_COUNT; i++) {
+        photoUrls.push(photos[i % photos.length].url);
+      }
+    } else {
+      for (let i = 0; i < PHOTO_COUNT; i++) {
+        photoUrls.push(MEMORIES[i % MEMORIES.length].image);
+      }
+    }
+
+    return {
+      positions: photoPositions,
+      urls: photoUrls,
+      count: photoPositions.length
+    };
+  }, [photos, viewport.width, viewport.height]);
+
+  // === PRELOAD TEXTURES ===
+  useEffect(() => {
+    if (preloadStartedRef.current) return;
+    preloadStartedRef.current = true;
+
+    // Extract unique URLs
+    const uniqueUrls = [...new Set(photoData.urls)];
+
+    // Preload in batches
+    preloadTextures(uniqueUrls, 5, (loaded, total) => {
+      if (loaded === total) {
+        setTexturesLoaded(true);
+      }
+    }).catch((err) => {
+      console.warn('Texture preload error:', err);
+      setTexturesLoaded(true);
+    });
+  }, [photoData.urls]);
 
   // === DYNAMIC COLOR VARIANTS ===
   // Generates color variants (base, light, deep, dark) from the selected tree color
@@ -395,27 +451,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Initialize as non-photo particle
       isPhotoParticle[i] = 0.0;
-
-      // Track candidates for photo particles (inner particles, middle height range)
-      // Prefer particles in the middle section of the tree, not edges
-      if (distFromTrunk < 0.5 && t > 0.2 && t < 0.85) {
-        photoParticleCandidates.push(i);
-      }
     }
-
-    // Randomly select PHOTO_COUNT particles from candidates to become photo particles
-    // Shuffle candidates and take first PHOTO_COUNT
-    const shuffled = [...photoParticleCandidates].sort(() => Math.random() - 0.5);
-    const selectedPhotoIndices = shuffled.slice(0, Math.min(PHOTO_COUNT, shuffled.length));
-
-    selectedPhotoIndices.forEach((idx) => {
-      isPhotoParticle[idx] = 1.0;
-      photoParticleStartPositions.push([
-        positionStart[idx * 3],
-        positionStart[idx * 3 + 1],
-        positionStart[idx * 3 + 2],
-      ]);
-    });
 
     return {
       positions: pos,
@@ -427,7 +463,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       random,
       branchAngles,
       isPhotoParticle,
-      photoParticleStartPositions,
       count
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -692,7 +727,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
 
-  // === GIFT BOXES ===
+  // === GIFT BOXES (Photo Source) ===
   const giftData = useMemo(() => {
     // Scale gifts proportionally to particle count
     const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.gift, PARTICLE_CONFIG.minCounts.gift));
@@ -704,7 +739,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const siz = new Float32Array(count);
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
-    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in gifts
+    const isPhotoParticle = new Float32Array(count);
+
+    // Store start positions of particles chosen to be photos
+    // This will be used by PolaroidPhoto components to match the particle they replace
+    const photoParticleStartPositions: [number, number, number][] = [];
 
     const gifts = [
       { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: colorVariants.base, rib: STATIC_COLORS.white },
@@ -735,7 +774,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         let uy = Math.random() - 0.5;
         let uz = Math.random() - 0.5;
 
-        // Bias to surface for box appearance (Stronger bias for sharper edges)
+        // Bias to surface for box appearance
         if (Math.random() > 0.1) {
           const axis = Math.floor(Math.random() * 3);
           if (axis === 0) ux = ux > 0 ? 0.5 : -0.5;
@@ -764,7 +803,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         positionStart[idx * 3 + 1] = fy;
         positionStart[idx * 3 + 2] = fz;
 
-        const endPos = getExplosionTarget(config.explosionRadius);
+        // Default explosion target
+        let endPos = getExplosionTarget(config.explosionRadius);
+
+        // WILL BE OVERRIDDEN if this particle is selected as a photo
         positionEnd[idx * 3] = endPos[0];
         positionEnd[idx * 3 + 1] = endPos[1];
         positionEnd[idx * 3 + 2] = endPos[2];
@@ -784,45 +826,90 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         col[idx * 3] = c.r;
         col[idx * 3 + 1] = c.g;
         col[idx * 3 + 2] = c.b;
-        siz[idx] = 0.8; // Larger particles for solid look
+        siz[idx] = 0.8;
+
+        isPhotoParticle[idx] = 0.0;
         idx++;
       }
     });
 
+    // Select particles to be photos - BUT DO NOT MARK THEM AS PHOTOS in the shader
+    // We want the box to remain INTACT until the photos are printed.
+    // Instead, we just capture the spawn positions for the PolaroidPhoto components.
+
+    // We want to distribute photos evenly across the gifts
+    const photosPerGift = Math.ceil(photoData.count / gifts.length);
+    const giftCenters: { center: [number, number, number], angle: number }[] = [];
+
+    // Calculate centers for all gifts
+    gifts.forEach(gift => {
+      const cx = Math.cos(gift.ang) * gift.r;
+      const cz = Math.sin(gift.ang) * gift.r;
+      const cy = -6.5 + gift.h / 2;
+      // Spawn point is at the top of the box
+      giftCenters.push({ center: [cx, cy + gift.h / 2, cz], angle: gift.ang });
+    });
+
+    // Assign each photo to a gift box in round-robin fashion
+    for (let i = 0; i < photoData.count; i++) {
+      const giftIndex = i % giftCenters.length;
+      const spawnPoint = giftCenters[giftIndex].center;
+
+      photoParticleStartPositions.push([spawnPoint[0], spawnPoint[1], spawnPoint[2]]);
+    }
+
     return {
       positions: pos,
       positionStart,
-      positionEnd,
+      positionEnd, // We don't need to modify this anymore as gifts don't morph
       controlPoints,
       colors: col,
       sizes: siz,
       random,
       branchAngles,
-      isPhotoParticle,
+      isPhotoParticle, // All zeros, keeping boxes solid
+      photoParticleStartPositions,
       count: idx
     };
-  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG, photoData]);
 
   // === SHADER MATERIAL CREATION ===
   useEffect(() => {
     const treeColorThree = new THREE.Color(treeColor);
 
     // Create materials with proper base sizes matching original PointsMaterial
-    // Entity layer: size 0.55, normal blending
-    entityMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.55);
-    entityMaterialRef.current.depthWrite = true;
+    // Add error handling with fallback to PointsMaterial if shader compilation fails
+    try {
+      // Entity layer: size 0.55, normal blending
+      entityMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.55);
+      entityMaterialRef.current.depthWrite = true;
 
-    // Glow layer: size 0.45, additive blending
-    glowMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.45);
-    glowMaterialRef.current.blending = THREE.AdditiveBlending;
+      // Glow layer: size 0.45, additive blending
+      glowMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.45);
+      glowMaterialRef.current.blending = THREE.AdditiveBlending;
 
-    // Ornaments: size 0.5, additive blending
-    ornamentMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.5);
-    ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
+      // Ornaments: size 0.5, additive blending
+      ornamentMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.5);
+      ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
 
-    // Gifts: size 0.7, normal blending
-    giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.7);
-    giftMaterialRef.current.depthWrite = true;
+      // Gifts: size 0.7, normal blending
+      giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.7);
+      giftMaterialRef.current.depthWrite = true;
+    } catch (error) {
+      console.error('Shader compilation failed, falling back to PointsMaterial', error);
+      // Fallback to basic PointsMaterial if shader fails
+      const fallbackMaterial = new THREE.PointsMaterial({
+        size: 0.55,
+        color: treeColorThree,
+        transparent: true,
+        depthWrite: false,
+      });
+      entityMaterialRef.current = fallbackMaterial as unknown as THREE.ShaderMaterial;
+      glowMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
+      glowMaterialRef.current.blending = THREE.AdditiveBlending;
+      ornamentMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
+      giftMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
+    }
 
     // Cleanup
     return () => {
@@ -833,13 +920,28 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
   }, [treeColor, featherTexture, sparkleTexture]);
 
-  // === UPDATE TARGET PROGRESS ===
+  // === UPDATE TARGET PROGRESS & START TIME ===
   useEffect(() => {
     targetProgressRef.current = isExploded ? 1.0 : 0.0;
+    if (isExploded) {
+      // Capture the timestamp when explosion starts
+      // We can't access 'state.clock' here easily without a hook, 
+      // but we can assume this effect runs on frame or shortly after.
+      // Actually best to set a flag and capture time in useFrame
+      // OR just look at uTime in shader.
+      // Let's rely on useFrame to capture "transition start".
+    }
   }, [isExploded]);
 
   // === ANIMATION FRAME ===
-  const { camera } = useThree();
+  const { camera, clock } = useThree(); // Get clock directly
+
+  // Track explosion start in a ref accessible to logic
+  useEffect(() => {
+    if (isExploded) {
+      explosionStartTimeRef.current = clock.elapsedTime;
+    }
+  }, [isExploded, clock]); // Clock is stable from useThree
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
@@ -850,8 +952,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     lodRef.current = getLODLevel(cameraDistance);
 
     // === GPU STATE MACHINE: Interpolate uProgress uniform ===
-    // Damping factor for smooth transition (satisfies AC#6: "Midnight Magic" aesthetic)
-    const dampingSpeed = isExploded ? 0.02 : 0.04; // Slower for explosion, faster for reset
+    // Damping speeds: Explosion (0.02) is slower for high-velocity effect,
+    // Reset (0.04) is faster for quicker return. Matches AC6 "Midnight Magic" aesthetic
+    // requirement: "high velocity, rapid damping" for explosion phase.
+    const dampingSpeed = isExploded
+      ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
+      : PARTICLE_CONFIG.animation.dampingSpeedReset;
     const diff = targetProgressRef.current - progressRef.current;
     progressRef.current += diff * dampingSpeed;
 
@@ -860,7 +966,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       entityMaterialRef.current,
       glowMaterialRef.current,
       ornamentMaterialRef.current,
-      giftMaterialRef.current,
+      // giftMaterialRef.current is handled separately below
     ];
 
     materials.forEach((mat) => {
@@ -870,15 +976,33 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       }
     });
 
+    // === BOX DISSOLVE LOGIC ===
+    // Gifts should remain solid while photos are printing.
+    // Printing duration = (Total Photos * Stagger Delay) + Individual Animation Time
+    // 99 photos * 0.05s = 4.95s. Plus 1.5s buffer.
+    const printingDuration = PHOTO_COUNT * 0.05 + 1.5;
+
+    if (giftMaterialRef.current) {
+      if (isExploded) {
+        // PERMANENTLY LOCK at 0.0 (Solid Box) when exploded
+        // "保留礼物盒的显示效果" (Keep gift box visible)
+        giftMaterialRef.current.uniforms.uProgress.value = 0.0;
+      } else {
+        // Reset phase - follow main progress immediately
+        giftMaterialRef.current.uniforms.uProgress.value = progressRef.current;
+      }
+      giftMaterialRef.current.uniforms.uTime.value = time;
+    }
+
     // Rotation animation for visual appeal
-    const layers = [entityLayerRef, glowLayerRef, ornamentsRef, giftsRef];
     const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
 
-    layers.forEach((ref) => {
-      if (ref.current) {
-        ref.current.rotation.y += rotSpeed;
-      }
-    });
+    // Check if refs exist before accessing rotation
+    if (entityLayerRef.current) entityLayerRef.current.rotation.y += rotSpeed;
+    if (glowLayerRef.current) glowLayerRef.current.rotation.y += rotSpeed;
+    if (ornamentsRef.current) ornamentsRef.current.rotation.y += rotSpeed;
+    if (giftsRef.current) giftsRef.current.rotation.y += rotSpeed;
+
   });
 
   const treeKey = `tree-${particleCount}-${treeColor}`;
@@ -905,6 +1029,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       <points key={`glow-${treeKey}`} ref={glowLayerRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={glowLayerData.count} array={glowLayerData.positions} itemSize={3} />
+
           <bufferAttribute attach="attributes-positionStart" count={glowLayerData.count} array={glowLayerData.positionStart} itemSize={3} />
           <bufferAttribute attach="attributes-positionEnd" count={glowLayerData.count} array={glowLayerData.positionEnd} itemSize={3} />
           <bufferAttribute attach="attributes-controlPoint" count={glowLayerData.count} array={glowLayerData.controlPoints} itemSize={3} />
@@ -915,10 +1040,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aIsPhotoParticle" count={glowLayerData.count} array={glowLayerData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {glowMaterialRef.current && <primitive object={glowMaterialRef.current} attach="material" />}
-      </points>
+      </points >
 
       {/* Ornaments and pearls */}
-      <points ref={ornamentsRef}>
+      < points ref={ornamentsRef} >
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={ornamentData.count} array={ornamentData.positions} itemSize={3} />
           <bufferAttribute attach="attributes-positionStart" count={ornamentData.count} array={ornamentData.positionStart} itemSize={3} />
@@ -931,10 +1056,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aIsPhotoParticle" count={ornamentData.count} array={ornamentData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {ornamentMaterialRef.current && <primitive object={ornamentMaterialRef.current} attach="material" />}
-      </points>
+      </points >
 
       {/* Gift boxes */}
-      <points ref={giftsRef}>
+      < points ref={giftsRef} >
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={giftData.count} array={giftData.positions} itemSize={3} />
           <bufferAttribute attach="attributes-positionStart" count={giftData.count} array={giftData.positionStart} itemSize={3} />
@@ -947,7 +1072,33 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aIsPhotoParticle" count={giftData.count} array={giftData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {giftMaterialRef.current && <primitive object={giftMaterialRef.current} attach="material" />}
-      </points>
-    </group>
+      </points >
+
+      {/* === POLAROID PHOTOS === */}
+      {
+        texturesLoaded && (
+          <group>
+            {photoData.positions.map((pos, i) => {
+              // Only render if we have a matching start position from the gifts
+              if (i >= giftData.photoParticleStartPositions.length) return null;
+
+              return (
+                <PolaroidPhoto
+                  key={i}
+                  url={photoData.urls[i]}
+                  position={[pos.x, pos.y, pos.z]}
+                  rotation={pos.rotation}
+                  scale={pos.scale * config.photoSize}
+                  isExploded={isExploded}
+                  particleStartPosition={giftData.photoParticleStartPositions[i]}
+                  morphIndex={i}
+                  totalPhotos={photoData.positions.length}
+                />
+              );
+            })}
+          </group>
+        )
+      }
+    </group >
   );
 };

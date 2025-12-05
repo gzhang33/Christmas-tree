@@ -15,13 +15,15 @@ import { getCachedTexture } from '../../utils/texturePreloader';
 
 interface PolaroidPhotoProps {
     url: string;
-    position: [number, number, number];
+    position: [number, number, number]; // Final target position
     rotation: [number, number, number];
     scale: number;
     isExploded: boolean;
-    particleStartPosition: [number, number, number];
+    particleStartPosition: [number, number, number]; // Origin particle position (Gift Center)
     morphIndex: number;
+    totalPhotos: number;
 }
+
 
 // Polaroid frame dimensions
 const FRAME = {
@@ -54,6 +56,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     isExploded,
     particleStartPosition,
     morphIndex,
+    totalPhotos,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -157,69 +160,121 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             if (anim.startTime < 0) {
                 anim.startTime = time;
             }
-
             // Calculate morph progress with stagger
-            const staggeredStart = MORPH_TIMING.startDelay + morphIndex * MORPH_TIMING.staggerDelay;
-            const elapsed = time - anim.startTime - staggeredStart;
+            const delay = morphIndex * 0.05;
+            const startTime = anim.startTime + delay;
+            const elapsed = time - startTime;
+
+            // === SYNCHRONIZED ARRIVAL LOGIC ===
+            const minTransitTime = 0.8;
+            const ejectionDuration = 0.6;
+            const lastPhotoDelay = (totalPhotos - 1) * 0.05;
+            const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
+
+            const myTotalDuration = globalArrivalTime - delay;
+            const transitionDuration = myTotalDuration - ejectionDuration;
 
             if (elapsed > 0) {
-                const rawProgress = Math.min(elapsed / MORPH_TIMING.morphDuration, 1);
-                // Ease-out cubic
-                const easedProgress = 1 - Math.pow(1 - rawProgress, 3);
-                anim.morphProgress = easedProgress;
+                // PHASE 1: EJECTION (Printing from Slot)
+                if (elapsed < ejectionDuration) {
+                    // === EJECTION PHASE ===
+                    const t = elapsed / ejectionDuration;
 
-                // Update material opacity directly (no state change)
-                if (frameMaterialRef.current) {
-                    frameMaterialRef.current.opacity = easedProgress;
+                    // Position: Rise UP from spawn point
+                    const ejectHeight = 1.2;
+                    anim.currentPosition.x = particleStartPosition[0];
+                    anim.currentPosition.y = particleStartPosition[1] + (t * ejectHeight);
+                    anim.currentPosition.z = particleStartPosition[2];
+
+                    // Scale Y: 0->1
+                    group.scale.set(scale, scale * t, scale);
                 }
-                if (photoMaterialRef.current && anim.textureLoaded) {
-                    photoMaterialRef.current.opacity = easedProgress;
+                else if (elapsed < myTotalDuration) {
+                    // === TRANSITION PHASE ===
+                    // Dynamic speed based on available time
+                    const t = (elapsed - ejectionDuration) / transitionDuration;
+                    const easeOutCubic = 1 - Math.pow(1 - t, 3);
+
+                    // Start: BoxTop (Spawn + EjectHeight)
+                    const startY = particleStartPosition[1] + 1.2;
+
+                    // Lerp
+                    anim.currentPosition.x = THREE.MathUtils.lerp(particleStartPosition[0], position[0], easeOutCubic);
+                    anim.currentPosition.y = THREE.MathUtils.lerp(startY, position[1], easeOutCubic);
+                    anim.currentPosition.z = THREE.MathUtils.lerp(particleStartPosition[2], position[2], easeOutCubic);
+
+                    // Rotation
+                    anim.currentRotation.x = rotation[0] * easeOutCubic;
+                    anim.currentRotation.y = rotation[1] * easeOutCubic;
+                    anim.currentRotation.z = rotation[2] * easeOutCubic;
+
+                    group.scale.setScalar(scale);
                 }
-                if (backPhotoMaterialRef.current && anim.textureLoaded) {
-                    backPhotoMaterialRef.current.opacity = easedProgress;
-                }
-
-                // Interpolate position (avoiding new Vector3 allocation)
-                const lerpFactor = easedProgress * 0.15; // Smooth lerp
-                anim.currentPosition.x += (position[0] - anim.currentPosition.x) * lerpFactor;
-                anim.currentPosition.y += (position[1] - anim.currentPosition.y) * lerpFactor;
-                anim.currentPosition.z += (position[2] - anim.currentPosition.z) * lerpFactor;
-
-                // Scale interpolation
-                if (easedProgress < 0.3) {
-                    anim.currentScale = (easedProgress / 0.3) * scale * 0.5;
-                } else {
-                    anim.currentScale = (0.5 + ((easedProgress - 0.3) / 0.7) * 0.5) * scale;
-                }
-
-                // Rotation interpolation
-                anim.currentRotation.x = rotation[0] * easedProgress;
-                anim.currentRotation.y = rotation[1] * easedProgress;
-                anim.currentRotation.z = rotation[2] * easedProgress;
-
-                // Apply transforms
-                group.position.copy(anim.currentPosition);
-                group.rotation.copy(anim.currentRotation);
-                group.scale.setScalar(anim.currentScale);
-
-                // Check if animation complete
-                if (rawProgress >= 1) {
+                else {
+                    // Animation Done - Hand over to Orbit Loop
                     anim.isAnimating = false;
+                    group.scale.setScalar(scale);
+                }
+
+                // Opacity runs over total duration (Fade in during Ejection mainly)
+                const opacityProgress = Math.min(elapsed / 0.5, 1);
+
+                if (frameMaterialRef.current) frameMaterialRef.current.opacity = opacityProgress;
+                if (photoMaterialRef.current && anim.textureLoaded) photoMaterialRef.current.opacity = opacityProgress;
+                if (backPhotoMaterialRef.current && anim.textureLoaded) backPhotoMaterialRef.current.opacity = opacityProgress;
+
+                // Apply updates
+                group.position.copy(anim.currentPosition);
+                // In Phase 1 we keep rotation 0 (flat/aligned)
+                if (elapsed >= ejectionDuration) {
+                    group.rotation.copy(anim.currentRotation);
+                } else {
+                    group.rotation.set(0, 0, 0);
                 }
             }
         } else if (isExploded) {
-            // Post-morph floating animation (simplified)
-            const floatTime = time * 0.5;
-            const idx = morphIndex * 0.5;
+            // === PHASE 2: ORBIT & FLOAT ===
+            const minTransitTime = 0.8;
+            const ejectionDuration = 0.6;
+            const lastPhotoDelay = (totalPhotos - 1) * 0.05;
+            const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
 
-            group.position.x = position[0] + Math.sin(floatTime + idx) * 0.1;
-            group.position.y = position[1] + Math.cos(floatTime * 0.7 + idx * 0.6) * 0.08;
-            group.position.z = position[2] + Math.sin(floatTime * 0.6 + idx * 1.4) * 0.05;
+            // Wait until the "Arrival" moment to start orbiting properly?
+            const arrivalTimeAbs = (anim.startTime || time) + globalArrivalTime - (morphIndex * 0.05); // Approximate
+            // Actually, anim.startTime is absolute. 
+            // GlobalArrivalTime is relative to sequence START (anim.startTime).
+            // But 'delay' was added above. 
+            // Let's rely on standard time.
+            const absoluteArrivalTime = anim.startTime + globalArrivalTime;
 
-            group.rotation.y = rotation[1] + Math.sin(floatTime * 0.3) * 0.1;
-            group.rotation.z = rotation[2] + Math.cos(floatTime * 0.4) * 0.05;
+            if (time > absoluteArrivalTime) {
+                const hoverTime = time - absoluteArrivalTime;
+                const idx = morphIndex * 0.5;
 
-            group.scale.setScalar(scale);
+                // Orbit
+                const initialX = position[0];
+                const initialZ = position[2];
+                const radius = Math.sqrt(initialX * initialX + initialZ * initialZ);
+                const initialAngle = Math.atan2(initialZ, initialX);
+
+                // Orbit speed
+                const orbitSpeed = 0.05 + (1.0 / (radius + 0.1)) * 0.1;
+                const currentAngle = initialAngle + hoverTime * orbitSpeed;
+
+                group.position.x = Math.cos(currentAngle) * radius;
+                group.position.z = Math.sin(currentAngle) * radius;
+
+                // Bobbing
+                const yBob = Math.sin(hoverTime * 0.5 + idx) * 0.3;
+                group.position.y = position[1] + yBob;
+
+                // Rotation
+                group.rotation.y = rotation[1] + hoverTime * 0.15;
+                group.rotation.x = rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05;
+                group.rotation.z = rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05;
+
+                group.scale.setScalar(scale);
+            }
         }
     });
 

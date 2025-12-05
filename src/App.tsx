@@ -288,7 +288,7 @@ function App() {
       <Controls uiState={uiState} />
 
       {/* Debug Store Panel (F4 to toggle) */}
-      <DebugStore />
+      <DebugStore performanceData={performanceData} />
 
       {/* Performance Monitor Overlay */}
       <PerformanceOverlay visible={showPerformance} data={performanceData} />
