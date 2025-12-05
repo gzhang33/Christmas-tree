@@ -14,7 +14,7 @@ Epic 3 focuses on transforming the visual spectacle of the "Exploded" tree into 
 ## Objectives and Scope
 
 **In-Scope:**
-*   **Interactive Drifting:** Implementing the "Magnetic Hover" effect where photos slow down and scale up when hovered (FR16).
+*   **Interactive Drifting:** Implementing the "Magnetic Hover" effect where photos slow down, scale up to 1.5x with smooth transition, and tilt dynamically based on mouse position to simulate realistic Polaroid card physics (FR16).
 *   **Lightbox System:** A hybrid UI/3D system to display high-resolution content when a floating photo is clicked (FR17, FR18).
 *   **Immersion & Focus:** Background dimming/blurring during Lightbox active state (FR19).
 *   **Navigation:** "Return to Tree" functionality (Implosion physics) (FR13).
@@ -70,7 +70,8 @@ interface Actions {
 
 **Interaction Events (Internal):**
 *   `onPhotoClick(id: string)`: Sets `activePhotoId`. Triggers Lightbox open animation.
-*   `onPhotoHover(id: string)`: Sets `hoveredPhotoId`. Triggers "Magnetic" shader effect (local scale/rotation slow).
+*   `onPhotoHover(id: string, mousePosition?: {x: number, y: number})`: Sets `hoveredPhotoId`. Triggers "Magnetic" effect: smooth scale to 1.5x, rotation slowdown, and 3D tilt based on mouse position to simulate realistic Polaroid card physics.
+*   `onPhotoHoverMove(mousePosition: {x: number, y: number})`: Updates card tilt angles dynamically as mouse moves over the photo.
 *   `onLightboxClose()`: Sets `activePhotoId` to null.
 
 ### Workflows and Sequencing
@@ -80,7 +81,8 @@ interface Actions {
     *   Animation completes (`uProgress` -> 1.0).
     *   Raycaster interaction enabled on Cloud.
 2.  **Viewing a Memory:**
-    *   User hovers particle -> `hoveredPhotoId` set. Shader highlights particle.
+    *   User hovers particle -> `hoveredPhotoId` set. Photo scales to 1.5x with smooth transition, rotation slows down, and card tilts dynamically based on mouse position (3D tilt effect).
+    *   User moves mouse over photo -> Card tilt angles update in real-time to follow mouse movement, creating realistic Polaroid card physics.
     *   User clicks particle -> `activePhotoId` set.
     *   `Lightbox.tsx` detects `activePhotoId` -> Animate In (Fade + Scale).
     *   3D Scene applies "Blur/Dim" effect (Post-processing or Canvas opacity).
@@ -116,8 +118,9 @@ interface Actions {
 
 ## Acceptance Criteria (Authoritative)
 
-1.  **Magnetic Hover:** When hovering a floating photo, it must visually "react" (scale up ~1.1x, slow down rotation) to indicate interactivity (FR16).
-2.  **Cursor Feedback:** Cursor changes to "Zoom In" (or Pointer) when hovering a photo.
+1.  **Magnetic Hover:** When hovering a floating photo, it must visually "react" with smooth transition: scale up to 1.5x, slow down rotation, and dynamically tilt in 3D space based on mouse position to simulate realistic Polaroid card physics (FR16).
+2.  **3D Tilt Interaction:** The photo card must tilt dynamically as the mouse moves over it, creating a natural physical interaction that mimics a real Polaroid photo responding to touch. The tilt angles (rotation X/Y) should smoothly follow mouse position relative to the card center.
+3.  **Cursor Feedback:** Cursor uses standard pointer when hovering a photo (no custom icon to avoid distraction, allowing the natural tilt animation to be the focus).
 3.  **Lightbox Open:** Clicking a photo opens the `Lightbox` component centered on screen with high-res content (FR17, FR18).
 4.  **Background Focus:** Opening Lightbox dims or blurs the background 3D scene (FR19).
 5.  **Closing:** Clicking "X", background, or pressing ESC closes the Lightbox (FR20, FR39).
@@ -129,7 +132,8 @@ interface Actions {
 
 | Acceptance Criteria | Spec Section | Component(s) | Test Idea |
 | :--- | :--- | :--- | :--- |
-| Magnetic Hover | Detailed Design - Workflows | `TreeParticles.tsx` (onPointerOver) | Mock Raycaster hover, check state update & uniform change |
+| Magnetic Hover | Detailed Design - Workflows | `TreeParticles.tsx` / `PolaroidPhoto.tsx` (onPointerOver, onPointerMove) | Mock Raycaster hover, verify scale transition to 1.5x, rotation slowdown, and tilt angle updates based on mouse position |
+| 3D Tilt Interaction | Detailed Design - Workflows | `PolaroidPhoto.tsx` (onPointerMove) | Verify card rotation X/Y angles smoothly follow mouse movement relative to card center |
 | Lightbox Open | Detailed Design - Services | `Lightbox.tsx`, `useStore` | Set `activePhotoId`, verify Lightbox component renders |
 | Background Focus | Detailed Design - Workflows | `App.tsx` / `Scene.tsx` | Verify Canvas/Container style change when `activePhotoId` is set |
 | Keyboard Nav | Objectives - In-Scope | `Scene.tsx` / Hidden A11y DOM | Tab press moves focus, Enter triggers click handler |

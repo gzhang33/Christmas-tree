@@ -1,7 +1,7 @@
 # Christmas-tree - Epic Breakdown
 
 **Author:** Gianni
-**Date:** 2025-12-01
+**Date:** 2025-12-05
 **Project Level:** Brownfield / Refactor
 **Target Scale:** Single-Page App
 
@@ -13,7 +13,7 @@ This document provides the complete epic and story breakdown for Christmas-tree,
 
 **Strategy:** This is a **Brownfield** execution. The project already exists as a functional demo. The focus is on **Refactoring** the architecture (Zustand, Tailwind), **Upgrading** the visuals to the new UX spec, and **Extending** the interaction model (Lightbox).
 
-**Living Document Notice:** This is the initial version. It will be updated after UX Design and Architecture workflows add interaction and technical details to stories.
+**Living Document Notice:** Enhanced on 2025-12-05. Includes specific details from [UX Design Spec](./ux-design-specification.md) (Colors, Interactions) and [Architecture Spec](./architecture.md) (State Machine, Hybrid Interaction).
 
 ## Epics Summary
 
@@ -93,12 +93,14 @@ So that the codebase aligns with the approved Architecture Spec.
 **Then** `zustand`, `framer-motion`, `tailwindcss`, `postcss`, `autoprefixer` are installed
 **And** Tailwind is initialized with `tailwind.config.js`
 **And** the directory structure matches the Architecture Spec (`components/canvas`, `components/ui`, `hooks`, `store`, `config`)
-**And** existing files are moved to their new locations (even if not yet refactored)
+**And** existing files are moved to their new locations:
+  - `TreeParticles.tsx` -> `components/canvas/`
+  - `Controls.tsx` -> `components/ui/`
+  - Create `src/store/` and `src/config/`
 
 **Technical Notes:**
-- Move `TreeParticles.tsx` -> `components/canvas/`
-- Move `Controls.tsx` -> `components/ui/`
-- Create `src/store/` and `src/config/`
+- Follow standard Vite + Tailwind setup
+- Ensure tsconfig paths are updated if necessary
 
 ### Story 1.2: Global State Implementation (Zustand)
 
@@ -109,13 +111,14 @@ So that 3D components and UI components can share state without prop drilling.
 **Acceptance Criteria:**
 **Given** the new `src/store` directory
 **When** I create `useStore.ts`
-**Then** it should define the state interface matching the PRD (color theme, particle count, isExploded, activePhoto)
-**And** it should include actions to update these states
+**Then** it should define the state interface matching the PRD and UX Spec
+**And** it must include state for: `theme`, `particleCount`, `isExploded`, `activePhotoId`
+**And** it must include actions: `setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`, `setActivePhoto`
 **And** it should include `persist` middleware for LocalStorage (FR26, FR27)
 
 **Technical Notes:**
 - State: `theme` (string), `particleCount` (number), `isExploded` (boolean), `activePhotoId` (string | null)
-- Actions: `setTheme`, `setParticleCount`, `triggerExplosion`, `resetExplosion`, `setActivePhoto`
+- Use standard Zustand patterns
 
 ### Story 1.3: UI Component Refactor (Tailwind + Framer)
 
@@ -126,14 +129,14 @@ So that I can customize the tree using the new "Midnight Magic" design system.
 **Acceptance Criteria:**
 **Given** the existing `Controls.tsx`
 **When** I refactor it to use Tailwind CSS
-**Then** it should match the "Midnight Magic" theme (Neon Pink/Purple on Dark Slate)
+**Then** it should match the "Midnight Magic" theme (Neon Pink #D53F8C, Electric Purple #805AD5, Background #1A202C)
 **And** it should use `useStore` for state (removing local useState)
-**And** it should use Framer Motion for fade-in/out transitions (FR12 - Immersion Mode)
+**And** it should use Framer Motion `AnimatePresence` for fade-in/out transitions (FR12 - Immersion Mode)
 **And** it should be accessible (ARIA labels) (FR41)
 
 **Technical Notes:**
-- Replace inline styles/CSS modules with Tailwind classes
-- Implement `AnimatePresence` to handle the "fade out on explosion" requirement
+- Implement "Glassmorphism" effect for panels
+- Use `NeonButton` component pattern defined in UX Spec
 
 ---
 
@@ -157,7 +160,6 @@ So that the project is stable and supports the new video requirements.
 **Technical Notes:**
 - Install `vitest`, `@testing-library/react`
 - Create `src/store/useStore.test.ts`
-- Update `Asset` type to support `videoUrl`
 
 ### Story 2.1: Color Config
 
@@ -168,13 +170,16 @@ So that the application uses the correct "Midnight Magic" colors and textures.
 **Acceptance Criteria:**
 **Given** the `src/config` directory
 **When** I create `theme.ts` and `assets.ts`
-**Then** `theme.ts` should export the specific hex codes from UX Spec (Primary: #D53F8C, etc.)
+**Then** `theme.ts` should export the specific hex codes from UX Spec:
+  - Primary: #D53F8C
+  - Secondary: #805AD5
+  - Accent: #38B2AC
+  - Background: #1A202C
 **And** `assets.ts` should define paths for particle textures and photo placeholders
 **And** `TreeParticles` should be updated to consume these config values instead of hardcoded colors
 
 **Technical Notes:**
-- Define the "Midnight Magic" palette constants
-- Ensure `TreeParticles` reads color from `useStore` (which defaults to this config)
+- Config acts as Single Source of Truth for Design Tokens
 
 ### Story 2.2: Explosion Physics & Shader Upgrade
 
@@ -191,8 +196,9 @@ So that it feels like a release of energy rather than just linear movement.
 **And** performance should remain >30fps during explosion (FR1, FR9)
 
 **Technical Notes:**
-- Implement `particle.vert` shader with the Bezier logic
-- Use `useFrame` to interpolate `uProgress` based on `isExploded` state
+- Shader Attributes: `positionStart`, `positionEnd`, `controlPoint` (Bezier), `uvOffset`
+- Uniforms: `uProgress` (interpolated in React via `useFrame`), `uTime`
+- Physics: Quadratic Bezier curve in Vertex Shader
 
 ### Story 2.3: Morphing Effect (Particle to Photo)
 
@@ -208,8 +214,9 @@ So that I understand the connection between the tree and the memories.
 **And** the particles should end up in a floating, drifting state (FR11)
 
 **Technical Notes:**
-- Shader needs `mix()` function for color/texture based on progress
-- Need a Texture Atlas or Array for the photos
+- Use Texture Atlas (packed photos) to avoid draw calls
+- Shader Logic: `mix()` color/texture based on phases controlled by `uProgress`
+- Sequence: Scale Up -> Cross Fade -> Drift
 
 ---
 
@@ -226,12 +233,17 @@ So that the memory cloud feels alive and immersive.
 **Acceptance Criteria:**
 **Given** the photos are in "Floating" state
 **When** I do nothing, the camera should slowly "Dolly In" (FR29)
-**When** I hover a photo, it should slow down its rotation and scale up (1.1x) (FR16)
-**And** the cursor should change to a "Zoom In" icon
+**When** I hover a photo:
+  - It should slow down its rotation
+  - It should scale up to 1.5x with smooth transition (Updated from FR16 per Tech Spec)
+  - It should dynamically tilt in 3D space based on mouse position (3D Tilt Effect)
+  - The cursor should utilize the standard pointer
+**And** as I move my mouse over the photo, the tilt angles should smoothly update
 
 **Technical Notes:**
-- Use Raycaster for hover detection
-- Update individual particle instance attributes (scale/rotation) on hover (or use the "Hybrid Interaction" pattern from Arch Spec)
+- Use Raycaster on the `Points` object (or Hybrid approach)
+- Update instance attributes (scale/rotation) or uniforms on hover
+- 3D Tilt Math: Calculate rotation X/Y based on mouse offset relative to card center
 
 ### Story 3.2: Lightbox Overlay Implementation
 
@@ -242,15 +254,15 @@ So that I can relive that specific memory.
 **Acceptance Criteria:**
 **Given** I click a floating photo
 **Then** a high-fidelity version of that photo should appear in the center (FR17, FR18)
-**And** if the memory is a video, it should auto-play with controls
 **And** the background (3D scene) should blur or dim (FR19)
 **And** I should see a "Close" button
+**And** I can navigate via Keyboard (Tab to cycle, Enter to open) (FR37, FR38)
 **And** pressing ESC should close it (FR39)
 
 **Technical Notes:**
-- Create `Lightbox.tsx` (UI component)
-- Use `useStore` to track `activePhotoId`
-- When active, render a DOM overlay OR a separate R3F Plane in front of the camera (Hybrid approach)
+- **Hybrid Interaction Pattern:** On click, hide the particle, spawn a high-fidelity Mesh (Plane) at the exact position, and animate it to center.
+- UI: Use Framer Motion for the Overlay content (Title, Description).
+- Accessibility: Ensure keyboard focus management.
 
 ### Story 3.3: Return to Tree (Implosion)
 
@@ -265,8 +277,9 @@ So that I can experience the cycle again.
 **And** the UI controls should fade back in (FR14)
 
 **Technical Notes:**
-- Animate `uProgress` from 1 back to 0
+- Animate `uProgress` from 1.0 back to 0.0
 - Ensure physics feel "reversed" (suction effect)
+- Clean up any temporary meshes from Lightbox
 
 ---
 
@@ -321,9 +334,9 @@ So that I can experience the cycle again.
 ## Summary
 
 This breakdown respects the existing "Brownfield" status of the project.
-- **Epic 1** establishes the new architecture (Zustand/Tailwind) by refactoring the existing `Controls` and file structure.
-- **Epic 2** upgrades the existing `TreeParticles` to meet the high-fidelity visual and physics requirements of the PRD.
-- **Epic 3** adds the missing interaction layer (Lightbox, Hover) to complete the user journey.
+- **Epic 1** establishes the new architecture (Zustand/Tailwind) and implements the "Midnight Magic" Design System.
+- **Epic 2** upgrades the existing `TreeParticles` to meet the high-fidelity visual and physics requirements (GPU State Machine, Bezier Curves).
+- **Epic 3** enables the rich interactive layer (Lightbox, Magnetic Hover, Implosion) using the Hybrid Interaction pattern.
 
 This approach minimizes rework while ensuring the final product meets the premium "Midnight Magic" specification.
 
