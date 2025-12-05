@@ -162,7 +162,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                   <input
                     type="range"
                     min="2500"
-                    max="40000"
+                    max="100000"
                     step="1000"
                     value={particleCount}
                     onChange={(e) => {

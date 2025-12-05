@@ -260,10 +260,10 @@ function App() {
           <EffectComposer multisampling={0}>
             {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
             <Bloom
-              luminanceThreshold={0.55}
+              luminanceThreshold={0.6}
               luminanceSmoothing={0.85}
               mipmapBlur
-              intensity={0.55}
+              intensity={0.4}
               radius={0.5}
             />
             {/* Secondary Bloom - Highlights for star/top particles only */}

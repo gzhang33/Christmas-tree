@@ -126,3 +126,20 @@ Gemini 2.5 Pro
 - 2025-12-04: Story drafted based on Epic 2 requirements.
 - 2025-12-04: Implemented GPU State Machine pattern with custom shaders. All tasks complete.
 - 2025-12-04: Story status changed to `review` - ready for code review workflow.
+- 2025-12-05: Fixed visual balance issue where ornaments and gifts were not scaling proportionally with particle count. Updated `TreeParticles.tsx` to calculate their counts as a percentage of `particleCount` (25% for ornaments, 40% for gifts).
+- 2025-12-05: Refactored particle count and dimension constants into `src/config/particles.ts` for easier configuration.
+- 2025-12-05: Fixed particle count logic to use a normalized distribution model where `particleCount` represents the total budget. Ratios in `particles.ts` now sum to 1.0. Increased slider max to 100,000 to accommodate the new logic.
+- 2025-12-05: Added `PARTICLE_CONFIG` to `useMemo` dependency arrays in `TreeParticles.tsx` to ensure UI updates immediately when configuration is modified during development (HMR).
+- 2025-12-05: Enhanced gift box visibility by increasing particle size (from 0.5 to 0.8) and increasing surface density bias (from 80% to 90% surface particles). This results in sharper outlines and a more solid appearance.
+- 2025-12-05: Optimized tree silhouette by enforcing a surface layer (30% of particles at 0.85-1.0 radius) and reducing flocking noise. This creates a sharper, more defined tree shape.
+- 2025-12-05: Adjusted vertical particle distribution (power function exponent from 0.6 to 1.8) to match the cone's volume, resolving the issue of excessive brightness/density at the top of the tree.
+- 2025-12-05: Implemented a tiered tree shape algorithm (`getTreeRadius`) to replace the simple cone. This creates a realistic silhouette with 7 distinct layers, applied to all particle types (entity, glow, ornaments).
+- 2025-12-05: Further optimized tree silhouette by increasing surface particle ratio to 60% (up from 30%) and tightening the surface layer thickness (0.92-1.0). This creates an extremely sharp and well-defined outline.
+- 2025-12-05: Optimized Magic Dust system:
+    - Solved visibility issue by ensuring the halo radius is always larger than the tree radius (using `getTreeRadius` + offset).
+    - Replaced hardcoded positions with relative positioning based on `PARTICLE_CONFIG`.
+    - Increased upward slope by reducing spiral turns from 8 to 6.
+    - Reduced particle count (controlled by `magicDust` ratio in `particles.ts`) for a more refined look.
+    - Implemented uniform particle distribution (`i/count`) to create a continuous "ribbon" effect instead of random scattering.
+    - Refined color palette to be less intensely yellow, using a smoother gradient from Gold to White.
+    - Further reduced `magicDust` ratio to 1% to address density concerns.

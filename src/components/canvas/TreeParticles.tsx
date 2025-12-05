@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { AppConfig } from '../../types.ts';
 import { useStore } from '../../store/useStore';
 import { STATIC_COLORS, DEFAULT_TREE_COLOR } from '../../config/colors';
+import { PARTICLE_CONFIG } from '../../config/particles';
+import { getTreeRadius } from '../../utils/treeUtils';
 
 // Shader imports using raw-loader syntax for Vite
 import particleVertexShader from '../../shaders/particle.vert?raw';
@@ -271,11 +273,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
   }, [treeColor]);
 
-  // === ENTITY LAYER (70% - Normal Blending) ===
+
+
+  // === ENTITY LAYER (50% - Normal Blending) ===
   const entityLayerData = useMemo(() => {
-    // Remove the hardcoded minimum of 20000 to allow lower particle counts
-    const totalParticles = Math.max(particleCount * 1.5, 1000);
-    const count = Math.floor(totalParticles * 0.7); // 70% for entity layer
+    // Calculate count based on total particle budget
+    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.entity, PARTICLE_CONFIG.minCounts.tree * 0.7));
 
     // Standard position (used for initial render)
     const pos = new Float32Array(count * 3);
@@ -294,28 +297,40 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Branch angles
     const branchAngles = new Float32Array(count);
 
-    const treeHeight = 14;
+    const treeHeight = PARTICLE_CONFIG.treeHeight;
 
     for (let i = 0; i < count; i++) {
-      // Vertical distribution - more at bottom
-      const t = Math.pow(Math.random(), 0.6);
-      const y = -5.5 + t * treeHeight;
+      // Vertical distribution - bias towards bottom to match cone volume
+      // Power > 1.0 pushes values towards 0 (bottom)
+      const t = Math.pow(Math.random(), 1.8);
+      const y = PARTICLE_CONFIG.treeBottomY + t * treeHeight;
 
-      // Cone radius with organic variation
-      const baseRadius = (1 - t) * 5.5;
+      // Tiered tree radius
+      const baseRadius = getTreeRadius(t);
       const layerNoise = Math.sin(y * 2.5) * 0.3;
       const coneR = baseRadius + layerNoise;
 
       // Branch structure
       const branchAngle = Math.random() * Math.PI * 2;
-      const distFromTrunk = Math.pow(Math.random(), 0.7);
+
+      // Silhouette Optimization: Enforce a surface layer
+      // 30% of particles are forced to the edge (0.85-1.0) to define the shape
+      // The rest fill the volume with a bias towards the outside
+      const isSurface = Math.random() > 0.4;
+      let distFromTrunk;
+
+      if (isSurface) {
+        distFromTrunk = 0.92 + Math.random() * 0.08;
+      } else {
+        distFromTrunk = Math.pow(Math.random(), 0.5);
+      }
 
       // Natural droop at tips
       const droop = distFromTrunk * distFromTrunk * 1.2;
 
-      // Position with flocking noise
+      // Position with reduced flocking noise for sharper edges
       const r = distFromTrunk * coneR;
-      const flockNoise = (Math.random() - 0.5) * 0.4;
+      const flockNoise = (Math.random() - 0.5) * 0.25; // Reduced from 0.4
       const x = Math.cos(branchAngle) * r + flockNoise;
       const z = Math.sin(branchAngle) * r + flockNoise;
       const finalY = y - droop + (Math.random() - 0.5) * 0.3;
@@ -380,12 +395,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       count
     };
-  }, [particleCount, config.explosionRadius, colorVariants]);
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
-  // === GLOW LAYER (30% - Additive Blending) ===
+  // === GLOW LAYER (20% - Additive Blending) ===
   const glowLayerData = useMemo(() => {
-    const totalParticles = Math.max(particleCount * 1.5, 1000);
-    const count = Math.floor(totalParticles * 0.3); // 30% for glow layer
+    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.glow, PARTICLE_CONFIG.minCounts.tree * 0.3));
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -396,13 +410,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const branchAngles = new Float32Array(count);
     const flickerPhase = new Float32Array(count); // For sparkle animation
 
-    const treeHeight = 14;
+    const treeHeight = PARTICLE_CONFIG.treeHeight;
 
     for (let i = 0; i < count; i++) {
-      const t = Math.pow(Math.random(), 0.5);
-      const y = -5.5 + t * treeHeight;
+      // Vertical distribution - bias towards bottom
+      const t = Math.pow(Math.random(), 1.8);
+      const y = PARTICLE_CONFIG.treeBottomY + t * treeHeight;
 
-      const baseRadius = (1 - t) * 5.5;
+      const baseRadius = getTreeRadius(t);
       const coneR = baseRadius + Math.sin(y * 2) * 0.2;
 
       const branchAngle = Math.random() * Math.PI * 2;
@@ -470,11 +485,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       flickerPhase,
       count
     };
-  }, [particleCount, config.explosionRadius, colorVariants]);
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
   // === ORNAMENTS - Special ornaments with distribution algorithm ===
   const ornamentData = useMemo(() => {
-    const count = 3000;
+    // Scale ornaments proportionally to particle count
+    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.ornament, PARTICLE_CONFIG.minCounts.ornament));
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -484,8 +500,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
 
-    const treeHeight = 14;
-    const treeBottom = -5.5;
+    const treeHeight = PARTICLE_CONFIG.treeHeight;
+    const treeBottom = PARTICLE_CONFIG.treeBottomY;
 
     // Generate ornament clusters
     const clusters: Array<{
@@ -515,7 +531,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const t = i / pearlCount;
       const y = 7.5 - t * 13;
       const theta = t * Math.PI * 16;
-      const baseR = (1 - (y + 5.5) / treeHeight) * 5.2 + 0.3;
+      const baseR = getTreeRadius(1 - t) * 0.95 + 0.3;
 
       const x = Math.cos(theta) * baseR;
       const z = Math.sin(theta) * baseR;
@@ -553,7 +569,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Special ornament clusters
     clusters.forEach((cluster) => {
       const particlesPerCluster = 18;
-      const baseR = (1 - (cluster.y + 5.5) / treeHeight) * 5 + 0.5;
+      const heightRatio = (cluster.y - PARTICLE_CONFIG.treeBottomY) / treeHeight;
+      const baseR = getTreeRadius(heightRatio) * 0.9 + 0.5;
       const cx = Math.cos(cluster.angle) * baseR;
       const cz = Math.sin(cluster.angle) * baseR;
       const sizeCoef = SIZE_COEFFICIENTS[cluster.type];
@@ -632,12 +649,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       count: idx
     };
-  }, [config.explosionRadius, colorVariants]);
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
 
   // === GIFT BOXES ===
   const giftData = useMemo(() => {
-    const count = 5500;
+    // Scale gifts proportionally to particle count
+    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.gift, PARTICLE_CONFIG.minCounts.gift));
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -676,8 +694,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         let uy = Math.random() - 0.5;
         let uz = Math.random() - 0.5;
 
-        // Bias to surface for box appearance
-        if (Math.random() > 0.2) {
+        // Bias to surface for box appearance (Stronger bias for sharper edges)
+        if (Math.random() > 0.1) {
           const axis = Math.floor(Math.random() * 3);
           if (axis === 0) ux = ux > 0 ? 0.5 : -0.5;
           if (axis === 1) uy = uy > 0 ? 0.5 : -0.5;
@@ -725,7 +743,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         col[idx * 3] = c.r;
         col[idx * 3 + 1] = c.g;
         col[idx * 3 + 2] = c.b;
-        siz[idx] = 0.5;
+        siz[idx] = 0.8; // Larger particles for solid look
         idx++;
       }
     });
@@ -741,7 +759,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       count: idx
     };
-  }, [config.explosionRadius, colorVariants]);
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
   // === SHADER MATERIAL CREATION ===
   useEffect(() => {
@@ -760,8 +778,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ornamentMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.5);
     ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
 
-    // Gifts: size 0.5, normal blending
-    giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.5);
+    // Gifts: size 0.7, normal blending
+    giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.7);
     giftMaterialRef.current.depthWrite = true;
 
     // Cleanup

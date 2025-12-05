@@ -1,6 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { PARTICLE_CONFIG } from '../../config/particles';
+import { getTreeRadius } from '../../utils/treeUtils';
 
 interface MagicDustProps {
   count?: number;
@@ -12,34 +14,34 @@ interface MagicDustProps {
 // Speed: Slow rotation with gradual upward ascent
 // Effect: Meteor/dust particles orbiting like gravity-bound objects
 
-// === TREE & SPIRAL GEOMETRY (matching pearl string in TreeParticles) ===
-const TREE_BOTTOM_Y = -5.5;
-const TREE_TOP_Y = 7.5;
-const TREE_HEIGHT = 13; // From 7.5 to -5.5
-const SPIRAL_TURNS = 8; // Number of spiral turns (matches pearl string: PI * 16 = 8 turns)
-
 // Calculate spiral position at parameter t (0 to 1)
-// This matches the pearl string spiral in TreeParticles.tsx
 const getSpiralPosition = (t: number, radiusOffset: number = 0): [number, number, number] => {
-  // Y position: from top (7.5) to bottom (-5.5)
-  const y = TREE_TOP_Y - t * TREE_HEIGHT;
-  
-  // Angle: 8 complete turns from top to bottom
-  const theta = t * Math.PI * 2 * SPIRAL_TURNS;
-  
-  // Radius: follows tree cone profile (wider at bottom)
-  // baseR = (1 - (y + 5.5) / 14) * 5.2 + 0.3
-  const heightRatio = (y - TREE_BOTTOM_Y) / (TREE_TOP_Y - TREE_BOTTOM_Y);
-  const baseR = (1 - heightRatio) * 5.2 + 0.3;
-  
-  // Add small offset to stay close to (but not overlap) the pearl string
-  const r = baseR + 0.15 + radiusOffset;
-  
+  const treeHeight = PARTICLE_CONFIG.treeHeight;
+  const bottomY = PARTICLE_CONFIG.treeBottomY;
+  const topY = bottomY + treeHeight;
+
+  // Y position: from top to bottom
+  const y = topY - t * treeHeight;
+
+  // Angle: Reduced turns for steeper slope (6 turns instead of 8)
+  const turns = 6;
+  const theta = t * Math.PI * 2 * turns;
+
+  // Radius: Use tiered tree shape + offset to ensure visibility
+  // t goes from 0 (top) to 1 (bottom) in this context
+  // getTreeRadius expects 0 (bottom) to 1 (top)
+  const baseR = getTreeRadius(1 - t);
+
+  // Add offset to stay outside the tree surface (0.8 unit buffer)
+  const r = baseR + 0.8 + radiusOffset;
+
   const x = Math.cos(theta) * r;
   const z = Math.sin(theta) * r;
-  
+
   return [x, y, z];
 };
+
+const SPIRAL_TURNS = 6; // Updated to match getSpiralPosition
 
 // Meteor texture with comet-like glow
 const createMeteorTexture = () => {
@@ -122,7 +124,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
-    
+
     // Spiral parameters
     const spiralT = new Float32Array(count);        // Position along spiral (0-1)
     const ascentSpeed = new Float32Array(count);    // How fast it climbs
@@ -133,50 +135,51 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
     const baseColors = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
-      // Distribute meteors along the spiral
-      spiralT[i] = Math.random();
-      
-      // Faster ascent for more visible upward movement: ~10-20 seconds per spiral
-      ascentSpeed[i] = 0.03 + Math.random() * 0.04;
-      
+      // Distribute meteors EVENLY along the spiral to create a continuous ribbon effect
+      spiralT[i] = i / count;
+
+      // Uniform ascent speed to maintain relative distances (ribbon structure)
+      ascentSpeed[i] = 0.05;
+
       // Small radius offset to create "band" effect around the halo
       radiusOffset[i] = (Math.random() - 0.5) * 0.4;
-      
+
       // Angular offset to spread particles around the spiral
       angleOffset[i] = (Math.random() - 0.5) * 0.3;
-      
+
       // Independent rotation speed: faster than tree rotation to create visible relative motion
       // Tree rotates at ~0.0006 rad/frame (0.6 * 0.001), we use 0.002-0.004 rad/frame
       // This creates 3-6x faster rotation, making upward ascent clearly visible
       rotationSpeed[i] = 0.102 + Math.random() * 0.002;
-      
+
       // Get initial position
       const [x, y, z] = getSpiralPosition(spiralT[i], radiusOffset[i]);
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
 
-      // Color palette: warm meteor colors
+      // Color palette: Gradient from Gold (bottom) to White (top)
       const colorChoice = Math.random();
       let c: THREE.Color;
-      if (colorChoice < 0.4) c = COLOR_GOLD.clone();
-      else if (colorChoice < 0.65) c = COLOR_AMBER.clone();
-      else if (colorChoice < 0.85) c = COLOR_ORANGE.clone();
+
+      // More subtle palette - less intense yellow
+      if (colorChoice < 0.3) c = COLOR_GOLD.clone();
+      else if (colorChoice < 0.7) c = COLOR_AMBER.clone().lerp(COLOR_WHITE, 0.3); // Desaturated Amber
       else c = COLOR_WHITE.clone();
 
       baseColors[i * 3] = c.r;
       baseColors[i * 3 + 1] = c.g;
       baseColors[i * 3 + 2] = c.b;
 
-      // HDR boost for visibility
-      const intensity = 2.0 + Math.random() * 1.0;
+      // Reduced intensity for a softer look
+      const intensity = 1.2 + Math.random() * 0.5;
       colors[i * 3] = c.r * intensity;
       colors[i * 3 + 1] = c.g * intensity;
       colors[i * 3 + 2] = c.b * intensity;
 
-      // Size: larger meteors for better visibility
-      sizes[i] = 0.25 + Math.random() * 0.35;
-      
+      // Size: slightly smaller for elegance
+      sizes[i] = 0.2 + Math.random() * 0.25;
+
       flickerPhase[i] = Math.random() * Math.PI * 2;
     }
 
@@ -191,7 +194,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   const trailData = useMemo(() => {
     const trailPerMeteor = 6;
     const totalTrails = count * trailPerMeteor;
-    
+
     const positions = new Float32Array(totalTrails * 3);
     const colors = new Float32Array(totalTrails * 3);
     const sizes = new Float32Array(totalTrails);
@@ -221,7 +224,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   // === ANIMATION LOOP ===
   useFrame((state) => {
     const time = state.clock.elapsedTime;
-    const deltaTime = Math.min(state.clock.getDelta() || 1/60, 0.1);
+    const deltaTime = Math.min(state.clock.getDelta() || 1 / 60, 0.1);
 
     if (isExploded) return;
 
@@ -235,7 +238,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         // Slowly advance along spiral (ascending)
         // Negative because we go from t=1 (bottom) to t=0 (top)
         meteorData.spiralT[i] -= meteorData.ascentSpeed[i] * deltaTime;
-        
+
         // Wrap: when reaching top, respawn at bottom
         if (meteorData.spiralT[i] <= 0) {
           meteorData.spiralT[i] = 1;
@@ -245,25 +248,25 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         }
 
         const t = meteorData.spiralT[i];
-        
+
         // Get base spiral position
         const [baseX, baseY, baseZ] = getSpiralPosition(t, meteorData.radiusOffset[i]);
-        
+
         // Add subtle orbital wobble (like meteor in orbit)
         const wobbleAngle = time * 0.3 + i * 0.1;
         const wobbleR = Math.sin(wobbleAngle) * 0.1;
         const wobbleY = Math.sin(wobbleAngle * 1.5) * 0.08;
-        
+
         // Calculate spiral angle with INDEPENDENT rotation speed
         // This creates relative motion vs the tree, making upward ascent clearly visible
         const baseTheta = t * Math.PI * 2 * SPIRAL_TURNS;
         const independentRotation = time * meteorData.rotationSpeed[i];
         const theta = baseTheta + independentRotation + meteorData.angleOffset[i];
-        
-        const heightRatio = (baseY - TREE_BOTTOM_Y) / (TREE_TOP_Y - TREE_BOTTOM_Y);
-        const baseR = (1 - heightRatio) * 5.2 + 0.3 + 0.15 + meteorData.radiusOffset[i];
+
+        const heightRatio = (baseY - PARTICLE_CONFIG.treeBottomY) / PARTICLE_CONFIG.treeHeight;
+        const baseR = getTreeRadius(heightRatio) + 0.8 + 0.15 + meteorData.radiusOffset[i];
         const r = baseR + wobbleR;
-        
+
         pos[i * 3] = Math.cos(theta) * r;
         pos[i * 3 + 1] = baseY + wobbleY;
         pos[i * 3 + 2] = Math.sin(theta) * r;
@@ -272,7 +275,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         const baseR_c = meteorData.baseColors[i * 3];
         const baseG_c = meteorData.baseColors[i * 3 + 1];
         const baseB_c = meteorData.baseColors[i * 3 + 2];
-        
+
         const whiteFactor = (1 - t) * 0.4; // More white at top
         const lerpR = baseR_c + (COLOR_WHITE.r - baseR_c) * whiteFactor;
         const lerpG = baseG_c + (COLOR_WHITE.g - baseG_c) * whiteFactor;
@@ -281,7 +284,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         // Flicker effect
         const flickerFreq = 3 + (meteorData.flickerPhase[i] % 2);
         const flicker = 0.8 + Math.sin(time * flickerFreq + meteorData.flickerPhase[i]) * 0.2;
-        
+
         // Fade at edges of spiral
         const fadeIn = Math.min((1 - t) * 8, 1);
         const fadeOut = t < 0.1 ? t * 10 : 1;
@@ -309,21 +312,21 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
       for (let i = 0; i < trailData.count; i++) {
         const parentIdx = trailData.parentIndices[i];
         const offset = trailData.trailOffsets[i];
-        
+
         // Trail follows parent but lagged in spiral position
         const parentT = meteorData.spiralT[parentIdx];
         const trailT = Math.min(parentT + offset, 1); // Trail is behind (higher t = lower position)
-        
+
         const [x, y, z] = getSpiralPosition(trailT, meteorData.radiusOffset[parentIdx]);
-        
+
         // Apply same angular offset and independent rotation as parent
         const baseTheta = trailT * Math.PI * 2 * SPIRAL_TURNS;
         const independentRotation = time * meteorData.rotationSpeed[parentIdx];
         const theta = baseTheta + independentRotation + meteorData.angleOffset[parentIdx];
-        
-        const heightRatio = (y - TREE_BOTTOM_Y) / (TREE_TOP_Y - TREE_BOTTOM_Y);
-        const baseR = (1 - heightRatio) * 5.2 + 0.3 + 0.15 + meteorData.radiusOffset[parentIdx];
-        
+
+        const heightRatio = (y - PARTICLE_CONFIG.treeBottomY) / PARTICLE_CONFIG.treeHeight;
+        const baseR = getTreeRadius(heightRatio) + 0.8 + 0.15 + meteorData.radiusOffset[parentIdx];
+
         trailPos[i * 3] = Math.cos(theta) * baseR;
         trailPos[i * 3 + 1] = y;
         trailPos[i * 3 + 2] = Math.sin(theta) * baseR;
@@ -331,7 +334,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         // Fade trail
         const trailIdx = i % trailData.trailPerMeteor;
         const fade = (1 - trailIdx / trailData.trailPerMeteor) * 0.7;
-        
+
         trailCols[i * 3] = COLOR_GOLD.r * fade * 1.5;
         trailCols[i * 3 + 1] = COLOR_GOLD.g * fade * 1.2;
         trailCols[i * 3 + 2] = COLOR_GOLD.b * fade * 0.6;
