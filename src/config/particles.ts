@@ -26,4 +26,13 @@ export const PARTICLE_CONFIG = {
         gift: 500,
         magicDust: 100,
     },
+
+    // Magic Dust Specific Configuration
+    magicDust: {
+        spiralTurns: 3.5,      // Low number of turns = Steep slope (>20 degrees)
+        radiusOffset: 0.8,     // Distance from tree surface
+        ascentSpeed: 0.05,     // Vertical speed
+        rotationSpeed: 0.1,    // Orbit speed
+        countRatio: 0.01,      // 1% of total particles (redundant with ratios.magicDust but good for reference)
+    },
 } as const;

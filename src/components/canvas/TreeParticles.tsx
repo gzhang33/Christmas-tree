@@ -307,30 +307,30 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Tiered tree radius
       const baseRadius = getTreeRadius(t);
-      const layerNoise = Math.sin(y * 2.5) * 0.3;
+      const layerNoise = Math.sin(y * 2.5) * 0.15;
       const coneR = baseRadius + layerNoise;
 
       // Branch structure
       const branchAngle = Math.random() * Math.PI * 2;
 
       // Silhouette Optimization: Enforce a surface layer
-      // 30% of particles are forced to the edge (0.85-1.0) to define the shape
+      // 75% of particles are forced to the edge (0.95-1.0) to define the shape
       // The rest fill the volume with a bias towards the outside
-      const isSurface = Math.random() > 0.4;
+      const isSurface = Math.random() > 0.25;
       let distFromTrunk;
 
       if (isSurface) {
-        distFromTrunk = 0.92 + Math.random() * 0.08;
+        distFromTrunk = 0.95 + Math.random() * 0.05;
       } else {
         distFromTrunk = Math.pow(Math.random(), 0.5);
       }
 
       // Natural droop at tips
-      const droop = distFromTrunk * distFromTrunk * 1.2;
+      const droop = distFromTrunk * distFromTrunk * 1.0;
 
       // Position with reduced flocking noise for sharper edges
       const r = distFromTrunk * coneR;
-      const flockNoise = (Math.random() - 0.5) * 0.25; // Reduced from 0.4
+      const flockNoise = (Math.random() - 0.5) * 0.1; // Reduced from 0.25
       const x = Math.cos(branchAngle) * r + flockNoise;
       const z = Math.sin(branchAngle) * r + flockNoise;
       const finalY = y - droop + (Math.random() - 0.5) * 0.3;
@@ -421,7 +421,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const coneR = baseRadius + Math.sin(y * 2) * 0.2;
 
       const branchAngle = Math.random() * Math.PI * 2;
-      const distFromTrunk = Math.pow(Math.random(), 0.6);
+      // Push glow towards surface for better definition
+      const distFromTrunk = 0.4 + Math.pow(Math.random(), 0.8) * 0.6;
       const r = distFromTrunk * coneR;
 
       const x = Math.cos(branchAngle) * r;

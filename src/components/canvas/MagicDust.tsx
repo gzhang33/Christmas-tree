@@ -15,33 +15,28 @@ interface MagicDustProps {
 // Effect: Meteor/dust particles orbiting like gravity-bound objects
 
 // Calculate spiral position at parameter t (0 to 1)
+// Calculate spiral position at parameter t (0 to 1)
 const getSpiralPosition = (t: number, radiusOffset: number = 0): [number, number, number] => {
-  const treeHeight = PARTICLE_CONFIG.treeHeight;
-  const bottomY = PARTICLE_CONFIG.treeBottomY;
-  const topY = bottomY + treeHeight;
+  const { treeHeight, treeBottomY, magicDust } = PARTICLE_CONFIG;
+  const topY = treeBottomY + treeHeight;
 
   // Y position: from top to bottom
   const y = topY - t * treeHeight;
 
-  // Angle: Reduced turns for steeper slope (6 turns instead of 8)
-  const turns = 6;
-  const theta = t * Math.PI * 2 * turns;
+  // Angle: Use config turns for slope control
+  const theta = t * Math.PI * 2 * magicDust.spiralTurns;
 
-  // Radius: Use tiered tree shape + offset to ensure visibility
-  // t goes from 0 (top) to 1 (bottom) in this context
-  // getTreeRadius expects 0 (bottom) to 1 (top)
+  // Radius: Use tiered tree shape
   const baseR = getTreeRadius(1 - t);
 
-  // Add offset to stay outside the tree surface (0.8 unit buffer)
-  const r = baseR + 0.8 + radiusOffset;
+  // Add offset from config + random variation
+  const r = baseR + magicDust.radiusOffset + radiusOffset;
 
   const x = Math.cos(theta) * r;
   const z = Math.sin(theta) * r;
 
   return [x, y, z];
 };
-
-const SPIRAL_TURNS = 6; // Updated to match getSpiralPosition
 
 // Meteor texture with comet-like glow
 const createMeteorTexture = () => {
@@ -139,18 +134,17 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
       spiralT[i] = i / count;
 
       // Uniform ascent speed to maintain relative distances (ribbon structure)
-      ascentSpeed[i] = 0.05;
+      ascentSpeed[i] = PARTICLE_CONFIG.magicDust.ascentSpeed;
 
       // Small radius offset to create "band" effect around the halo
-      radiusOffset[i] = (Math.random() - 0.5) * 0.4;
+      // Reduced spread to keep the ribbon cohesive
+      radiusOffset[i] = (Math.random() - 0.5) * 0.15;
 
       // Angular offset to spread particles around the spiral
       angleOffset[i] = (Math.random() - 0.5) * 0.3;
 
-      // Independent rotation speed: faster than tree rotation to create visible relative motion
-      // Tree rotates at ~0.0006 rad/frame (0.6 * 0.001), we use 0.002-0.004 rad/frame
-      // This creates 3-6x faster rotation, making upward ascent clearly visible
-      rotationSpeed[i] = 0.102 + Math.random() * 0.002;
+      // Consistent rotation speed for the whole ribbon
+      rotationSpeed[i] = PARTICLE_CONFIG.magicDust.rotationSpeed;
 
       // Get initial position
       const [x, y, z] = getSpiralPosition(spiralT[i], radiusOffset[i]);
@@ -253,13 +247,14 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         const [baseX, baseY, baseZ] = getSpiralPosition(t, meteorData.radiusOffset[i]);
 
         // Add subtle orbital wobble (like meteor in orbit)
-        const wobbleAngle = time * 0.3 + i * 0.1;
+        // Use random flickerPhase to avoid standing wave patterns (spliced lines effect)
+        const wobbleAngle = time * 0.5 + meteorData.flickerPhase[i];
         const wobbleR = Math.sin(wobbleAngle) * 0.1;
         const wobbleY = Math.sin(wobbleAngle * 1.5) * 0.08;
 
         // Calculate spiral angle with INDEPENDENT rotation speed
         // This creates relative motion vs the tree, making upward ascent clearly visible
-        const baseTheta = t * Math.PI * 2 * SPIRAL_TURNS;
+        const baseTheta = t * Math.PI * 2 * PARTICLE_CONFIG.magicDust.spiralTurns;
         const independentRotation = time * meteorData.rotationSpeed[i];
         const theta = baseTheta + independentRotation + meteorData.angleOffset[i];
 
@@ -320,7 +315,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
         const [x, y, z] = getSpiralPosition(trailT, meteorData.radiusOffset[parentIdx]);
 
         // Apply same angular offset and independent rotation as parent
-        const baseTheta = trailT * Math.PI * 2 * SPIRAL_TURNS;
+        const baseTheta = trailT * Math.PI * 2 * PARTICLE_CONFIG.magicDust.spiralTurns;
         const independentRotation = time * meteorData.rotationSpeed[parentIdx];
         const theta = baseTheta + independentRotation + meteorData.angleOffset[parentIdx];
 

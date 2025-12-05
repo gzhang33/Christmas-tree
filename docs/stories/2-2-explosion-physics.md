@@ -143,3 +143,6 @@ Gemini 2.5 Pro
     - Implemented uniform particle distribution (`i/count`) to create a continuous "ribbon" effect instead of random scattering.
     - Refined color palette to be less intensely yellow, using a smoother gradient from Gold to White.
     - Further reduced `magicDust` ratio to 1% to address density concerns.
+    - Increased upward slope significantly (>20 degrees) by reducing spiral turns to 2.5 in config.
+    - Centralized all Magic Dust parameters (turns, offset, speed) in `src/config/particles.ts` to avoid hardcoding and duplication.
+    - Fixed "spliced lines" artifact by randomizing wobble phase and tightening ribbon width, ensuring a cohesive, continuous meteor belt.
