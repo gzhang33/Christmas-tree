@@ -95,3 +95,4 @@ export const MEMORIES: readonly Memory[] = [
     video: '/photos/IMG_6242.mp4',
   },
 ] as const;
+

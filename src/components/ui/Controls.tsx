@@ -47,14 +47,23 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
           transition={{ duration: 0.5 }}
           className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-10 p-4 sm:p-6 gap-4"
         >
-          {/* Toggle Button */}
-          <button
+          {/* Toggle Button with pulse animation */}
+          <motion.button
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? 'Close controls panel' : 'Open controls panel'}
             className="pointer-events-auto bg-deep-gray-blue/80 backdrop-blur-xl p-3 rounded-full border border-electric-purple/50 shadow-[0_0_15px_rgba(128,90,213,0.4)] hover:shadow-[0_0_25px_rgba(213,63,140,0.6)] hover:bg-deep-gray-blue transition-all text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-pink"
+            animate={!isOpen ? {
+              scale: [1, 1.08, 1],
+              boxShadow: [
+                '0 0 15px rgba(128,90,213,0.4)',
+                '0 0 25px rgba(213,63,140,0.6)',
+                '0 0 15px rgba(128,90,213,0.4)'
+              ]
+            } : {}}
+            transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
           >
             {isOpen ? <X size={24} /> : <Settings size={24} />}
-          </button>
+          </motion.button>
 
           {/* Main Panel */}
           <motion.div
@@ -66,7 +75,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
               pointerEvents: isOpen ? 'auto' : 'none',
             }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="relative rounded-3xl border border-electric-purple/30 bg-deep-gray-blue/90 backdrop-blur-2xl p-6 w-80 text-white shadow-[0_25px_70px_rgba(0,0,0,0.65)] overflow-y-auto max-h-[90vh]"
+            className="relative rounded-3xl border border-electric-purple/30 bg-deep-gray-blue/90 backdrop-blur-2xl p-6 w-[min(320px,85vw)] text-white shadow-[0_25px_70px_rgba(0,0,0,0.65)] overflow-y-auto max-h-[90vh]"
           >
             {/* Decorative Elements */}
             <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_top_right,_rgba(213,63,140,0.3),_transparent_60%)]" aria-hidden />
@@ -82,7 +91,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
               <div className="mb-8 space-y-4">
                 <p className="text-[0.65rem] text-teal-accent uppercase tracking-[0.2em] font-bold">Actions</p>
 
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                   <button
                     onClick={handleToggleExplosion}
                     aria-label={isExploded ? "Rebuild the tree" : "Explode the tree"}
@@ -111,9 +120,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 {/* Tree Color */}
                 <div className="space-y-3">
-                  <label className="text-sm text-white/80 flex justify-between">
-                    Tree Color
-                    <span className="text-xs font-mono text-electric-purple">{treeColor}</span>
+                  <label className="text-sm text-white/60 flex justify-between items-center">
+                    <span>Tree Color</span>
+                    <span className="text-xs font-mono font-bold text-electric-purple">{treeColor}</span>
                   </label>
                   <div className="flex flex-wrap gap-3">
                     {TREE_COLOR_PRESETS.map(({ hex, name }) => (
@@ -138,7 +147,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                       <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => c.hex === treeColor)
                         ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                         : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
-                        <Palette size={16} className="text-white" />
+                        <Palette size={20} className="text-white" />
                       </div>
                     </div>
                   </div>
@@ -146,14 +155,14 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 {/* Particle Count */}
                 <div className="space-y-3">
-                  <label className="text-sm text-white/80 flex justify-between">
-                    Particle Count
-                    <span className="text-xs font-mono text-electric-purple">{particleCount}</span>
+                  <label className="text-sm text-white/60 flex justify-between items-center">
+                    <span>Particle Count</span>
+                    <span className="text-xs font-mono font-bold text-electric-purple">{particleCount.toLocaleString()}</span>
                   </label>
                   <input
                     type="range"
                     min="2500"
-                    max="40000"
+                    max="100000"
                     step="1000"
                     value={particleCount}
                     onChange={(e) => {
@@ -167,9 +176,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 {/* Rotation Speed */}
                 <div className="space-y-3">
-                  <label className="text-sm text-white/80 flex justify-between">
-                    Rotation Speed
-                    <span className="text-xs font-mono text-electric-purple">{uiState.config.rotationSpeed}</span>
+                  <label className="text-sm text-white/60 flex justify-between items-center">
+                    <span>Rotation Speed</span>
+                    <span className="text-xs font-mono font-bold text-electric-purple">{uiState.config.rotationSpeed.toFixed(1)}</span>
                   </label>
                   <input
                     type="range"
@@ -185,9 +194,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 {/* Photo Scale */}
                 <div className="space-y-3">
-                  <label className="text-sm text-white/80 flex justify-between">
-                    Photo Scale
-                    <span className="text-xs font-mono text-electric-purple">{uiState.config.photoSize}</span>
+                  <label className="text-sm text-white/60 flex justify-between items-center">
+                    <span>Photo Scale</span>
+                    <span className="text-xs font-mono font-bold text-electric-purple">{uiState.config.photoSize.toFixed(1)}</span>
                   </label>
                   <input
                     type="range"

@@ -159,7 +159,7 @@ So that the project is stable and supports the new video requirements.
 - Create `src/store/useStore.test.ts`
 - Update `Asset` type to support `videoUrl`
 
-### Story 2.1: Theme & Asset Configuration
+### Story 2.1: Color Config
 
 As a Developer,
 I want to centralize theme and asset configuration,

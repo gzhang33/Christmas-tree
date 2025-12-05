@@ -7,6 +7,8 @@ import { MagicDust } from './MagicDust.tsx';
 import { PhotoCard } from './PhotoCard.tsx';
 import { UIState } from '../../types.ts';
 import { PLACEHOLDERS } from '../../config/assets.ts';
+import { useStore } from '../../store/useStore';
+import { PARTICLE_CONFIG } from '../../config/particles';
 import * as THREE from 'three';
 
 interface ExperienceProps {
@@ -61,6 +63,11 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
 
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
+  const particleCount = useStore((state) => state.particleCount);
+
+  const magicDustCount = useMemo(() => {
+    return Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.magicDust, PARTICLE_CONFIG.minCounts.magicDust));
+  }, [particleCount]);
 
   // Universe Photos positions
   const photoPositions = useMemo(() => {
@@ -174,7 +181,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
       <Snow count={Math.floor(config.snowDensity)} />
 
       {/* Magic dust and fairy particles */}
-      <MagicDust count={1200} isExploded={isExploded} />
+      <MagicDust count={magicDustCount} isExploded={isExploded} />
 
       {/* === THE TREE === */}
       <TreeParticles

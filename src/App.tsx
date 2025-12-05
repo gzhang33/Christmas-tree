@@ -238,7 +238,7 @@ function App() {
           dpr={[1, 2]}
           gl={{
             antialias: true,
-            toneMappingExposure: 1.4, // Dynamic exposure
+            toneMappingExposure: 1.08, // Optimized exposure to reduce overexposure
             alpha: false,
             powerPreference: 'high-performance',
           }}
@@ -256,22 +256,23 @@ function App() {
           />
 
           {/* === CINEMATIC POST PROCESSING PIPELINE === */}
+          {/* Optimized for clearer silhouette and reduced overexposure */}
           <EffectComposer multisampling={0}>
-            {/* Primary Bloom - Main threshold 0.4 (per spec) */}
+            {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
             <Bloom
-              luminanceThreshold={0.4}
-              luminanceSmoothing={0.9}
+              luminanceThreshold={0.6}
+              luminanceSmoothing={0.85}
               mipmapBlur
-              intensity={1.2}
-              radius={0.8}
-            />
-            {/* Secondary Bloom - Highlight threshold 0.85 (per spec) */}
-            <Bloom
-              luminanceThreshold={0.85}
-              luminanceSmoothing={0.5}
-              mipmapBlur
-              intensity={0.8}
+              intensity={0.4}
               radius={0.5}
+            />
+            {/* Secondary Bloom - Highlights for star/top particles only */}
+            <Bloom
+              luminanceThreshold={0.92}
+              luminanceSmoothing={0.4}
+              mipmapBlur
+              intensity={0.35}
+              radius={0.35}
             />
             {/* Cinematic Vignette (per spec) */}
             <Vignette
