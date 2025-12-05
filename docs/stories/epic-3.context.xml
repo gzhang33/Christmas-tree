@@ -1,0 +1,334 @@
+<epic-context id="epic-3" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <title>Memory Interaction & Lightbox</title>
+    <status>contexted</status>
+    <generatedAt>2025-12-05</generatedAt>
+    <generator>BMAD Epic Context Workflow</generator>
+    <sourceEpicPath>docs/stories/tech-spec-epic-3.md</sourceEpicPath>
+  </metadata>
+
+  <epic>
+    <goal>Implement the "Photo Cloud" interactivity, allowing users to explore memories and view them in detail.</goal>
+    <stories>
+      <story id="3.1">
+        <title>Magnetic Hover & Camera Drift</title>
+        <asA>User</asA>
+        <iWant>the photos to drift gently and respond to my mouse</iWant>
+        <soThat>the memory cloud feels alive and immersive</soThat>
+      </story>
+      <story id="3.2">
+        <title>Lightbox Overlay Implementation</title>
+        <asA>User</asA>
+        <iWant>to click a photo to see it clearly</iWant>
+        <soThat>I can relive that specific memory</soThat>
+      </story>
+      <story id="3.3">
+        <title>Return to Tree (Implosion)</title>
+        <asA>User</asA>
+        <iWant>to return to the tree shape</iWant>
+        <soThat>I can experience the cycle again</soThat>
+      </story>
+    </stories>
+  </epic>
+
+  <acceptanceCriteria>
+    <story id="3.1">
+      <criterion>**Given** the photos are in "Floating" state, **When** I do nothing, **Then** the camera should slowly "Dolly In" (FR29)</criterion>
+      <criterion>**Given** the photos are in "Floating" state, **When** I hover a photo, **Then** it should slow down its rotation and scale up to 1.5x with smooth transition (FR16)</criterion>
+      <criterion>**And** the photo card should dynamically tilt in 3D space based on mouse position, simulating realistic Polaroid card physics</criterion>
+      <criterion>**And** as I move my mouse over the photo, the tilt angles should smoothly update to follow the mouse movement</criterion>
+      <criterion>**And** the cursor should use standard pointer (no custom icon)</criterion>
+    </story>
+    <story id="3.2">
+      <criterion>**Given** I click a floating photo, **Then** a high-fidelity version of that photo should appear in the center (FR17, FR18)</criterion>
+      <criterion>**And** if the memory is a video, it should auto-play with controls</criterion>
+      <criterion>**And** the background (3D scene) should blur or dim (FR19)</criterion>
+      <criterion>**And** I should see a "Close" button</criterion>
+      <criterion>**And** pressing ESC should close it (FR39)</criterion>
+      <criterion>**And** users can Tab through floating photos and press Enter to open them (FR37, FR38)</criterion>
+    </story>
+    <story id="3.3">
+      <criterion>**Given** I am in the "Exploded" state, **When** I click the "Back" button, **Then** the photos should "implode" back into the tree shape (FR13)</criterion>
+      <criterion>**And** the UI controls should fade back in (FR14)</criterion>
+      <criterion>**And** "Back" button is only visible when Exploded and no Lightbox is open</criterion>
+    </story>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/tech-spec-epic-3.md</path>
+        <title>Epic 3 Technical Specification</title>
+        <section>Overview</section>
+        <snippet>
+Epic 3 focuses on transforming the visual spectacle of the "Exploded" tree into a tangible, interactive "Memory Cloud". While Epic 2 handles the physics and rendering of the explosion, Epic 3 implements the user journey *within* that exploded state. This includes the "Magnetic Hover" effect that makes the particles feel responsive, the "Lightbox" overlay for viewing high-fidelity photo/video content, and the "Implosion" mechanism to return to the initial tree state.
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 3: Memory Interaction & Lightbox</section>
+        <snippet>
+**Goal:** Implement the "Photo Cloud" interactivity, allowing users to explore memories and view them in detail.
+
+**Story 3.1: Magnetic Hover & Camera Drift**
+- Scale up to 1.5x with smooth transition
+- Dynamic 3D tilt based on mouse position
+- Standard pointer cursor
+
+**Story 3.2: Lightbox Overlay Implementation**
+- High-fidelity photo/video display
+- Background blur/dim effect
+- Keyboard navigation support
+
+**Story 3.3: Return to Tree (Implosion)**
+- Reverse explosion animation
+- UI controls fade back in
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision Document</title>
+        <section>5. Novel Pattern Designs - Hybrid Interaction (LOD Switching)</section>
+        <snippet>
+**Pattern:** Hybrid Interaction (LOD Switching)
+
+**Problem:** Detecting user interaction (hover, click) on thousands of particles efficiently.
+
+**Solution:**
+- Use Raycaster for hover detection on Points object
+- Update individual particle instance attributes (scale/rotation) on hover
+- Bridge 3D scene and React UI through Zustand store
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/ux-design-specification.md</path>
+        <title>UX Design Specification</title>
+        <section>2.2 Novel UX Patterns - The Capture (Selection)</section>
+        <snippet>
+**The Capture (Selection):**
+- **Action:** User tries to click a moving photo.
+- **Feedback (Magnetic Hover):** Hovered photo slows down rotation and slightly scales up (1.1x).
+- **Goal:** Prevent frustration from "chasing" moving targets.
+
+**Note:** Updated to 1.5x scale with 3D tilt effect for enhanced interactivity.
+        </snippet>
+      </doc>
+    </docs>
+    <code>
+      <item>
+        <path>src/components/canvas/PolaroidPhoto.tsx</path>
+        <kind>component</kind>
+        <symbol>PolaroidPhoto</symbol>
+        <lines>1-312</lines>
+        <reason>Core component for rendering individual photo cards. Needs to implement hover detection, 3D tilt effect (rotation X/Y based on mouse position), scale animation to 1.5x, and click handling for Lightbox. Currently handles morphing animation and floating state.</reason>
+      </item>
+      <item>
+        <path>src/components/canvas/TreeParticles.tsx</path>
+        <kind>component</kind>
+        <symbol>TreeParticles</symbol>
+        <reason>May need to handle raycast events for particle-based interaction if using hybrid approach. Otherwise, PolaroidPhoto components handle their own interactions.</reason>
+      </item>
+      <item>
+        <path>src/store/useStore.ts</path>
+        <kind>file</kind>
+        <symbol>useStore</symbol>
+        <lines>1-66</lines>
+        <reason>Global state container. Needs to be extended with `hoveredPhotoId` and `setHoveredPhoto` action for magnetic hover effect. Already has `activePhotoId` and `setActivePhoto` for Lightbox. May need `triggerImplosion` action for Story 3.3.</reason>
+      </item>
+      <item>
+        <path>src/components/ui/Lightbox.tsx</path>
+        <kind>component</kind>
+        <symbol>Lightbox</symbol>
+        <reason>To be created. UI overlay component for displaying high-resolution photo/video content. Should use Framer Motion for enter/exit animations (Fade + Scale). Must handle ESC key, close button, and background click to close.</reason>
+      </item>
+      <item>
+        <path>src/components/ui/Controls.tsx</path>
+        <kind>component</kind>
+        <symbol>Controls</symbol>
+        <reason>Needs "Back" button that triggers implosion. Button should only be visible when `isExploded = true` and `activePhotoId = null`.</reason>
+      </item>
+      <item>
+        <path>src/components/canvas/Experience.tsx</path>
+        <kind>component</kind>
+        <symbol>Experience</symbol>
+        <reason>Main 3D scene component. Needs to handle camera "Dolly In" animation when idle in exploded state. May need to apply blur/dim effect to canvas when Lightbox is open.</reason>
+      </item>
+      <item>
+        <path>src/config/assets.ts</path>
+        <kind>file</kind>
+        <symbol>MEMORIES</symbol>
+        <reason>Contains MEMORIES array with photo/video data. Used to load high-resolution content for Lightbox display.</reason>
+      </item>
+    </code>
+    <dependencies>
+      <package name="three" version="^0.165.0" />
+      <package name="@react-three/fiber" version="^8.15.0" />
+      <package name="@react-three/drei" version="^9.88.0" />
+      <package name="zustand" version="^5.0.9" />
+      <package name="framer-motion" version="^10.16.0" />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Magnetic hover must scale photos to 1.5x (not 1.1x) with smooth transition animation.</constraint>
+    <constraint>3D tilt effect must dynamically follow mouse position relative to card center, creating realistic Polaroid card physics.</constraint>
+    <constraint>Cursor must use standard pointer (no custom zoom icon) to avoid distraction from tilt animation.</constraint>
+    <constraint>Raycasting must be optimized - only enabled when `isExploded` is true, use `threshold` parameter for easier clicking.</constraint>
+    <constraint>Lightbox open/close animations must be 60fps, using CSS transforms/opacity (Framer Motion) rather than unmounting.</constraint>
+    <constraint>Background blur/dim effect must be applied when Lightbox is active (FR19).</constraint>
+    <constraint>Implosion animation must reverse the explosion smoothly by animating `uProgress` from 1.0 to 0.0, reusing Epic 2 shader logic.</constraint>
+    <constraint>Camera "Dolly In" must be slow and subtle, only active when idle in exploded state (no user interaction).</constraint>
+    <constraint>Keyboard navigation (Tab/Enter) must work for accessibility (FR37, FR38).</constraint>
+    <constraint>State consistency: `activePhotoId` must be cleared if user triggers "Return to Tree" while Lightbox is open.</constraint>
+    <constraint>Mobile: Touch interactions should open Lightbox directly (no hover state on mobile).</constraint>
+    <constraint>Performance: Raycasting against 20k+ particles can be expensive - optimize with threshold and conditional enabling.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AppState</name>
+      <kind>interface</kind>
+      <signature>
+export interface AppState {
+    // Existing
+    treeColor: string;
+    particleCount: number;
+    isExploded: boolean;
+    activePhotoId: string | null;
+    
+    // New for Epic 3
+    hoveredPhotoId: string | null; // ID of currently hovered photo
+    
+    // Actions
+    setTreeColor: (color: string) => void;
+    setParticleCount: (count: number) => void;
+    triggerExplosion: () => void;
+    resetExplosion: () => void;
+    setActivePhoto: (id: string | null) => void;
+    setHoveredPhoto: (id: string | null) => void;
+    triggerImplosion: () => void; // Reverses explosion (Story 3.3)
+}
+      </signature>
+      <path>src/store/useStore.ts</path>
+      <reason>Global state container for Epic 3. `hoveredPhotoId` tracks which photo is being hovered for magnetic effect. `activePhotoId` tracks which photo is open in Lightbox. `triggerImplosion` reverses the explosion animation.</reason>
+    </interface>
+    <interface>
+      <name>PolaroidPhotoProps</name>
+      <kind>interface</kind>
+      <signature>
+interface PolaroidPhotoProps {
+    url: string;
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale: number;
+    isExploded: boolean;
+    particleStartPosition: [number, number, number];
+    morphIndex: number;
+    totalPhotos: number;
+    photoId?: string; // New: ID for hover/click tracking
+    onHover?: (id: string | null, mousePos?: {x: number, y: number}) => void; // New: Hover callback
+    onHoverMove?: (mousePos: {x: number, y: number}) => void; // New: Mouse move callback
+    onClick?: (id: string) => void; // New: Click callback
+}
+      </signature>
+      <path>src/components/canvas/PolaroidPhoto.tsx</path>
+      <reason>Component props need to support interaction callbacks. `onHover` triggers magnetic effect, `onHoverMove` updates tilt angles, `onClick` opens Lightbox. `photoId` identifies the photo for state management.</reason>
+    </interface>
+    <interface>
+      <name>LightboxProps</name>
+      <kind>interface</kind>
+      <signature>
+interface LightboxProps {
+    photoId: string | null;
+    onClose: () => void;
+    assets: Memory[]; // From assets.ts
+}
+      </signature>
+      <path>src/components/ui/Lightbox.tsx</path>
+      <reason>Lightbox component receives `photoId` to determine which photo/video to display. `onClose` callback clears `activePhotoId` in store. `assets` provides access to high-resolution content.</reason>
+    </interface>
+  </interfaces>
+
+  <workflows>
+    <workflow id="explosion-to-interactable">
+      <title>Explosion to Interactable</title>
+      <steps>
+        <step>User clicks Tree -> `isExploded = true`</step>
+        <step>Animation completes (`uProgress` -> 1.0)</step>
+        <step>Raycaster interaction enabled on Cloud</step>
+        <step>PolaroidPhoto components become interactive</step>
+      </steps>
+    </workflow>
+    <workflow id="viewing-memory">
+      <title>Viewing a Memory</title>
+      <steps>
+        <step>User hovers particle -> `hoveredPhotoId` set</step>
+        <step>Photo scales to 1.5x with smooth transition, rotation slows down</step>
+        <step>Card tilts dynamically based on mouse position (3D tilt effect)</step>
+        <step>User moves mouse over photo -> Tilt angles update in real-time</step>
+        <step>User clicks particle -> `activePhotoId` set</step>
+        <step>`Lightbox.tsx` detects `activePhotoId` -> Animate In (Fade + Scale)</step>
+        <step>3D Scene applies "Blur/Dim" effect</step>
+      </steps>
+    </workflow>
+    <workflow id="closing-memory">
+      <title>Closing Memory</title>
+      <steps>
+        <step>User clicks "X" / Background / ESC -> `activePhotoId = null`</step>
+        <step>Lightbox Animates Out (Fade + Scale)</step>
+        <step>3D Scene restores (blur/dim removed)</step>
+      </steps>
+    </workflow>
+    <workflow id="return-to-tree">
+      <title>Return to Tree</title>
+      <steps>
+        <step>User clicks "Back" -> `triggerImplosion()`</step>
+        <step>`isExploded = false`</step>
+        <step>`activePhotoId = null` (if Lightbox was open)</step>
+        <step>Animation: `uProgress` 1.0 -> 0.0 (reverse explosion)</step>
+        <step>UI controls fade back in</step>
+      </steps>
+    </workflow>
+  </workflows>
+
+  <tests>
+    <standards>
+      Verify that hovering a photo scales it to 1.5x with smooth transition (not jittery).
+      Verify that 3D tilt effect follows mouse position smoothly, creating realistic Polaroid card physics.
+      Verify that cursor uses standard pointer (no custom icon).
+      Verify that clicking a photo opens Lightbox with fade + scale animation at 60fps.
+      Verify that background blur/dim effect is applied when Lightbox is open.
+      Verify that ESC key closes Lightbox.
+      Verify that "Back" button triggers implosion animation (uProgress 1.0 -> 0.0).
+      Verify that UI controls fade back in after implosion.
+      Verify that keyboard navigation (Tab/Enter) works for accessibility.
+      Verify that `activePhotoId` is cleared when "Back" is clicked while Lightbox is open.
+      Verify that camera "Dolly In" works when idle in exploded state.
+      Verify that raycasting is only enabled when `isExploded` is true (performance optimization).
+    </standards>
+    <locations>
+      src/components/canvas/PolaroidPhoto.tsx
+      src/components/ui/Lightbox.tsx
+      src/store/useStore.ts
+      src/components/ui/Controls.tsx
+      src/components/canvas/Experience.tsx
+    </locations>
+    <ideas>
+      Test that hover effect scales photo to exactly 1.5x (not 1.1x).
+      Test that tilt angles (rotation X/Y) smoothly follow mouse position relative to card center.
+      Test that tilt effect feels natural and not jittery (smooth interpolation).
+      Test that Lightbox opens with correct photo/video content.
+      Test that video auto-plays when opened in Lightbox.
+      Test that background blur/dim effect is visually correct.
+      Test that implosion animation feels reversed (suction effect) compared to explosion.
+      Test that camera "Dolly In" is slow and subtle (not jarring).
+      Test that keyboard navigation cycles through photos correctly.
+      Test that mobile touch interactions open Lightbox directly (no hover).
+      Test that raycasting performance remains acceptable with 20k+ particles.
+      Test that state consistency is maintained (no orphaned `activePhotoId`).
+    </ideas>
+  </tests>
+</epic-context>
+

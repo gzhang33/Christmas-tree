@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { OrbitControls, Stars } from '@react-three/drei';
+import React, { useMemo, useRef, useEffect, useCallback } from 'react';
+import { OrbitControls as DreiOrbitControls, Stars } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
@@ -9,10 +9,18 @@ import { MEMORIES } from '../../config/assets.ts';
 import { useStore } from '../../store/useStore';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 interface ExperienceProps {
   uiState: UIState;
 }
+
+// Camera drift configuration
+const CAMERA_DRIFT = {
+  speed: 0.15,           // units per second (subtle movement)
+  idleThreshold: 2000,   // ms before drift starts
+  minDistance: 12,       // don't get closer than this
+};
 
 // Volumetric light rays component
 const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
@@ -53,7 +61,23 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
   const particleCount = useStore((state) => state.particleCount);
-  const { viewport } = useThree();
+  const hoveredPhotoId = useStore((state) => state.hoveredPhotoId); // Consume hover state
+  const { camera } = useThree();
+
+  // OrbitControls ref for idle detection
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+
+  // Idle tracking state (using refs to avoid re-renders)
+  const idleRef = useRef({
+    isInteracting: false,
+    lastInteractionTime: Date.now(),
+    isIdle: false,
+  });
+
+  // Light refs for dimming effect
+  const ambientRef = useRef<THREE.AmbientLight>(null);
+  const mainSpotRef = useRef<THREE.SpotLight>(null);
+  const fillSpotRef = useRef<THREE.SpotLight>(null);
 
   const magicDustCount = useMemo(() => {
     return Math.floor(
@@ -61,22 +85,87 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     );
   }, [particleCount]);
 
+  // Handle OrbitControls interaction events
+  const handleControlStart = useCallback(() => {
+    idleRef.current.isInteracting = true;
+    idleRef.current.isIdle = false;
+  }, []);
+
+  const handleControlEnd = useCallback(() => {
+    idleRef.current.isInteracting = false;
+    idleRef.current.lastInteractionTime = Date.now();
+  }, []);
+
+  // Camera Drift Logic: Dolly in slowly when idle and exploded
+  useFrame((state, delta) => {
+    const idle = idleRef.current;
+
+    if (!isExploded) {
+      idle.isIdle = false;
+      return;
+    }
+
+    // Check if user became idle
+    if (!idle.isInteracting) {
+      const timeSinceInteraction = Date.now() - idle.lastInteractionTime;
+      idle.isIdle = timeSinceInteraction > CAMERA_DRIFT.idleThreshold;
+    }
+
+    // Apply drift when idle (and NOT hovering)
+    if (idle.isIdle && !hoveredPhotoId) {
+      const currentDistance = camera.position.length();
+
+      // Only drift if not too close
+      if (currentDistance > CAMERA_DRIFT.minDistance) {
+        // Move camera toward origin (center of cloud)
+        const direction = camera.position.clone().normalize().negate();
+        const movement = direction.multiplyScalar(CAMERA_DRIFT.speed * delta);
+        camera.position.add(movement);
+
+        // Update OrbitControls to match new camera position
+        controlsRef.current?.update();
+      }
+    }
+  });
+
+  // Light Dimming Logic (Visual Focus)
+  useFrame((state, delta) => {
+    const isHovered = !!hoveredPhotoId;
+    // Dim to 30% brightness when hovered
+    const targetFactor = isHovered ? 0.3 : 1.0;
+    const lerpSpeed = 3.0 * delta;
+
+    if (ambientRef.current) {
+      ambientRef.current.intensity = THREE.MathUtils.lerp(ambientRef.current.intensity, 0.15 * targetFactor, lerpSpeed);
+    }
+    if (mainSpotRef.current) {
+      mainSpotRef.current.intensity = THREE.MathUtils.lerp(mainSpotRef.current.intensity, 1.2 * targetFactor, lerpSpeed);
+    }
+    if (fillSpotRef.current) {
+      fillSpotRef.current.intensity = THREE.MathUtils.lerp(fillSpotRef.current.intensity, 0.8 * targetFactor, lerpSpeed);
+    }
+  });
+
   return (
     <>
-      <OrbitControls
+      <DreiOrbitControls
+        ref={controlsRef}
         enablePan={false}
         minDistance={10}
         maxDistance={50}
-        autoRotate={isExploded}
+        autoRotate={isExploded && !hoveredPhotoId} // Stop rotation on hover
         autoRotateSpeed={0.3}
         enableZoom={true}
         maxPolarAngle={Math.PI / 2 - 0.02}
+        onStart={handleControlStart}
+        onEnd={handleControlEnd}
       />
 
       {/* === CINEMATIC LIGHTING === */}
-      <ambientLight intensity={0.15} color="#FFFFFF" />
+      <ambientLight ref={ambientRef} intensity={0.15} color="#FFFFFF" />
 
       <spotLight
+        ref={mainSpotRef}
         position={[-5, 10, -5]}
         intensity={1.2}
         color="#FFB7C5"
@@ -88,6 +177,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
       />
 
       <spotLight
+        ref={fillSpotRef}
         position={[5, 8, 5]}
         intensity={0.8}
         color="#E0F7FA"

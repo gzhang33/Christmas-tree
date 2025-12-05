@@ -104,6 +104,7 @@ export const isTextureCached = (url: string): boolean => {
 export const clearTextureCache = (): void => {
     textureCache.forEach((texture) => texture.dispose());
     textureCache.clear();
+    loadingPromises.clear();
 };
 
 /**

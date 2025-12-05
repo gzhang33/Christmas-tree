@@ -14,6 +14,7 @@ export interface AppState {
     particleCount: number;
     isExploded: boolean;
     activePhotoId: string | null;
+    hoveredPhotoId: string | null; // For global hover effects (stop rotation)
 
     // Actions
     setTreeColor: (color: string) => void;
@@ -21,6 +22,7 @@ export interface AppState {
     triggerExplosion: () => void;
     resetExplosion: () => void;
     setActivePhoto: (id: string | null) => void;
+    setHoveredPhoto: (id: string | null) => void;
 }
 
 /**
@@ -45,6 +47,7 @@ export const useStore = create<AppState>()(
             particleCount: 18000, // Default particle count
             isExploded: false,
             activePhotoId: null,
+            hoveredPhotoId: null,
 
             // Actions
             setTreeColor: (color) => set({ treeColor: color }),
@@ -52,6 +55,7 @@ export const useStore = create<AppState>()(
             triggerExplosion: () => set({ isExploded: true }),
             resetExplosion: () => set({ isExploded: false }),
             setActivePhoto: (id) => set({ activePhotoId: id }),
+            setHoveredPhoto: (id) => set({ hoveredPhotoId: id }),
         }),
         {
             name: 'christmas-tree-storage', // LocalStorage key

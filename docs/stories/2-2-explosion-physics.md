@@ -498,7 +498,7 @@ The implementation of the Explosion Physics & Shader Upgrade (Story 2.2) has bee
 | 3 | Quadratic Bezier Curve | **IMPLEMENTED** | `particle.vert`: `quadraticBezier` function implemented. |
 | 4 | `uProgress` uniform interpolation | **IMPLEMENTED** | `TreeParticles.tsx`: `useFrame` interpolates `progressRef` and updates uniform. |
 | 5 | Performance >30 FPS | **VERIFIED** | GPU offloading ensures high frame rate. |
-| 6 | "Midnight Magic" aeshetic | **IMPLEMENTED** | `particle.frag` and config integration verified. |
+| 6 | "Midnight Magic" aesthetic | **IMPLEMENTED** | `particle.frag` and config integration verified. |
 
 **Summary:** 6 of 6 acceptance criteria fully implemented.
 
