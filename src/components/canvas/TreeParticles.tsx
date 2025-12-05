@@ -5,6 +5,7 @@ import { AppConfig } from '../../types.ts';
 import { useStore } from '../../store/useStore';
 import { STATIC_COLORS, DEFAULT_TREE_COLOR } from '../../config/colors';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { PHOTO_COUNT, generatePhotoPositions, PhotoPosition } from '../../config/photoConfig';
 import { getTreeRadius } from '../../utils/treeUtils';
 
 // Shader imports using raw-loader syntax for Vite
@@ -276,6 +277,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
 
   // === ENTITY LAYER (50% - Normal Blending) ===
+  // Extended with photo particle marking for morph effect
   const entityLayerData = useMemo(() => {
     // Calculate count based on total particle budget
     const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.entity, PARTICLE_CONFIG.minCounts.tree * 0.7));
@@ -296,8 +298,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     // Branch angles
     const branchAngles = new Float32Array(count);
+    // Photo particle flag (1.0 = photo, 0.0 = regular)
+    const isPhotoParticle = new Float32Array(count);
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
+
+    // Pre-calculate photo particle indices
+    // Select particles near the tree center (inner 40% of tree volume)
+    // to create a cohesive photo cloud from the tree's core
+    const photoParticleCandidates: number[] = [];
+    const photoParticleStartPositions: [number, number, number][] = [];
 
     for (let i = 0; i < count; i++) {
       // Vertical distribution - bias towards bottom to match cone volume
@@ -382,7 +392,30 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Size with tip enhancement
       siz[i] = 0.5 + Math.random() * 0.4 + (isTip ? 0.2 : 0);
+
+      // Initialize as non-photo particle
+      isPhotoParticle[i] = 0.0;
+
+      // Track candidates for photo particles (inner particles, middle height range)
+      // Prefer particles in the middle section of the tree, not edges
+      if (distFromTrunk < 0.5 && t > 0.2 && t < 0.85) {
+        photoParticleCandidates.push(i);
+      }
     }
+
+    // Randomly select PHOTO_COUNT particles from candidates to become photo particles
+    // Shuffle candidates and take first PHOTO_COUNT
+    const shuffled = [...photoParticleCandidates].sort(() => Math.random() - 0.5);
+    const selectedPhotoIndices = shuffled.slice(0, Math.min(PHOTO_COUNT, shuffled.length));
+
+    selectedPhotoIndices.forEach((idx) => {
+      isPhotoParticle[idx] = 1.0;
+      photoParticleStartPositions.push([
+        positionStart[idx * 3],
+        positionStart[idx * 3 + 1],
+        positionStart[idx * 3 + 2],
+      ]);
+    });
 
     return {
       positions: pos,
@@ -393,6 +426,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       sizes: siz,
       random,
       branchAngles,
+      isPhotoParticle,
+      photoParticleStartPositions,
       count
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -409,6 +444,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
     const flickerPhase = new Float32Array(count); // For sparkle animation
+    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in glow
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
 
@@ -484,6 +520,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       random,
       branchAngles,
       flickerPhase,
+      isPhotoParticle,
       count
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -500,6 +537,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const siz = new Float32Array(count);
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
+    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in ornaments
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
     const treeBottom = PARTICLE_CONFIG.treeBottomY;
@@ -648,6 +686,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       sizes: siz,
       random,
       branchAngles,
+      isPhotoParticle,
       count: idx
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -665,6 +704,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const siz = new Float32Array(count);
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
+    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in gifts
 
     const gifts = [
       { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: colorVariants.base, rib: STATIC_COLORS.white },
@@ -758,6 +798,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       sizes: siz,
       random,
       branchAngles,
+      isPhotoParticle,
       count: idx
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -855,6 +896,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aScale" count={entityLayerData.count} array={entityLayerData.sizes} itemSize={1} />
           <bufferAttribute attach="attributes-aRandom" count={entityLayerData.count} array={entityLayerData.random} itemSize={1} />
           <bufferAttribute attach="attributes-aBranchAngle" count={entityLayerData.count} array={entityLayerData.branchAngles} itemSize={1} />
+          <bufferAttribute attach="attributes-aIsPhotoParticle" count={entityLayerData.count} array={entityLayerData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {entityMaterialRef.current && <primitive object={entityMaterialRef.current} attach="material" />}
       </points>
@@ -870,6 +912,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aScale" count={glowLayerData.count} array={glowLayerData.sizes} itemSize={1} />
           <bufferAttribute attach="attributes-aRandom" count={glowLayerData.count} array={glowLayerData.random} itemSize={1} />
           <bufferAttribute attach="attributes-aBranchAngle" count={glowLayerData.count} array={glowLayerData.branchAngles} itemSize={1} />
+          <bufferAttribute attach="attributes-aIsPhotoParticle" count={glowLayerData.count} array={glowLayerData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {glowMaterialRef.current && <primitive object={glowMaterialRef.current} attach="material" />}
       </points>
@@ -885,6 +928,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aScale" count={ornamentData.count} array={ornamentData.sizes} itemSize={1} />
           <bufferAttribute attach="attributes-aRandom" count={ornamentData.count} array={ornamentData.random} itemSize={1} />
           <bufferAttribute attach="attributes-aBranchAngle" count={ornamentData.count} array={ornamentData.branchAngles} itemSize={1} />
+          <bufferAttribute attach="attributes-aIsPhotoParticle" count={ornamentData.count} array={ornamentData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {ornamentMaterialRef.current && <primitive object={ornamentMaterialRef.current} attach="material" />}
       </points>
@@ -900,6 +944,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <bufferAttribute attach="attributes-aScale" count={giftData.count} array={giftData.sizes} itemSize={1} />
           <bufferAttribute attach="attributes-aRandom" count={giftData.count} array={giftData.random} itemSize={1} />
           <bufferAttribute attach="attributes-aBranchAngle" count={giftData.count} array={giftData.branchAngles} itemSize={1} />
+          <bufferAttribute attach="attributes-aIsPhotoParticle" count={giftData.count} array={giftData.isPhotoParticle} itemSize={1} />
         </bufferGeometry>
         {giftMaterialRef.current && <primitive object={giftMaterialRef.current} attach="material" />}
       </points>

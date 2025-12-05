@@ -1,14 +1,19 @@
 import React, { useMemo, useRef } from 'react';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
-import { PhotoCard } from './PhotoCard.tsx';
+import { PolaroidPhoto } from './PolaroidPhoto.tsx';
 import { UIState } from '../../types.ts';
-import { PLACEHOLDERS } from '../../config/assets.ts';
+import { MEMORIES } from '../../config/assets.ts';
 import { useStore } from '../../store/useStore';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import {
+  PHOTO_COUNT,
+  generatePhotoPositions,
+  PhotoPosition,
+} from '../../config/photoConfig';
 import * as THREE from 'three';
 
 interface ExperienceProps {
@@ -61,36 +66,73 @@ const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
   );
 };
 
+/**
+ * Generate photo particle source positions
+ * These are distributed within the tree's inner volume
+ * to provide starting points for the morph animation
+ */
+const generateParticleSourcePositions = (count: number): [number, number, number][] => {
+  const positions: [number, number, number][] = [];
+  const treeHeight = PARTICLE_CONFIG.treeHeight;
+  const treeBottom = PARTICLE_CONFIG.treeBottomY;
+
+  for (let i = 0; i < count; i++) {
+    // Distribute particles within the inner 50% of tree volume
+    // Focus on middle height range (20%-85% of tree height)
+    const t = 0.2 + Math.random() * 0.65;
+    const y = treeBottom + t * treeHeight;
+
+    // Calculate radius at this height (inner volume)
+    const maxRadius = 5.5 * (1 - t);
+    const radius = Math.random() * maxRadius * 0.5; // Inner 50%
+
+    const angle = Math.random() * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    positions.push([x, y, z]);
+  }
+
+  return positions;
+};
+
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
   const { config, isExploded, toggleExplosion, photos } = uiState;
   const particleCount = useStore((state) => state.particleCount);
+  const { viewport } = useThree();
 
   const magicDustCount = useMemo(() => {
     return Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.magicDust, PARTICLE_CONFIG.minCounts.magicDust));
   }, [particleCount]);
 
-  // Universe Photos positions
-  const photoPositions = useMemo(() => {
-    const slots = 150;
-    const posData = [];
-    const phi = Math.PI * (3 - Math.sqrt(5));
+  // Generate photo positions with center-bias and overlap avoidance
+  const photoData = useMemo(() => {
+    const aspectRatio = viewport.width / viewport.height;
+    const photoPositions = generatePhotoPositions(PHOTO_COUNT, aspectRatio);
+    const particleSources = generateParticleSourcePositions(PHOTO_COUNT);
 
-    for (let i = 0; i < slots; i++) {
-      const y = 1 - (i / (slots - 1)) * 2;
-      const radius = Math.sqrt(1 - y * y);
-      const theta = phi * i;
-      const r = 12 + Math.random() * (config.explosionRadius || 20);
-      const x = Math.cos(theta) * radius * r;
-      const z = Math.sin(theta) * radius * r;
-      const yPos = y * r;
-
-      posData.push({
-        pos: [x, yPos, z] as [number, number, number],
-        rot: [Math.random() * Math.PI, Math.random() * Math.PI, 0] as [number, number, number],
-      });
+    // Get available photo URLs
+    const photoUrls: string[] = [];
+    if (photos.length > 0) {
+      // Use user-uploaded photos
+      for (let i = 0; i < PHOTO_COUNT; i++) {
+        photoUrls.push(photos[i % photos.length].url);
+      }
+    } else {
+      // Use MEMORIES as fallback
+      for (let i = 0; i < PHOTO_COUNT; i++) {
+        photoUrls.push(MEMORIES[i % MEMORIES.length].image);
+      }
     }
-    return posData;
-  }, [config.explosionRadius]);
+
+    return photoPositions.map((pos, i) => ({
+      url: photoUrls[i],
+      position: [pos.x, pos.y, pos.z] as [number, number, number],
+      rotation: pos.rotation,
+      scale: pos.scale,
+      particleStart: particleSources[i],
+    }));
+  }, [photos, viewport.width, viewport.height]);
 
   return (
     <>
@@ -190,25 +232,20 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         onParticlesClick={toggleExplosion}
       />
 
-      {/* === PHOTO CARDS (Exploded Universe) === */}
+      {/* === POLAROID PHOTOS (Morphing from particles) === */}
       <group>
-        {photoPositions.map((data, i) => {
-          const photoUrl =
-            photos.length > 0
-              ? photos[i % photos.length].url
-              : PLACEHOLDERS.photoSeed.replace('{seed}', (i + 999).toString());
-
-          return (
-            <PhotoCard
-              key={i}
-              url={photoUrl}
-              position={data.pos}
-              rotation={data.rot}
-              scale={config.photoSize}
-              isExploded={isExploded}
-            />
-          );
-        })}
+        {photoData.map((data, i) => (
+          <PolaroidPhoto
+            key={i}
+            url={data.url}
+            position={data.position}
+            rotation={data.rotation}
+            scale={data.scale * config.photoSize}
+            isExploded={isExploded}
+            particleStartPosition={data.particleStart}
+            morphIndex={i}
+          />
+        ))}
       </group>
 
       {/* === FLOOR === */}
