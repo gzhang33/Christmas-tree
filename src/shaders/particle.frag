@@ -23,11 +23,13 @@ void main() {
   // Sample the particle texture (feather or sparkle)
   vec4 texColor = texture2D(uMap, gl_PointCoord);
   
-  // Use texture alpha for soft edges
-  float alpha = texColor.a * vAlpha;
+  // Use texture alpha with edge sharpening for clearer particle edges
+  float rawAlpha = texColor.a * vAlpha;
+  float edgeSharpness = smoothstep(0.05, 0.25, rawAlpha);
+  float alpha = mix(rawAlpha, edgeSharpness, 0.4); // Blend for balanced softness
   
   // Discard fully transparent pixels for performance
-  if (alpha < 0.01) discard;
+  if (alpha < 0.02) discard;
   
   // === COLOR PROCESSING ===
   // Base color from vertex shader, modulated by texture brightness

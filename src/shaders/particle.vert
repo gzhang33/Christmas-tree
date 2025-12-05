@@ -94,8 +94,8 @@ void main() {
   
   // === OUTPUT TO FRAGMENT SHADER ===
   vProgress = uProgress;
-  // Higher alpha for better visibility, matching original opacity settings
-  vAlpha = 0.95 * (0.85 + aScale * 0.15);
+  // Balanced alpha to reduce overexposure while maintaining visibility
+  vAlpha = 0.85 * (0.75 + aScale * 0.20);
   vColor = aColor;
   vDepth = -mvPosition.z;
 }
