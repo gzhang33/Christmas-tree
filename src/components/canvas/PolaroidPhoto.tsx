@@ -1,15 +1,17 @@
 /**
- * Polaroid Photo Component
+ * Polaroid Photo Component - Performance Optimized
  *
- * Enhanced photo card with:
- * 1. Particle-to-photo morphing animation
- * 2. Consistent front/back content (same image on both sides)
- * 3. Gentle floating animation post-morph
+ * Optimizations:
+ * 1. Use texture preloader with caching (no per-component loading)
+ * 2. Use refs instead of state for animation (no re-renders)
+ * 3. Reuse materials instead of creating new ones each frame
+ * 4. Simpler geometry and fewer draw calls
  */
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MORPH_TIMING } from '../../config/photoConfig';
+import { getCachedTexture } from '../../utils/texturePreloader';
 
 interface PolaroidPhotoProps {
     url: string;
@@ -17,31 +19,32 @@ interface PolaroidPhotoProps {
     rotation: [number, number, number];
     scale: number;
     isExploded: boolean;
-    // Particle source position for morphing
     particleStartPosition: [number, number, number];
-    // Index for staggered animation
     morphIndex: number;
 }
 
-// Polaroid frame dimensions (in local units)
+// Polaroid frame dimensions
 const FRAME = {
     width: 1.0,
     height: 1.2,
     depth: 0.02,
     imageOffsetY: 0.1,
     imageSize: 0.85,
-    // Bottom margin for Polaroid caption area
-    bottomMargin: 0.15,
 };
 
-// Create reusable frame material
-const createFrameMaterial = () =>
-    new THREE.MeshStandardMaterial({
-        color: '#ffffff',
-        roughness: 0.4,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-    });
+// Shared geometries (created once, reused by all instances)
+let sharedFrameGeometry: THREE.BoxGeometry | null = null;
+let sharedPhotoGeometry: THREE.PlaneGeometry | null = null;
+
+const getSharedGeometries = () => {
+    if (!sharedFrameGeometry) {
+        sharedFrameGeometry = new THREE.BoxGeometry(FRAME.width, FRAME.height, FRAME.depth);
+    }
+    if (!sharedPhotoGeometry) {
+        sharedPhotoGeometry = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+    }
+    return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
+};
 
 export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     url,
@@ -53,55 +56,100 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     morphIndex,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
-    const [texture, setTexture] = useState<THREE.Texture | null>(null);
-    const [morphProgress, setMorphProgress] = useState(0);
-    const [visible, setVisible] = useState(false);
+    const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+    const photoMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+    const backPhotoMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
-    // Animation state
-    const animationRef = useRef({
-        startTime: 0,
+    // Animation state (using refs to avoid re-renders)
+    const animRef = useRef({
+        startTime: -1,
         isAnimating: false,
+        isVisible: false,
+        morphProgress: 0,
         currentScale: 0,
         currentPosition: new THREE.Vector3(...particleStartPosition),
         currentRotation: new THREE.Euler(0, 0, 0),
+        textureLoaded: false,
     });
 
-    // Load texture when exploded
+    // Get shared geometries
+    const { frameGeometry, photoGeometry } = useMemo(() => getSharedGeometries(), []);
+
+    // Create materials once (using texture from cache)
     useEffect(() => {
-        if (!isExploded) {
-            setVisible(false);
-            setMorphProgress(0);
-            animationRef.current.isAnimating = false;
-            animationRef.current.currentScale = 0;
-            return;
-        }
+        // Frame material
+        frameMaterialRef.current = new THREE.MeshStandardMaterial({
+            color: '#ffffff',
+            roughness: 0.4,
+            metalness: 0.1,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0,
+        });
 
-        const loader = new THREE.TextureLoader();
-        loader.load(
-            url,
-            (tex) => {
-                tex.colorSpace = THREE.SRGBColorSpace;
-                tex.minFilter = THREE.LinearFilter;
-                tex.magFilter = THREE.LinearFilter;
-                setTexture(tex);
-                setVisible(true);
-                // Initialize animation
-                animationRef.current.startTime = -1; // Will be set on first frame
-                animationRef.current.isAnimating = true;
-                animationRef.current.currentPosition.set(...particleStartPosition);
-            },
-            undefined,
-            (error) => {
-                console.warn('Failed to load photo texture:', url, error);
+        // Photo materials (front and back)
+        photoMaterialRef.current = new THREE.MeshBasicMaterial({
+            side: THREE.FrontSide,
+            transparent: true,
+            opacity: 0,
+        });
+
+        backPhotoMaterialRef.current = new THREE.MeshBasicMaterial({
+            side: THREE.FrontSide,
+            transparent: true,
+            opacity: 0,
+        });
+
+        return () => {
+            frameMaterialRef.current?.dispose();
+            photoMaterialRef.current?.dispose();
+            backPhotoMaterialRef.current?.dispose();
+        };
+    }, []);
+
+    // Handle explosion state change
+    useEffect(() => {
+        const anim = animRef.current;
+
+        if (isExploded) {
+            // Try to get cached texture
+            const cachedTexture = getCachedTexture(url);
+            if (cachedTexture) {
+                if (photoMaterialRef.current) {
+                    photoMaterialRef.current.map = cachedTexture;
+                    photoMaterialRef.current.needsUpdate = true;
+                }
+                if (backPhotoMaterialRef.current) {
+                    backPhotoMaterialRef.current.map = cachedTexture;
+                    backPhotoMaterialRef.current.needsUpdate = true;
+                }
+                anim.textureLoaded = true;
             }
-        );
-    }, [url, isExploded, particleStartPosition]);
 
-    // Animation frame
+            anim.isVisible = true;
+            anim.isAnimating = true;
+            anim.startTime = -1;
+            anim.currentPosition.set(...particleStartPosition);
+        } else {
+            anim.isVisible = false;
+            anim.isAnimating = false;
+            anim.morphProgress = 0;
+            anim.currentScale = 0;
+
+            // Reset material opacity
+            if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
+            if (photoMaterialRef.current) photoMaterialRef.current.opacity = 0;
+            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.opacity = 0;
+        }
+    }, [isExploded, url, particleStartPosition]);
+
+    // Animation frame - optimized to minimize allocations
     useFrame((state) => {
-        if (!groupRef.current || !visible) return;
+        const group = groupRef.current;
+        const anim = animRef.current;
 
-        const anim = animationRef.current;
+        if (!group || !anim.isVisible) return;
+
         const time = state.clock.elapsedTime;
 
         if (anim.isAnimating) {
@@ -116,118 +164,93 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 
             if (elapsed > 0) {
                 const rawProgress = Math.min(elapsed / MORPH_TIMING.morphDuration, 1);
-                // Ease-out cubic for smooth deceleration
+                // Ease-out cubic
                 const easedProgress = 1 - Math.pow(1 - rawProgress, 3);
-                setMorphProgress(easedProgress);
+                anim.morphProgress = easedProgress;
 
-                // Interpolate position from particle start to final position
-                anim.currentPosition.lerp(new THREE.Vector3(...position), easedProgress);
+                // Update material opacity directly (no state change)
+                if (frameMaterialRef.current) {
+                    frameMaterialRef.current.opacity = easedProgress;
+                }
+                if (photoMaterialRef.current && anim.textureLoaded) {
+                    photoMaterialRef.current.opacity = easedProgress;
+                }
+                if (backPhotoMaterialRef.current && anim.textureLoaded) {
+                    backPhotoMaterialRef.current.opacity = easedProgress;
+                }
 
-                // Interpolate scale: start small (particle), grow to full
-                // During early morph (0-0.3), scale grows quickly
-                // During mid morph (0.3-0.7), rotation happens
-                // During late morph (0.7-1.0), settle into place
+                // Interpolate position (avoiding new Vector3 allocation)
+                const lerpFactor = easedProgress * 0.15; // Smooth lerp
+                anim.currentPosition.x += (position[0] - anim.currentPosition.x) * lerpFactor;
+                anim.currentPosition.y += (position[1] - anim.currentPosition.y) * lerpFactor;
+                anim.currentPosition.z += (position[2] - anim.currentPosition.z) * lerpFactor;
+
+                // Scale interpolation
                 if (easedProgress < 0.3) {
-                    anim.currentScale = easedProgress / 0.3 * scale * 0.5;
+                    anim.currentScale = (easedProgress / 0.3) * scale * 0.5;
                 } else {
-                    anim.currentScale = (0.5 + (easedProgress - 0.3) / 0.7 * 0.5) * scale;
+                    anim.currentScale = (0.5 + ((easedProgress - 0.3) / 0.7) * 0.5) * scale;
                 }
 
                 // Rotation interpolation
-                const targetRotation = new THREE.Euler(...rotation);
-                anim.currentRotation.x = THREE.MathUtils.lerp(0, targetRotation.x, easedProgress);
-                anim.currentRotation.y = THREE.MathUtils.lerp(0, targetRotation.y, easedProgress);
-                anim.currentRotation.z = THREE.MathUtils.lerp(0, targetRotation.z, easedProgress);
+                anim.currentRotation.x = rotation[0] * easedProgress;
+                anim.currentRotation.y = rotation[1] * easedProgress;
+                anim.currentRotation.z = rotation[2] * easedProgress;
 
-                // Check if animation is complete
+                // Apply transforms
+                group.position.copy(anim.currentPosition);
+                group.rotation.copy(anim.currentRotation);
+                group.scale.setScalar(anim.currentScale);
+
+                // Check if animation complete
                 if (rawProgress >= 1) {
                     anim.isAnimating = false;
                 }
             }
         } else if (isExploded) {
-            // Post-morph floating animation
+            // Post-morph floating animation (simplified)
             const floatTime = time * 0.5;
-            const floatOffset = new THREE.Vector3(
-                Math.sin(floatTime + morphIndex * 0.5) * 0.1,
-                Math.cos(floatTime * 0.7 + morphIndex * 0.3) * 0.08,
-                Math.sin(floatTime * 0.6 + morphIndex * 0.7) * 0.05
-            );
+            const idx = morphIndex * 0.5;
 
-            groupRef.current.position.set(
-                position[0] + floatOffset.x,
-                position[1] + floatOffset.y,
-                position[2] + floatOffset.z
-            );
+            group.position.x = position[0] + Math.sin(floatTime + idx) * 0.1;
+            group.position.y = position[1] + Math.cos(floatTime * 0.7 + idx * 0.6) * 0.08;
+            group.position.z = position[2] + Math.sin(floatTime * 0.6 + idx * 1.4) * 0.05;
 
-            // Gentle rotation
-            groupRef.current.rotation.y = rotation[1] + Math.sin(floatTime * 0.3) * 0.1;
-            groupRef.current.rotation.z = rotation[2] + Math.cos(floatTime * 0.4) * 0.05;
+            group.rotation.y = rotation[1] + Math.sin(floatTime * 0.3) * 0.1;
+            group.rotation.z = rotation[2] + Math.cos(floatTime * 0.4) * 0.05;
 
-            anim.currentScale = scale;
+            group.scale.setScalar(scale);
         }
-
-        // Apply current animation state
-        if (anim.isAnimating) {
-            groupRef.current.position.copy(anim.currentPosition);
-            groupRef.current.rotation.copy(anim.currentRotation);
-        }
-
-        groupRef.current.scale.setScalar(anim.currentScale);
     });
 
-    // Create materials for photo (same texture on both sides)
-    // Must be before early return to satisfy React hooks rules
-    const photoMaterial = useMemo(() => {
-        if (!texture) return null;
-        return new THREE.MeshBasicMaterial({
-            map: texture,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: morphProgress,
-        });
-    }, [texture, morphProgress]);
-
-    // Don't render when not exploded and not visible
-    if (!isExploded && !visible) return null;
+    // Don't render when not visible
+    if (!isExploded && !animRef.current.isVisible) return null;
 
     return (
         <group ref={groupRef} position={particleStartPosition} scale={0}>
-            {/* Polaroid Frame - White box */}
-            <mesh position={[0, 0, 0]}>
-                <boxGeometry args={[FRAME.width, FRAME.height, FRAME.depth]} />
-                <meshStandardMaterial
-                    color="#ffffff"
-                    roughness={0.4}
-                    metalness={0.1}
-                    side={THREE.DoubleSide}
-                    transparent
-                    opacity={morphProgress}
-                />
+            {/* Polaroid Frame */}
+            <mesh geometry={frameGeometry}>
+                {frameMaterialRef.current && (
+                    <primitive object={frameMaterialRef.current} attach="material" />
+                )}
             </mesh>
 
-            {/* Photo Image - Front Side */}
-            {photoMaterial && (
-                <mesh position={[0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001]}>
-                    <planeGeometry args={[FRAME.imageSize, FRAME.imageSize]} />
-                    <primitive object={photoMaterial} attach="material" />
-                </mesh>
-            )}
+            {/* Photo Image - Front */}
+            <mesh position={[0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001]} geometry={photoGeometry}>
+                {photoMaterialRef.current && (
+                    <primitive object={photoMaterialRef.current} attach="material" />
+                )}
+            </mesh>
 
-            {/* Photo Image - Back Side (same content for consistency) */}
-            {photoMaterial && (
-                <mesh
-                    position={[0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001]}
-                    rotation={[0, Math.PI, 0]}
-                >
-                    <planeGeometry args={[FRAME.imageSize, FRAME.imageSize]} />
-                    <primitive object={photoMaterial.clone()} attach="material" />
-                </mesh>
-            )}
-
-            {/* Bottom caption area decoration */}
-            <mesh position={[0, -FRAME.height / 2 + FRAME.bottomMargin / 2 + 0.05, FRAME.depth / 2 + 0.002]}>
-                <planeGeometry args={[FRAME.width * 0.8, 0.02]} />
-                <meshBasicMaterial color="#e0e0e0" transparent opacity={morphProgress * 0.5} />
+            {/* Photo Image - Back (same content) */}
+            <mesh
+                position={[0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001]}
+                rotation={[0, Math.PI, 0]}
+                geometry={photoGeometry}
+            >
+                {backPhotoMaterialRef.current && (
+                    <primitive object={backPhotoMaterialRef.current} attach="material" />
+                )}
             </mesh>
         </group>
     );

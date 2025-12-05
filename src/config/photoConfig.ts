@@ -2,75 +2,59 @@
  * Photo Distribution Configuration
  *
  * Centralized configuration for photo display during explosion effect.
- * Implements: center-biased probability, overlap avoidance, screen-bound positions.
+ * Implements: spherical distribution, center-biased probability, overlap avoidance.
  */
 
 // Number of photos to generate from exploded particles
 export const PHOTO_COUNT = 99;
 
-// Screen-space distribution parameters
+// Spherical distribution parameters for 3D space
 export const PHOTO_DISTRIBUTION = {
-    // Gaussian distribution sigma for center-bias (smaller = more centered)
-    centerBiasSigma: 0.35,
+    // Radius range for spherical distribution
+    radiusMin: 8,
+    radiusMax: 22,
 
-    // Min and Max distance from camera center (normalized screen space)
-    minRadius: 0.05,
-    maxRadius: 0.85,
+    // Vertical angle range (radians) - limits how high/low photos can go
+    // 0 = equator, PI/2 = north pole, -PI/2 = south pole
+    polarAngleMin: -0.6, // Below horizon slightly
+    polarAngleMax: 0.7, // Above horizon
 
-    // Vertical distribution bias (0.5 = centered, <0.5 = lower, >0.5 = upper)
-    verticalCenter: 0.45,
-
-    // Depth range for 3D positioning (camera facing)
-    depthMin: 8,
-    depthMax: 18,
+    // Center bias - photos more likely to be in front of camera
+    // Higher value = more spread out, lower = more concentrated in front
+    frontBias: 0.6, // 0.5 = uniform, 1.0 = all in front hemisphere
 } as const;
 
 // Photo card dimensions for overlap detection
 export const PHOTO_DIMENSIONS = {
-    // Base size in world units (matches PhotoCard)
     width: 1.0,
     height: 1.2,
-
-    // Scale range for variety
     scaleMin: 0.6,
     scaleMax: 1.0,
-
-    // Minimum gap between photos (fraction of average size)
-    overlapPadding: 0.15,
+    // Minimum angular gap between photos (radians)
+    angularPadding: 0.15,
 } as const;
 
 // Morphing animation timing
 export const MORPH_TIMING = {
-    // Delay before morphing starts (seconds after explosion trigger)
     startDelay: 0.3,
-
-    // Duration of particle-to-photo morph (seconds)
     morphDuration: 1.5,
-
-    // Stagger delay between each photo morph (seconds)
     staggerDelay: 0.02,
-
-    // Fade-out duration for non-photo particles (seconds)
     fadeOutDuration: 1.0,
 } as const;
 
 /**
  * Generate a center-biased random value using Box-Muller transform
- * Returns a value between 0 and 1, biased towards 0.5
  */
 export const gaussianRandom = (sigma: number = 0.35): number => {
-    // Box-Muller transform for normal distribution
     const u1 = Math.random();
     const u2 = Math.random();
     const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-
-    // Scale and center, then clamp to [0, 1]
     const value = 0.5 + z * sigma;
     return Math.max(0, Math.min(1, value));
 };
 
 /**
- * Generate photo positions with center-bias and overlap avoidance
+ * Photo position interface
  */
 export interface PhotoPosition {
     x: number;
@@ -80,54 +64,57 @@ export interface PhotoPosition {
     rotation: [number, number, number];
 }
 
+/**
+ * Generate photo positions in a 3D spherical distribution
+ * Photos are distributed around the scene, with more concentration
+ * in the front hemisphere and at eye level for better visibility.
+ */
 export const generatePhotoPositions = (
     count: number,
-    aspectRatio: number = 16 / 9
+    _aspectRatio: number = 16 / 9
 ): PhotoPosition[] => {
     const positions: PhotoPosition[] = [];
-    const occupiedAreas: { x: number; y: number; radius: number }[] = [];
+    const occupiedSpots: { theta: number; phi: number }[] = [];
 
-    const { centerBiasSigma, minRadius, maxRadius, verticalCenter, depthMin, depthMax } =
-        PHOTO_DISTRIBUTION;
-    const { width, height, scaleMin, scaleMax, overlapPadding } = PHOTO_DIMENSIONS;
-
-    // Calculate average size for collision detection
-    const avgScale = (scaleMin + scaleMax) / 2;
-    const collisionRadius = Math.max(width, height) * avgScale * (1 + overlapPadding) * 0.5;
+    const { radiusMin, radiusMax, polarAngleMin, polarAngleMax, frontBias } = PHOTO_DISTRIBUTION;
+    const { scaleMin, scaleMax, angularPadding } = PHOTO_DIMENSIONS;
 
     let attempts = 0;
-    const maxAttempts = count * 50;
+    const maxAttempts = count * 100;
 
     while (positions.length < count && attempts < maxAttempts) {
         attempts++;
 
-        // Generate center-biased position using Gaussian distribution
-        const angle = Math.random() * Math.PI * 2;
-        const radiusNorm = minRadius + gaussianRandom(centerBiasSigma) * (maxRadius - minRadius);
+        // Generate spherical coordinates with biases
 
-        // Convert to screen space with aspect ratio correction
-        let screenX = Math.cos(angle) * radiusNorm;
-        let screenY = (Math.sin(angle) * radiusNorm) / aspectRatio + (verticalCenter - 0.5);
+        // Azimuthal angle (theta): full 360 degrees, but biased towards front
+        // Front is at theta = 0, back is at theta = PI
+        let theta: number;
+        if (Math.random() < frontBias) {
+            // Front hemisphere with Gaussian distribution centered at 0
+            theta = (gaussianRandom(0.4) - 0.5) * Math.PI;
+        } else {
+            // Back hemisphere
+            theta = Math.PI + (Math.random() - 0.5) * Math.PI;
+        }
 
-        // Add some independent variation to break radial pattern
-        screenX += (gaussianRandom(0.2) - 0.5) * 0.3;
-        screenY += (gaussianRandom(0.2) - 0.5) * 0.2;
+        // Polar angle (phi): vertical position, biased towards eye level
+        // Use Gaussian to concentrate around horizontal plane
+        const phiNorm = gaussianRandom(0.35); // 0-1, centered at 0.5
+        const phi = polarAngleMin + phiNorm * (polarAngleMax - polarAngleMin);
 
-        // Clamp to valid screen region
-        screenX = Math.max(-0.9, Math.min(0.9, screenX));
-        screenY = Math.max(-0.8, Math.min(0.8, screenY));
+        // Radius: distance from center, with slight bias towards closer positions
+        const radiusNorm = Math.pow(Math.random(), 0.7); // Bias towards closer
+        const radius = radiusMin + radiusNorm * (radiusMax - radiusMin);
 
-        // Check for overlap with existing positions
-        const normalizedX = screenX;
-        const normalizedY = screenY * aspectRatio;
-        const normalizedCollisionRadius = collisionRadius / 10; // Rough normalization
-
+        // Check for overlap with existing positions (angular distance)
         let hasOverlap = false;
-        for (const occupied of occupiedAreas) {
-            const dx = normalizedX - occupied.x;
-            const dy = normalizedY - occupied.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < normalizedCollisionRadius + occupied.radius) {
+        for (const spot of occupiedSpots) {
+            const dTheta = Math.abs(theta - spot.theta);
+            const dPhi = Math.abs(phi - spot.phi);
+            // Simple angular distance check
+            const angularDist = Math.sqrt(dTheta * dTheta + dPhi * dPhi);
+            if (angularDist < angularPadding) {
                 hasOverlap = true;
                 break;
             }
@@ -135,35 +122,28 @@ export const generatePhotoPositions = (
 
         if (hasOverlap) continue;
 
-        // Convert screen position to 3D world position
-        const depth = depthMin + Math.random() * (depthMax - depthMin);
-        const worldX = screenX * depth;
-        const worldY = screenY * depth;
-        const worldZ = -depth;
+        // Convert spherical to Cartesian coordinates
+        // theta = 0 is front (-Z direction in Three.js camera view)
+        const x = radius * Math.cos(phi) * Math.sin(theta);
+        const y = radius * Math.sin(phi);
+        const z = -radius * Math.cos(phi) * Math.cos(theta);
 
-        // Random scale within range
+        // Scale with slight variation
         const scale = scaleMin + Math.random() * (scaleMax - scaleMin);
 
-        // Random rotation (mostly facing camera with slight tilt)
+        // Rotation: face towards center (camera position at origin)
+        // Calculate rotation to face origin
+        const facingAngleY = Math.atan2(x, z);
+        const facingAngleX = Math.atan2(y, Math.sqrt(x * x + z * z));
+
         const rotation: [number, number, number] = [
-            (Math.random() - 0.5) * 0.3, // Slight X tilt
-            Math.PI + (Math.random() - 0.5) * 0.4, // Facing camera with variation
-            (Math.random() - 0.5) * 0.2, // Slight Z tilt
+            -facingAngleX + (Math.random() - 0.5) * 0.2, // Tilt up/down
+            facingAngleY + Math.PI + (Math.random() - 0.5) * 0.3, // Face center
+            (Math.random() - 0.5) * 0.15, // Slight roll
         ];
 
-        positions.push({
-            x: worldX,
-            y: worldY,
-            z: worldZ,
-            scale,
-            rotation,
-        });
-
-        occupiedAreas.push({
-            x: normalizedX,
-            y: normalizedY,
-            radius: normalizedCollisionRadius,
-        });
+        positions.push({ x, y, z, scale, rotation });
+        occupiedSpots.push({ theta, phi });
     }
 
     return positions;
