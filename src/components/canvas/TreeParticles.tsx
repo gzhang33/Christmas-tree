@@ -221,6 +221,14 @@ const createParticleShaderMaterial = (
       uTreeColor: { value: treeColor },
       uMap: { value: texture },
       uBaseSize: { value: baseSize },
+      uBreatheFreq1: { value: PARTICLE_CONFIG.animation.breatheFrequency1 },
+      uBreatheFreq2: { value: PARTICLE_CONFIG.animation.breatheFrequency2 },
+      uBreatheFreq3: { value: PARTICLE_CONFIG.animation.breatheFrequency3 },
+      uBreatheAmp1: { value: PARTICLE_CONFIG.animation.breatheAmplitude1 },
+      uBreatheAmp2: { value: PARTICLE_CONFIG.animation.breatheAmplitude2 },
+      uBreatheAmp3: { value: PARTICLE_CONFIG.animation.breatheAmplitude3 },
+      uSwayFreq: { value: PARTICLE_CONFIG.animation.swayFrequency },
+      uSwayAmp: { value: PARTICLE_CONFIG.animation.swayAmplitude },
     },
     transparent: true,
     depthWrite: false,
@@ -878,7 +886,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const treeColorThree = new THREE.Color(treeColor);
 
     // Create materials with proper base sizes matching original PointsMaterial
-    // Add error handling with fallback to PointsMaterial if shader compilation fails
+    // Add error handling with fallback to ShaderMaterial if shader compilation fails
     try {
       // Entity layer: size 0.55, normal blending
       entityMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.55);
@@ -896,19 +904,38 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.7);
       giftMaterialRef.current.depthWrite = true;
     } catch (error) {
-      console.error('Shader compilation failed, falling back to PointsMaterial', error);
-      // Fallback to basic PointsMaterial if shader fails
-      const fallbackMaterial = new THREE.PointsMaterial({
-        size: 0.55,
-        color: treeColorThree,
-        transparent: true,
-        depthWrite: false,
-      });
-      entityMaterialRef.current = fallbackMaterial as unknown as THREE.ShaderMaterial;
-      glowMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
+      console.error('Shader compilation failed, falling back to safe ShaderMaterial', error);
+      // Fallback to proper ShaderMaterial with same uniforms to avoid runtime crashes
+      const createFallbackShaderMaterial = (baseSize: number, texture: THREE.Texture | null): THREE.ShaderMaterial => {
+        return new THREE.ShaderMaterial({
+          vertexShader: particleVertexShader,
+          fragmentShader: particleFragmentShader,
+          uniforms: {
+            uProgress: { value: 0.0 },
+            uTime: { value: 0.0 },
+            uTreeColor: { value: treeColorThree },
+            uMap: { value: texture },
+            uBaseSize: { value: baseSize },
+          },
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.NormalBlending,
+          vertexColors: true,
+        });
+      };
+
+      // Create fallback materials with proper ShaderMaterial instances
+      entityMaterialRef.current = createFallbackShaderMaterial(0.55, featherTexture);
+      entityMaterialRef.current.depthWrite = true;
+
+      glowMaterialRef.current = createFallbackShaderMaterial(0.45, sparkleTexture);
       glowMaterialRef.current.blending = THREE.AdditiveBlending;
-      ornamentMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
-      giftMaterialRef.current = fallbackMaterial.clone() as unknown as THREE.ShaderMaterial;
+
+      ornamentMaterialRef.current = createFallbackShaderMaterial(0.5, sparkleTexture);
+      ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
+
+      giftMaterialRef.current = createFallbackShaderMaterial(0.7, featherTexture);
+      giftMaterialRef.current.depthWrite = true;
     }
 
     // Cleanup
@@ -970,7 +997,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ];
 
     materials.forEach((mat) => {
-      if (mat) {
+      if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
         mat.uniforms.uProgress.value = progressRef.current;
         mat.uniforms.uTime.value = time;
       }
@@ -982,7 +1009,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // 99 photos * 0.05s = 4.95s. Plus 1.5s buffer.
     const printingDuration = PHOTO_COUNT * 0.05 + 1.5;
 
-    if (giftMaterialRef.current) {
+    if (giftMaterialRef.current && giftMaterialRef.current instanceof THREE.ShaderMaterial && giftMaterialRef.current.uniforms) {
       if (isExploded) {
         // PERMANENTLY LOCK at 0.0 (Solid Box) when exploded
         // "保留礼物盒的显示效果" (Keep gift box visible)

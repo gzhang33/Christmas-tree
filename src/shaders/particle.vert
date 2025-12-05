@@ -45,23 +45,31 @@ vec3 quadraticBezier(vec3 p0, vec3 p1, vec3 p2, float t) {
        + t * t * p2;
 }
 
+// === ANIMATION UNIFORMS ===
+uniform float uBreatheFreq1; 
+uniform float uBreatheFreq2;
+uniform float uBreatheFreq3;
+uniform float uBreatheAmp1;
+uniform float uBreatheAmp2;
+uniform float uBreatheAmp3;
+uniform float uSwayFreq;
+uniform float uSwayAmp;
+
 void main() {
   // === BREATHING ANIMATION (Tree State Only) ===
   // Multi-layer breathing effect for organic movement when not exploded
-  // Animation frequencies match PARTICLE_CONFIG.animation values in particles.ts
   float breatheFactor = 1.0 - uProgress; // Breathing fades out during explosion
   vec3 normal = normalize(positionStart);
 
-  // Breathing frequencies: 0.6, 1.2, 0.4 (from PARTICLE_CONFIG.animation.breatheFrequency*)
-  // Breathing amplitudes: 0.04, 0.03, 0.02 (from PARTICLE_CONFIG.animation.breatheAmplitude*)
-  float breathe1 = sin(uTime * 0.6 + positionStart.y * 0.8 + aRandom * 6.28) * 0.04;
-  float breathe2 = sin(uTime * 1.2 + aBranchAngle * 2.0 + positionStart.y * 0.3) * 0.03;
-  float breathe3 = cos(uTime * 0.4 + aRandom * 3.14) * 0.02;
+  // Breathing frequencies and amplitudes from uniforms
+  float breathe1 = sin(uTime * uBreatheFreq1 + positionStart.y * 0.8 + aRandom * 6.28) * uBreatheAmp1;
+  float breathe2 = sin(uTime * uBreatheFreq2 + aBranchAngle * 2.0 + positionStart.y * 0.3) * uBreatheAmp2;
+  float breathe3 = cos(uTime * uBreatheFreq3 + aRandom * 3.14) * uBreatheAmp3;
 
   vec3 breatheOffset = normal * (breathe1 + breathe2 + breathe3) * breatheFactor;
 
-  // Sway frequency: 0.5, amplitude: 0.08 (from PARTICLE_CONFIG.animation.swayFrequency/Amplitude)
-  float sway = sin(uTime * 0.5 + positionStart.y * 0.2) * 0.08 * (positionStart.y + 3.0) / 12.0;
+  // Sway animation from uniforms
+  float sway = sin(uTime * uSwayFreq + positionStart.y * 0.2) * uSwayAmp * (positionStart.y + 3.0) / 12.0;
   breatheOffset.x += sway * cos(aBranchAngle) * breatheFactor;
   breatheOffset.z += sway * sin(aBranchAngle) * breatheFactor;
 
