@@ -46,13 +46,12 @@ export const MORPH_TIMING = {
  * Generate a center-biased random value using Box-Muller transform
  */
 export const gaussianRandom = (sigma: number = 0.35): number => {
-    const u1 = Math.random();
+    const u1 = Math.random() || Number.MIN_VALUE; // 避免 log(0)
     const u2 = Math.random();
     const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
     const value = 0.5 + z * sigma;
     return Math.max(0, Math.min(1, value));
 };
-
 /**
  * Photo position interface
  */
