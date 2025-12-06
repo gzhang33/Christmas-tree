@@ -36,6 +36,7 @@ interface PolaroidPhotoProps {
     particleStartPosition: [number, number, number]; // Origin particle position (Gift Center)
     morphIndex: number;
     totalPhotos: number;
+    textureReady?: boolean; // New prop
 }
 
 // Polaroid frame dimensions
@@ -94,6 +95,7 @@ const masterPhotoMaterial = new THREE.ShaderMaterial({
             vec3 pos = position;
             // Bend effect: Curve based on X distance from center
             // Simulates card flexibility during motion
+            // Curve = pow(dist, 2) * bendFactor
             float curve = pow(abs(uv.x - 0.5), 2.0) * uBend;
             pos.z += curve;
             
@@ -137,6 +139,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     particleStartPosition,
     morphIndex,
     totalPhotos,
+    textureReady = false, // Default to false
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -254,7 +257,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             // Hide immediately on collapse
             if (groupRef.current) groupRef.current.visible = false;
         }
-    }, [isExploded, url, particleStartPosition, materials]);
+    }, [isExploded, url, particleStartPosition, materials, textureReady]);
 
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 

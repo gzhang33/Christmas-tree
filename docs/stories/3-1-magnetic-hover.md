@@ -34,6 +34,12 @@ so that the memory cloud feels alive, immersive, and responsive to my interactio
   - [x] Verify tilt feels "physical" and not jittery.
   - [x] Test on varying screen sizes.
 
+
+### Review Follow-ups (AI)
+
+- [ ] [AI-Review][Med] Fix Magnetic Hover Rotation: Integrate `hover.rotationMultiplier` into the rotation calculation in `PolaroidPhoto.tsx` to actually slow down spin (AC #1)
+- [ ] [AI-Review][Low] Optimize `handlePointerMove`: Avoid `e.point.clone()` allocation
+
 ## Dev Notes
 
 - **Architecture Patterns:**
@@ -88,3 +94,56 @@ Gemini 2.0 Flash
 - **UI Lag**: 2.3 fixed UI lag with debounce. Ensure hover effects don't introduce new lag (e.g., don't update global store on every mouse move).
 
 [Source: docs/stories/2-3-morphing-effect.md#Dev-Agent-Record]
+
+## Senior Developer Review (AI)
+
+### Review Details
+- **Reviewer:** BMad Architecture Agent
+- **Date:** 2025-12-06
+- **Outcome:** **Changes Requested**
+- **Justification:** The "Magnetic Hover" feature is partially incomplete. While scaling and tilting work, the rotation slowdown logic (AC #1) is implemented in state but structurally disconnected from the rendering logic, causing photos to continue spinning at full speed while hovered.
+
+### Key Findings
+
+**Medium Severity:**
+- **Disconnected Logic / AC Violation:** In `PolaroidPhoto.tsx`, `hover.rotationMultiplier` is calculated and lerped correctly (Line 331), but it is **never used** in the rotation calculation (Lines 486-488). The rotation continues to be driven solely by `hoverTime`, which ignores the damping factor. This violates AC #1 ("significantly slow down its rotation").
+
+**Low Severity:**
+- **Performance:** In `handlePointerMove`, `e.point.clone()` creates a new Vector3 on every mouse move event. While minor, `groupRef.current.worldToLocal(e.point)` (mutable) or a scratch vector would be better for high-frequency events.
+
+### Acceptance Criteria Coverage
+
+| AC# | Description | Status | Evidence |
+| :--- | :--- | :--- | :--- |
+| 1 | **Magnetic Hover** (Scale, Rotation, Tilt) | **PARTIAL** | Scale/Tilt verified (`PolaroidPhoto.tsx:330-333`). Rotation slowdown logic is present but unused (`PolaroidPhoto.tsx:486-488`). |
+| 2 | **3D Tilt Interaction** | **IMPLEMENTED** | `handlePointerMove` calculates offsets (`:291`), applied via `rotateX/Y` (`:513`). |
+| 3 | **Cursor Feedback** | **IMPLEMENTED** | Cursor changes to pointer on hover (`PolaroidPhoto.tsx:273`). |
+| 4 | **Camera Drift** | **IMPLEMENTED** | `Experience.tsx:101` implements dolly-in when `isIdle` and `!hoveredPhotoId`. |
+
+**Summary:** 3 of 4 ACs fully implemented. AC #1 is partially broken.
+
+### Task Completion Validation
+
+| Task | Marked As | Verified As | Notes |
+| :--- | :--- | :--- | :--- |
+| Implement Camera Drift Logic | [x] | **Verified** | Logic sound in `Experience.tsx`. |
+| Implement Magnetic Hover | [x] | **Questionable** | "Dampen/Slow rotation speed" marked done but implementation is disconnected. |
+| Implement 3D Tilt Interaction | [x] | **Verified** | Logic sound. |
+| Verify Performance & Feel | [x] | **Verified** | Optimizations (refs, reused vars) are in place. |
+
+### Architectural Alignment
+- **Hybrid Interaction:** Correctly implemented using R3F events on `PolaroidPhoto` instances.
+- **State Management:** Local refs used for animation as recommended. Global store used appropriately for hover state.
+
+### Action Items
+
+**Code Changes Required:**
+- [ ] [Med] Fix Magnetic Hover Rotation: Integrate `hover.rotationMultiplier` into the rotation calculation in `PolaroidPhoto.tsx` to actually slow down spin (AC #1) [file: src/components/canvas/PolaroidPhoto.tsx].
+- [ ] [Low] Optimize `handlePointerMove`: Avoid `e.point.clone()` allocation [file: src/components/canvas/PolaroidPhoto.tsx].
+
+**Advisory Notes:**
+- Note: Ensure the rotation accumulation uses logical time steps (delta * speed) rather than absolute time when implementing the slowdown, to prevent jumps when speed changes.
+
+## Change Log
+- 2025-12-06: Senior Developer Review notes appended. Outcome: Changes Requested.
+

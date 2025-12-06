@@ -1517,28 +1517,29 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </points>
 
       {/* === POLAROID PHOTOS === */}
-      {texturesLoaded && (
-        <group>
-          {photoData.positions.map((pos, i) => {
-            // Only render if we have a matching start position from the gifts
-            if (i >= giftData.photoParticleStartPositions.length) return null;
+      {/* === POLAROID PHOTOS === */}
+      {/* Mounted always to avoid render lag on click, but hidden until needed */}
+      <group>
+        {photoData.positions.map((pos, i) => {
+          // Only render if we have a matching start position from the gifts
+          if (i >= giftData.photoParticleStartPositions.length) return null;
 
-            return (
-              <PolaroidPhoto
-                key={i}
-                url={photoData.urls[i]}
-                position={[pos.x, pos.y, pos.z]}
-                rotation={pos.rotation}
-                scale={pos.scale * config.photoSize}
-                isExploded={isExploded}
-                particleStartPosition={giftData.photoParticleStartPositions[i]}
-                morphIndex={i}
-                totalPhotos={photoData.positions.length}
-              />
-            );
-          })}
-        </group>
-      )}
+          return (
+            <PolaroidPhoto
+              key={i}
+              url={photoData.urls[i]}
+              position={[pos.x, pos.y, pos.z]}
+              rotation={pos.rotation}
+              scale={pos.scale * config.photoSize}
+              isExploded={isExploded}
+              particleStartPosition={giftData.photoParticleStartPositions[i]}
+              morphIndex={i}
+              totalPhotos={photoData.positions.length}
+              textureReady={texturesLoaded}
+            />
+          );
+        })}
+      </group>
     </group>
   );
 };
