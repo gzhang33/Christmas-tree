@@ -45,14 +45,14 @@ export const PARTICLE_CONFIG = {
         breatheAmplitude1: 0.04,   // Primary breathing amplitude
         breatheAmplitude2: 0.03,   // Secondary breathing amplitude
         breatheAmplitude3: 0.02,   // Tertiary breathing amplitude
-        
+
         // Sway animation (tree movement)
         swayFrequency: 0.5,        // Sway oscillation frequency
         swayAmplitude: 0.08,       // Maximum sway distance
-        
+
         // Explosion physics damping speeds
         // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return
-        dampingSpeedExplosion: 0.02,  // Slower damping for high-velocity explosion effect
-        dampingSpeedReset: 0.04,      // Faster damping for quicker return to tree shape
+        dampingSpeedExplosion: 0.004,  // Slower damping for high-velocity explosion effect
+        dampingSpeedReset: 0.01,      // Faster damping for quicker return to tree shape
     },
 } as const;

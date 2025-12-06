@@ -121,12 +121,12 @@ interface Actions {
 1.  **Magnetic Hover:** When hovering a floating photo, it must visually "react" with smooth transition: scale up to 1.5x, slow down rotation, and dynamically tilt in 3D space based on mouse position to simulate realistic Polaroid card physics (FR16).
 2.  **3D Tilt Interaction:** The photo card must tilt dynamically as the mouse moves over it, creating a natural physical interaction that mimics a real Polaroid photo responding to touch. The tilt angles (rotation X/Y) should smoothly follow mouse position relative to the card center.
 3.  **Cursor Feedback:** Cursor uses standard pointer when hovering a photo (no custom icon to avoid distraction, allowing the natural tilt animation to be the focus).
-3.  **Lightbox Open:** Clicking a photo opens the `Lightbox` component centered on screen with high-res content (FR17, FR18).
-4.  **Background Focus:** Opening Lightbox dims or blurs the background 3D scene (FR19).
-5.  **Closing:** Clicking "X", background, or pressing ESC closes the Lightbox (FR20, FR39).
-6.  **Keyboard Nav:** Users can Tab through floating photos and press Enter to open them (FR37, FR38).
-7.  **Return Animation:** Clicking "Back" reverses the explosion smoothly, returning particles to tree shape (FR13).
-8.  **UI Coordination:** "Back" button is only visible when Exploded and no Lightbox is open.
+4.  **Lightbox Open:** Clicking a photo opens the `Lightbox` component centered on screen with high-res content (FR17, FR18).
+5.  **Background Focus:** Opening Lightbox dims or blurs the background 3D scene (FR19).
+6.  **Closing:** Clicking "X", background, or pressing ESC closes the Lightbox (FR20, FR39).
+7.  **Keyboard Nav:** Users can Tab through floating photos and press Enter to open them (FR37, FR38).
+8.  **Return Animation:** Clicking "Back" reverses the explosion smoothly, returning particles to tree shape (FR13).
+9.  **UI Coordination:** "Back" button is only visible when Exploded and no Lightbox is open.
 
 ## Traceability Mapping
 

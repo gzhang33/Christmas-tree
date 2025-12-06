@@ -72,8 +72,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-    const photoMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
-    const backPhotoMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+    const photoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+    const backPhotoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
@@ -121,18 +121,54 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             opacity: 0,
         });
 
-        // Photo materials (front and back)
-        photoMaterialRef.current = new THREE.MeshBasicMaterial({
-            side: THREE.FrontSide,
+        // Custom Shader for Photo Development Effect
+        // Transition from Energy Card (Glowing White) -> Full Photo
+        const createPhotoShader = () => new THREE.ShaderMaterial({
+            uniforms: {
+                map: { value: null },
+                uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
+                opacity: { value: 0.0 },
+                uTime: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D map;
+                uniform float uDevelop;
+                uniform float opacity;
+                varying vec2 vUv;
+                
+                void main() {
+                    vec4 tex = texture2D(map, vUv);
+                    
+                    // Energy Card State: Warm White Glow
+                    vec3 energyColor = vec3(1.0, 0.98, 0.9);
+                    
+                    // Develop: Mix energy color with texture color
+                    // Add a slight "burn in" effect where high contrast areas appear first? 
+                    // For now, smooth transition keeps it elegant.
+                    vec3 finalColor = mix(energyColor, tex.rgb, uDevelop);
+                    
+                    // Add extra glow when in Energy state
+                    if (uDevelop < 0.99) {
+                        float glow = (1.0 - uDevelop) * 0.2;
+                        finalColor += vec3(glow);
+                    }
+                    
+                    gl_FragColor = vec4(finalColor, opacity);
+                }
+            `,
             transparent: true,
-            opacity: 0,
+            side: THREE.FrontSide,
         });
 
-        backPhotoMaterialRef.current = new THREE.MeshBasicMaterial({
-            side: THREE.FrontSide,
-            transparent: true,
-            opacity: 0,
-        });
+        photoMaterialRef.current = createPhotoShader();
+        backPhotoMaterialRef.current = createPhotoShader();
 
         return () => {
             frameMaterialRef.current?.dispose();
@@ -149,13 +185,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             // Try to get cached texture
             const cachedTexture = getCachedTexture(url);
             if (cachedTexture) {
+                // For ShaderMaterial, we update uniforms.map
                 if (photoMaterialRef.current) {
-                    photoMaterialRef.current.map = cachedTexture;
-                    photoMaterialRef.current.needsUpdate = true;
+                    photoMaterialRef.current.uniforms.map.value = cachedTexture;
                 }
                 if (backPhotoMaterialRef.current) {
-                    backPhotoMaterialRef.current.map = cachedTexture;
-                    backPhotoMaterialRef.current.needsUpdate = true;
+                    backPhotoMaterialRef.current.uniforms.map.value = cachedTexture;
                 }
                 anim.textureLoaded = true;
             }
@@ -182,8 +217,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 
             // Reset material opacity
             if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
-            if (photoMaterialRef.current) photoMaterialRef.current.opacity = 0;
-            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.opacity = 0;
+            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.opacity.value = 0;
+            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.opacity.value = 0;
         }
     }, [isExploded, url, particleStartPosition]);
 
@@ -279,6 +314,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             const myTotalDuration = globalArrivalTime - delay;
             const transitionDuration = myTotalDuration - ejectionDuration;
 
+            // Reset Develop Uniform for animation start
+            let developProgress = 0.0;
+
             if (elapsed > 0) {
                 // PHASE 1: EJECTION (Printing from Slot)
                 if (elapsed < ejectionDuration) {
@@ -293,43 +331,65 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 
                     // Scale Y: 0->1
                     group.scale.set(scale, scale * t, scale);
+
+                    // Ejection Phase: Pure Energy (develop = 0)
+                    developProgress = 0.0;
                 }
                 else if (elapsed < myTotalDuration) {
                     // === TRANSITION PHASE ===
                     // Dynamic speed based on available time
                     const t = (elapsed - ejectionDuration) / transitionDuration;
-                    const easeOutCubic = 1 - Math.pow(1 - t, 3);
+
+                    // Snappy Ejection: BackOut easing
+                    // s = 1.2 for slight overshoot
+                    const s = 1.2;
+                    const t2 = t - 1;
+                    const animationProgress = t2 * t2 * ((s + 1) * t2 + s) + 1;
+                    const developEase = 1 - Math.pow(1 - t, 3);
 
                     // Start: BoxTop (Spawn + EjectHeight)
                     const startY = particleStartPosition[1] + 1.2;
 
                     // Lerp
-                    anim.currentPosition.x = THREE.MathUtils.lerp(particleStartPosition[0], position[0], easeOutCubic);
-                    anim.currentPosition.y = THREE.MathUtils.lerp(startY, position[1], easeOutCubic);
-                    anim.currentPosition.z = THREE.MathUtils.lerp(particleStartPosition[2], position[2], easeOutCubic);
+                    // Lerp
+                    anim.currentPosition.x = THREE.MathUtils.lerp(particleStartPosition[0], position[0], animationProgress);
+                    anim.currentPosition.y = THREE.MathUtils.lerp(startY, position[1], animationProgress);
+                    anim.currentPosition.z = THREE.MathUtils.lerp(particleStartPosition[2], position[2], animationProgress);
 
                     // Rotation
-                    anim.currentRotation.x = rotation[0] * easeOutCubic;
-                    anim.currentRotation.y = rotation[1] * easeOutCubic;
-                    anim.currentRotation.z = rotation[2] * easeOutCubic;
+                    anim.currentRotation.x = rotation[0] * animationProgress;
+                    anim.currentRotation.y = rotation[1] * animationProgress;
+                    anim.currentRotation.z = rotation[2] * animationProgress;
 
                     group.scale.setScalar(scale);
+
+                    // Transition Phase: Develop 0 -> 1 using easeOut
+                    developProgress = developEase;
                 }
                 else {
                     // Animation Done - Hand over to Orbit Loop
                     anim.isAnimating = false;
                     group.scale.setScalar(scale);
+                    developProgress = 1.0;
                 }
 
                 // Opacity runs over total duration (Fade in during Ejection mainly)
                 const opacityProgress = Math.min(elapsed / 0.5, 1);
-
                 if (frameMaterialRef.current) frameMaterialRef.current.opacity = opacityProgress;
-                if (photoMaterialRef.current && anim.textureLoaded) photoMaterialRef.current.opacity = opacityProgress;
-                if (backPhotoMaterialRef.current && anim.textureLoaded) backPhotoMaterialRef.current.opacity = opacityProgress;
+
+                // Update Shader Uniforms
+                if (photoMaterialRef.current && anim.textureLoaded) {
+                    photoMaterialRef.current.uniforms.opacity.value = opacityProgress;
+                    photoMaterialRef.current.uniforms.uDevelop.value = developProgress;
+                }
+                if (backPhotoMaterialRef.current && anim.textureLoaded) {
+                    backPhotoMaterialRef.current.uniforms.opacity.value = opacityProgress;
+                    backPhotoMaterialRef.current.uniforms.uDevelop.value = developProgress;
+                }
 
                 // Apply updates
                 group.position.copy(anim.currentPosition);
+
                 // In Phase 1 we keep rotation 0 (flat/aligned)
                 if (elapsed >= ejectionDuration) {
                     group.rotation.copy(anim.currentRotation);
@@ -339,6 +399,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             }
         } else if (isExploded) {
             // === PHASE 2: ORBIT & FLOAT ===
+            // Ensure fully developed
+            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.uDevelop.value = 1.0;
+            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.uDevelop.value = 1.0;
+
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
             const lastPhotoDelay = (totalPhotos - 1) * 0.05;

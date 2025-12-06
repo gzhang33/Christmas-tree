@@ -33,6 +33,7 @@ varying float vAlpha;
 varying vec3 vColor;
 varying float vDepth;
 varying float vIsPhotoParticle;
+varying float vFlash;
 
 /**
  * Quadratic Bezier interpolation
@@ -55,45 +56,91 @@ uniform float uBreatheAmp3;
 uniform float uSwayFreq;
 uniform float uSwayAmp;
 
+float easeOutCubic(float x) {
+  return 1.0 - pow(1.0 - x, 3.0);
+}
+
 void main() {
-  // === BREATHING ANIMATION (Tree State Only) ===
-  // Multi-layer breathing effect for organic movement when not exploded
-  float breatheFactor = 1.0 - uProgress; // Breathing fades out during explosion
-  vec3 normal = normalize(positionStart);
+  // === DISSIPATION ANIMATION (Refactored) ===
+  // Concept: Particles erode from bottom to top (or random) and float up
+  
+  // 1. Erosion Threshold
+  // Calculate a random threshold for each particle to start moving
+  // Use aRandom and vertical height to create an organic erosion front
+  float erosionNoise = aRandom; 
+  float heightDelay = (positionStart.y + 10.0) / 25.0; // Normalize height -5 to 20 approx
+  float trigger = (uProgress * 1.05) - (erosionNoise * 0.3 + heightDelay * 0.2);
+  float localProgress = clamp(trigger, 0.0, 1.0);
+  
+  // 2. Easing
+  float easedProgress = smoothstep(0.0, 1.0, localProgress);
+  vProgress = easedProgress; // Pass to frag
 
-  // Breathing frequencies and amplitudes from uniforms
-  float breathe1 = sin(uTime * uBreatheFreq1 + positionStart.y * 0.8 + aRandom * 6.28) * uBreatheAmp1;
-  float breathe2 = sin(uTime * uBreatheFreq2 + aBranchAngle * 2.0 + positionStart.y * 0.3) * uBreatheAmp2;
-  float breathe3 = cos(uTime * uBreatheFreq3 + aRandom * 3.14) * uBreatheAmp3;
+  // 3. Movement Physics (Dissipation)
+  // Instead of exploding outward to a target, we float UP and DRIFT
+  
+  // Upward force (buoyancy)
+  vec3 upForce = vec3(0.0, 15.0, 0.0) * easedProgress * easedProgress; // Accelerate up
+  
+  // Turbulent Drift (Curl-like noise based on time and pos)
+  float timeOffset = uTime * 0.5;
+  vec3 noiseOffset = vec3(
+    sin(positionStart.y * 0.5 + timeOffset + aRandom * 5.0),
+    0.0,
+    cos(positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0)
+  ) * 4.0 * easedProgress; // Drift amplitude increases with progress
+  
+  // === INITIAL POSITION & IDLE ANIMATION ===
+  // Calculate animated start position with breathing and sway
+  
+  // Breathing (radial expansion)
+  float breathe = sin(uTime * uBreatheFreq1 + positionStart.y * 0.1) * uBreatheAmp1 
+                + sin(uTime * uBreatheFreq2 + positionStart.x * 0.2) * uBreatheAmp2;
 
-  vec3 breatheOffset = normal * (breathe1 + breathe2 + breathe3) * breatheFactor;
+  // Sway (wind movement)
+  float sway = sin(uTime * uSwayFreq + positionStart.y * 0.15) * uSwayAmp * smoothstep(-5.0, 20.0, positionStart.y);
 
-  // Sway animation from uniforms
-  float sway = sin(uTime * uSwayFreq + positionStart.y * 0.2) * uSwayAmp * (positionStart.y + 3.0) / 12.0;
-  breatheOffset.x += sway * cos(aBranchAngle) * breatheFactor;
-  breatheOffset.z += sway * sin(aBranchAngle) * breatheFactor;
+  vec3 animatedStart = positionStart;
+  if (length(positionStart.xz) > 0.01) {
+     animatedStart += normalize(vec3(positionStart.x, 0.0, positionStart.z)) * breathe;
+  }
+  animatedStart.x += sway;
 
-  // Apply breathing to start position
-  vec3 animatedStart = positionStart + breatheOffset;
+  vec3 currentPos = animatedStart;
+  
+  // Apply forces
+  if (localProgress > 0.0) {
+     currentPos += upForce + noiseOffset;
+     
+     // Expand slightly as they dissipate (gas expansion)
+     // currentPos += normalize(positionStart) * 2.0 * easedProgress;
+  }
+  
+  // Note: Photo particles (isPhotoParticle > 0.5) might need to follow the photo trajectory
+  // BUT the user asked for "Particle Dissipation". 
+  // If this is a photo particle, we blend to the end position (Orbits) because the React component expects photos there.
+  // The React component morphs photos FROM the *Initial* particle position usually.
+  // Let's keep the Photo Particles moving to their targets, but with a "dissolving" path?
+  // Actually, standard behavior: Photo particles transform to endPos. Regular dissolve.
+  
+  vec3 finalPos;
+  
+  if (aIsPhotoParticle > 0.5) {
+     // Photo particles: Lerp to orbit target (Standard Bezier/Lerp)
+     // We keep the original bezier for photos so they don't get lost
+     finalPos = quadraticBezier(animatedStart, controlPoint, positionEnd, easedProgress);
+     
+     // Add some jitter
+     finalPos += noiseOffset * 0.2; 
+  } else {
+     // Regular particles: Dissipate Upwards
+     finalPos = currentPos;
+  }
+  
+  vec3 pos = finalPos;
 
-  // === BEZIER INTERPOLATION ===
-  // Smooth easing for the progress (ease-out quad)
-  float easedProgress = 1.0 - (1.0 - uProgress) * (1.0 - uProgress);
-
-  // Calculate Bezier position
-  vec3 pos = quadraticBezier(animatedStart, controlPoint, positionEnd, easedProgress);
-
-  // === FLOATING NOISE (Exploded State Only) ===
-  // For photo particles: minimal drift (they will be replaced by photos)
-  // For regular particles: stronger drift before fading out
-  float floatFactor = uProgress;
-  float driftMultiplier = mix(1.5, 0.3, aIsPhotoParticle); // Regular particles drift more
-
-  float driftX = sin(uTime * 0.3 + aRandom * 10.0) * 0.5 * driftMultiplier;
-  float driftY = cos(uTime * 0.25 + aRandom * 8.0) * 0.5 * driftMultiplier;
-  float driftZ = sin(uTime * 0.35 + aRandom * 12.0) * 0.5 * driftMultiplier;
-
-  pos += vec3(driftX, driftY, driftZ) * floatFactor;
+  // === NO EXTRA ROTATION OR SPIRAL ===
+  // (Removed Galaxy/Shockwave logic for pure dissipation)
 
   // === MVP TRANSFORMATION ===
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
@@ -146,7 +193,7 @@ void main() {
   }
 
   // === OUTPUT TO FRAGMENT SHADER ===
-  vProgress = uProgress;
+  vProgress = easedProgress; // Pass local eased progress instead of global uProgress
   vColor = aColor;
   vDepth = -mvPosition.z;
   vIsPhotoParticle = aIsPhotoParticle;

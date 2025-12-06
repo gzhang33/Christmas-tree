@@ -285,6 +285,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Animation state
   const progressRef = useRef(0.0);
   const targetProgressRef = useRef(0.0);
+  const rootRef = useRef<THREE.Group>(null);
+  const shakeIntensity = useRef(0);
 
   // LOD state
   const lodRef = useRef<LODLevel>(LOD_LEVELS[0]);
@@ -1207,8 +1209,35 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const treeKey = `tree-${particleCount}-${treeColor}`;
 
+  // === SHAKE ANIMATION ===
+  // Trigger shake on explosion
+  useEffect(() => {
+    if (isExploded) {
+      shakeIntensity.current = 1.0;
+    }
+  }, [isExploded]);
+
+  useFrame((state, delta) => {
+    // Process Shake
+    if (shakeIntensity.current > 0.001 && rootRef.current) {
+      const shakePower = shakeIntensity.current * shakeIntensity.current; // Quadratic falloff for better feel
+      const rx = (Math.random() - 0.5) * 0.5 * shakePower; // 0.5 unit shake
+      const ry = (Math.random() - 0.5) * 0.5 * shakePower;
+      const rz = (Math.random() - 0.5) * 0.5 * shakePower;
+
+      rootRef.current.position.set(rx, ry, rz);
+
+      // Decay
+      shakeIntensity.current = THREE.MathUtils.lerp(shakeIntensity.current, 0, delta * 5.0);
+    } else if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
+      // Reset to 0 when done
+      rootRef.current.position.set(0, 0, 0);
+    }
+  });
+
   return (
     <group
+      ref={rootRef}
       onClick={(e) => {
         e.stopPropagation();
         onParticlesClick();

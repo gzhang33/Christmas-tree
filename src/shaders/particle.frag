@@ -20,6 +20,7 @@ varying float vAlpha;
 varying vec3 vColor;
 varying float vDepth;
 varying float vIsPhotoParticle;
+varying float vFlash;
 
 void main() {
   // === TEXTURE SAMPLING ===
@@ -38,6 +39,10 @@ void main() {
   // === COLOR PROCESSING ===
   // Base color from vertex shader, modulated by texture brightness
   vec3 color = vColor * texColor.rgb;
+
+  // Kinetic Flash (Shockwave effect)
+  // Add additive burst of white/gold light based on vFlash
+  color += vec3(1.0, 0.95, 0.8) * vFlash;
 
   // For photo particles during explosion: add subtle glow to indicate transformation
   if (vIsPhotoParticle > 0.5 && vProgress > 0.1) {
