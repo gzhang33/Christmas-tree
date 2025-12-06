@@ -14,6 +14,7 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
 import { MORPH_TIMING } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
@@ -48,19 +49,86 @@ const FRAME = {
 
 // Shared geometries (created once, reused by all instances)
 let sharedFrameGeometry: THREE.BoxGeometry | null = null;
-let sharedPhotoGeometry: THREE.PlaneGeometry | null = null;
+let sharedPhotoGeometry: THREE.BufferGeometry | null = null; // Changed to BufferGeometry for merged mesh
 
 const getSharedGeometries = () => {
     if (!sharedFrameGeometry) {
         sharedFrameGeometry = new THREE.BoxGeometry(FRAME.width, FRAME.height, FRAME.depth);
     }
     if (!sharedPhotoGeometry) {
-        sharedPhotoGeometry = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+        // Merge Front and Back planes into one geometry to save draw calls
+        const frontGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+        const backGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+
+        // Front: Shift foward
+        frontGeo.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001);
+
+        // Back: Shift backward and rotate
+        backGeo.rotateY(Math.PI);
+        backGeo.translate(0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001);
+
+        // Merge
+        sharedPhotoGeometry = mergeBufferGeometries([frontGeo, backGeo]);
+
+        // Cleanup intermediates
+        frontGeo.dispose();
+        backGeo.dispose();
     }
     return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
 };
 
-export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
+// Shared Material (Created once to reuse WebGLProgram)
+const masterPhotoMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        map: { value: null },
+        uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
+        opacity: { value: 0.0 },
+        uTime: { value: 0.0 },
+        uBend: { value: 0.0 } // Bending effect
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        uniform float uBend;
+        void main() {
+            vUv = uv;
+            vec3 pos = position;
+            // Bend effect: Curve based on X distance from center
+            // Simulates card flexibility during motion
+            float curve = pow(abs(uv.x - 0.5), 2.0) * uBend;
+            pos.z += curve;
+            
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D map;
+        uniform float uDevelop;
+        uniform float opacity;
+        varying vec2 vUv;
+        
+        void main() {
+            vec4 tex = texture2D(map, vUv);
+            
+            // Energy Card State: Warm White Glow
+            vec3 energyColor = vec3(1.0, 0.98, 0.9);
+            
+            // Develop: Mix energy color with texture color
+            vec3 finalColor = mix(energyColor, tex.rgb, uDevelop);
+            
+            // Add extra glow when in Energy state
+            if (uDevelop < 0.99) {
+                float glow = (1.0 - uDevelop) * 0.2;
+                finalColor += vec3(glow);
+            }
+            
+            gl_FragColor = vec4(finalColor, opacity);
+        }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+});
+
+export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     url,
     position,
     rotation,
@@ -73,7 +141,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
     const photoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
-    const backPhotoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
@@ -121,59 +188,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             opacity: 0,
         });
 
-        // Custom Shader for Photo Development Effect
-        // Transition from Energy Card (Glowing White) -> Full Photo
-        const createPhotoShader = () => new THREE.ShaderMaterial({
-            uniforms: {
-                map: { value: null },
-                uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
-                opacity: { value: 0.0 },
-                uTime: { value: 0.0 }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D map;
-                uniform float uDevelop;
-                uniform float opacity;
-                varying vec2 vUv;
-                
-                void main() {
-                    vec4 tex = texture2D(map, vUv);
-                    
-                    // Energy Card State: Warm White Glow
-                    vec3 energyColor = vec3(1.0, 0.98, 0.9);
-                    
-                    // Develop: Mix energy color with texture color
-                    // Add a slight "burn in" effect where high contrast areas appear first? 
-                    // For now, smooth transition keeps it elegant.
-                    vec3 finalColor = mix(energyColor, tex.rgb, uDevelop);
-                    
-                    // Add extra glow when in Energy state
-                    if (uDevelop < 0.99) {
-                        float glow = (1.0 - uDevelop) * 0.2;
-                        finalColor += vec3(glow);
-                    }
-                    
-                    gl_FragColor = vec4(finalColor, opacity);
-                }
-            `,
-            transparent: true,
-            side: THREE.FrontSide,
-        });
-
-        photoMaterialRef.current = createPhotoShader();
-        backPhotoMaterialRef.current = createPhotoShader();
+        // Clone shared material to reuse program but have unique uniforms (map)
+        photoMaterialRef.current = masterPhotoMaterial.clone();
 
         return () => {
             frameMaterialRef.current?.dispose();
             photoMaterialRef.current?.dispose();
-            backPhotoMaterialRef.current?.dispose();
         };
     }, []);
 
@@ -188,9 +208,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 // For ShaderMaterial, we update uniforms.map
                 if (photoMaterialRef.current) {
                     photoMaterialRef.current.uniforms.map.value = cachedTexture;
-                }
-                if (backPhotoMaterialRef.current) {
-                    backPhotoMaterialRef.current.uniforms.map.value = cachedTexture;
                 }
                 anim.textureLoaded = true;
             }
@@ -218,7 +235,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             // Reset material opacity
             if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
             if (photoMaterialRef.current) photoMaterialRef.current.uniforms.opacity.value = 0;
-            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.opacity.value = 0;
         }
     }, [isExploded, url, particleStartPosition]);
 
@@ -382,10 +398,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                     photoMaterialRef.current.uniforms.opacity.value = opacityProgress;
                     photoMaterialRef.current.uniforms.uDevelop.value = developProgress;
                 }
-                if (backPhotoMaterialRef.current && anim.textureLoaded) {
-                    backPhotoMaterialRef.current.uniforms.opacity.value = opacityProgress;
-                    backPhotoMaterialRef.current.uniforms.uDevelop.value = developProgress;
-                }
 
                 // Apply updates
                 group.position.copy(anim.currentPosition);
@@ -401,7 +413,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             // === PHASE 2: ORBIT & FLOAT ===
             // Ensure fully developed
             if (photoMaterialRef.current) photoMaterialRef.current.uniforms.uDevelop.value = 1.0;
-            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.uDevelop.value = 1.0;
 
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
@@ -525,23 +536,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 )}
             </mesh>
 
-            {/* Photo Image - Front */}
-            <mesh position={[0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001]} geometry={photoGeometry}>
+            {/* Photo Image - Merged Front & Back */}
+            <mesh position={[0, 0, 0]} geometry={photoGeometry}>
                 {photoMaterialRef.current && (
                     <primitive object={photoMaterialRef.current} attach="material" />
                 )}
             </mesh>
-
-            {/* Photo Image - Back (same content) */}
-            <mesh
-                position={[0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001]}
-                rotation={[0, Math.PI, 0]}
-                geometry={photoGeometry}
-            >
-                {backPhotoMaterialRef.current && (
-                    <primitive object={backPhotoMaterialRef.current} attach="material" />
-                )}
-            </mesh>
         </group>
     );
-};
+}); // Close React.memo

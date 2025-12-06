@@ -392,6 +392,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const branchAngles = new Float32Array(count);
     // Photo particle flag (1.0 = photo, 0.0 = regular)
     const isPhotoParticle = new Float32Array(count);
+    const erosionFactors = new Float32Array(count);
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
 
@@ -436,6 +437,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[i * 3] = x;
       positionStart[i * 3 + 1] = finalY;
       positionStart[i * 3 + 2] = z;
+
+      // Calculate Erosion Factor (Pre-computed from Shader)
+      erosionFactors[i] = (14.0 - finalY) / 20.0;
 
       // Initial position is the same as start
       pos[i * 3] = x;
@@ -495,6 +499,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       random,
       branchAngles,
       isPhotoParticle,
+      erosionFactors,
       count,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -517,6 +522,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const branchAngles = new Float32Array(count);
     const flickerPhase = new Float32Array(count); // For sparkle animation
     const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in glow
+    const erosionFactors = new Float32Array(count);
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
 
@@ -540,6 +546,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[i * 3] = x;
       positionStart[i * 3 + 1] = y;
       positionStart[i * 3 + 2] = z;
+
+      erosionFactors[i] = (14.0 - y) / 20.0;
 
       pos[i * 3] = x;
       pos[i * 3 + 1] = y;
@@ -593,6 +601,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       flickerPhase,
       isPhotoParticle,
+      erosionFactors,
       count,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -615,6 +624,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
     const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in ornaments
+    const erosionFactors = new Float32Array(count);
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
     const treeBottom = PARTICLE_CONFIG.treeBottomY;
@@ -664,6 +674,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[idx * 3] = x;
       positionStart[idx * 3 + 1] = y;
       positionStart[idx * 3 + 2] = z;
+
+      erosionFactors[idx] = (14.0 - y) / 20.0;
 
       const endPos = getExplosionTarget(config.explosionRadius);
       positionEnd[idx * 3] = endPos[0];
@@ -715,6 +727,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         positionStart[idx * 3] = x;
         positionStart[idx * 3 + 1] = y;
         positionStart[idx * 3 + 2] = z;
+
+        erosionFactors[idx] = (14.0 - y) / 20.0;
 
         const endPos = getExplosionTarget(config.explosionRadius);
         positionEnd[idx * 3] = endPos[0];
@@ -774,6 +788,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       random,
       branchAngles,
       isPhotoParticle,
+      erosionFactors,
       count: idx,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
@@ -1300,6 +1315,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             array={entityLayerData.isPhotoParticle}
             itemSize={1}
           />
+          <bufferAttribute
+            attach="attributes-aErosionFactor"
+            count={entityLayerData.count}
+            array={entityLayerData.erosionFactors}
+            itemSize={1}
+          />
         </bufferGeometry>
         {entityMaterialRef.current && (
           <primitive object={entityMaterialRef.current} attach="material" />
@@ -1364,6 +1385,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             array={glowLayerData.isPhotoParticle}
             itemSize={1}
           />
+          <bufferAttribute
+            attach="attributes-aErosionFactor"
+            count={glowLayerData.count}
+            array={glowLayerData.erosionFactors}
+            itemSize={1}
+          />
         </bufferGeometry>
         {glowMaterialRef.current && (
           <primitive object={glowMaterialRef.current} attach="material" />
@@ -1425,6 +1452,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             attach="attributes-aIsPhotoParticle"
             count={ornamentData.count}
             array={ornamentData.isPhotoParticle}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aErosionFactor"
+            count={ornamentData.count}
+            array={ornamentData.erosionFactors}
             itemSize={1}
           />
         </bufferGeometry>

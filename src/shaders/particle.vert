@@ -26,6 +26,7 @@ attribute float aRandom;        // Random seed for variation
 attribute float aBranchAngle;   // Branch angle for tree shape animation
 attribute vec3 aColor;          // Particle color
 attribute float aIsPhotoParticle; // 1.0 = photo particle, 0.0 = regular particle
+attribute float aErosionFactor;   // Pre-computed erosion delay (0.0 to 1.0)
 
 // === VARYINGS (passed to fragment shader) ===
 varying float vProgress;
@@ -69,8 +70,8 @@ void main() {
   // Use aRandom and vertical height to create an organic erosion front
   float erosionNoise = aRandom; 
   // Invert height logic: Top triggers first (Low delay), Bottom triggers last (High delay)
-  // Tree ranges approx -5.5 to +8.5. Mapping +14 down to -6 covers it well.
-  float heightDelay = (14.0 - positionStart.y) / 20.0; 
+  // Use pre-computed attribute for performance
+  float heightDelay = aErosionFactor; 
   
   // uProgress Scale must be > (1.0 + MaxDelay) to ensure completion
   // We want a strong top-down effect, so we increase heightDelay weight (0.2 -> 0.6)
@@ -204,4 +205,11 @@ void main() {
   vColor = aColor;
   vDepth = -mvPosition.z;
   vIsPhotoParticle = aIsPhotoParticle;
+  
+  // === EARLY DISCARD ===
+  // Optimization: If particle is fully transparent, move out of clip space
+  // This skips the fragment shader entirely
+  if (vAlpha <= 0.01) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 0.0);
+  }
 }
