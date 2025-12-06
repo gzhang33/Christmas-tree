@@ -1,40 +1,51 @@
-import React, { useRef, useMemo, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
-import { AppConfig } from '../../types.ts';
-import { useStore } from '../../store/useStore';
-import { STATIC_COLORS, DEFAULT_TREE_COLOR } from '../../config/colors';
-import { PARTICLE_CONFIG } from '../../config/particles';
-import { getTreeRadius } from '../../utils/treeUtils';
+import React, { useRef, useMemo, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { AppConfig } from "../../types.ts";
+import { useStore } from "../../store/useStore";
+import { STATIC_COLORS, DEFAULT_TREE_COLOR } from "../../config/colors";
+import { PARTICLE_CONFIG } from "../../config/particles";
+import {
+  PHOTO_COUNT,
+  generatePhotoPositions,
+  PhotoPosition,
+} from "../../config/photoConfig";
+import { getTreeRadius } from "../../utils/treeUtils";
 
 // Shader imports using raw-loader syntax for Vite
-import particleVertexShader from '../../shaders/particle.vert?raw';
-import particleFragmentShader from '../../shaders/particle.frag?raw';
+import particleVertexShader from "../../shaders/particle.vert?raw";
+import particleFragmentShader from "../../shaders/particle.frag?raw";
+import { PolaroidPhoto } from "./PolaroidPhoto";
+import { MEMORIES } from "../../config/assets";
+import { preloadTextures } from "../../utils/texturePreloader";
+import { distributePhotos } from "../../utils/photoDistribution";
+import { PhotoData } from "../../types.ts";
 
 interface TreeParticlesProps {
   isExploded: boolean;
   config: AppConfig;
   onParticlesClick: () => void;
+  photos: PhotoData[];
 }
 
 // === TEXTURE FACTORY ===
 
 // Feathery texture for entity layer (Normal blending)
 const createFeatherTexture = () => {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 128;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
   // Soft feathery gradient with depth
   const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  grad.addColorStop(0.1, 'rgba(255, 255, 255, 0.95)');
-  grad.addColorStop(0.3, 'rgba(255, 255, 255, 0.7)');
-  grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
-  grad.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+  grad.addColorStop(0.1, "rgba(255, 255, 255, 0.95)");
+  grad.addColorStop(0.3, "rgba(255, 255, 255, 0.7)");
+  grad.addColorStop(0.5, "rgba(255, 255, 255, 0.4)");
+  grad.addColorStop(0.7, "rgba(255, 255, 255, 0.15)");
+  grad.addColorStop(1, "rgba(255, 255, 255, 0)");
 
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 128, 128);
@@ -46,22 +57,22 @@ const createFeatherTexture = () => {
 
 // Dynamic sparkle texture for glow layer (Additive blending)
 const createSparkleTexture = () => {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  ctx.fillStyle = 'rgba(0,0,0,0)';
+  ctx.fillStyle = "rgba(0,0,0,0)";
   ctx.fillRect(0, 0, 64, 64);
 
   // Core glow
   const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  grad.addColorStop(0.1, 'rgba(255, 255, 255, 0.95)');
-  grad.addColorStop(0.25, 'rgba(255, 255, 255, 0.6)');
-  grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+  grad.addColorStop(0.1, "rgba(255, 255, 255, 0.95)");
+  grad.addColorStop(0.25, "rgba(255, 255, 255, 0.6)");
+  grad.addColorStop(0.5, "rgba(255, 255, 255, 0.2)");
+  grad.addColorStop(1, "rgba(255, 255, 255, 0)");
 
   ctx.fillStyle = grad;
   ctx.beginPath();
@@ -69,7 +80,7 @@ const createSparkleTexture = () => {
   ctx.fill();
 
   // Cross flare for sparkle effect
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(32, 4);
@@ -79,7 +90,7 @@ const createSparkleTexture = () => {
   ctx.stroke();
 
   // Diagonal flares
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(12, 12);
@@ -94,19 +105,26 @@ const createSparkleTexture = () => {
 };
 
 // === ORNAMENT DISTRIBUTION ALGORITHM ===
-type OrnamentType = 'BIG_BEN' | 'FLAG' | 'BUS' | 'CORGI' | 'GIFT' | 'PEARL' | 'BAUBLE';
+type OrnamentType =
+  | "BIG_BEN"
+  | "FLAG"
+  | "BUS"
+  | "CORGI"
+  | "GIFT"
+  | "PEARL"
+  | "BAUBLE";
 
 const assignOrnamentType = (heightRatio: number): OrnamentType => {
   const rand = Math.random();
   if (heightRatio > 0.8) {
     // Top 20%: Big Ben
-    return 'BIG_BEN';
+    return "BIG_BEN";
   } else if (heightRatio > 0.5) {
     // Middle 30%: Flag or Bus
-    return rand < 0.4 ? 'FLAG' : 'BUS';
+    return rand < 0.4 ? "FLAG" : "BUS";
   } else {
     // Bottom 50%: Corgi or Gift
-    return rand < 0.3 ? 'CORGI' : 'GIFT';
+    return rand < 0.3 ? "CORGI" : "GIFT";
   }
 };
 
@@ -114,7 +132,9 @@ const assignOrnamentType = (heightRatio: number): OrnamentType => {
  * Calculate explosion target position in 3D space
  * Creates a spherical distribution for the photo cloud
  */
-const getExplosionTarget = (explosionRadius: number): [number, number, number] => {
+const getExplosionTarget = (
+  explosionRadius: number,
+): [number, number, number] => {
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(Math.random() * 2 - 1);
   const r = Math.random() * explosionRadius + 15;
@@ -132,11 +152,13 @@ const getExplosionTarget = (explosionRadius: number): [number, number, number] =
 const calculateControlPoint = (
   start: [number, number, number],
   end: [number, number, number],
-  explosionForce: number = 8.0
+  explosionForce: number = 8.0,
 ): [number, number, number] => {
   // Direction from origin for radial explosion
   const radialDir = [start[0], start[1], start[2]];
-  const radialLen = Math.sqrt(radialDir[0] ** 2 + radialDir[1] ** 2 + radialDir[2] ** 2);
+  const radialLen = Math.sqrt(
+    radialDir[0] ** 2 + radialDir[1] ** 2 + radialDir[2] ** 2,
+  );
 
   if (radialLen > 0.001) {
     radialDir[0] /= radialLen;
@@ -180,13 +202,13 @@ interface LODLevel {
   distance: number;
   particleRatio: number;
   enableShadows: boolean;
-  quality: 'high' | 'medium' | 'low';
+  quality: "high" | "medium" | "low";
 }
 
 const LOD_LEVELS: LODLevel[] = [
-  { distance: 20, particleRatio: 1.0, enableShadows: true, quality: 'high' },
-  { distance: 35, particleRatio: 0.8, enableShadows: false, quality: 'medium' },
-  { distance: 50, particleRatio: 0.5, enableShadows: false, quality: 'low' },
+  { distance: 20, particleRatio: 1.0, enableShadows: true, quality: "high" },
+  { distance: 35, particleRatio: 0.8, enableShadows: false, quality: "medium" },
+  { distance: 50, particleRatio: 0.5, enableShadows: false, quality: "low" },
 ];
 
 const getLODLevel = (cameraDistance: number): LODLevel => {
@@ -204,7 +226,7 @@ const getLODLevel = (cameraDistance: number): LODLevel => {
 const createParticleShaderMaterial = (
   treeColor: THREE.Color,
   texture: THREE.Texture | null,
-  baseSize: number = 0.55
+  baseSize: number = 0.55,
 ): THREE.ShaderMaterial => {
   return new THREE.ShaderMaterial({
     vertexShader: particleVertexShader,
@@ -215,6 +237,14 @@ const createParticleShaderMaterial = (
       uTreeColor: { value: treeColor },
       uMap: { value: texture },
       uBaseSize: { value: baseSize },
+      uBreatheFreq1: { value: PARTICLE_CONFIG.animation.breatheFrequency1 },
+      uBreatheFreq2: { value: PARTICLE_CONFIG.animation.breatheFrequency2 },
+      uBreatheFreq3: { value: PARTICLE_CONFIG.animation.breatheFrequency3 },
+      uBreatheAmp1: { value: PARTICLE_CONFIG.animation.breatheAmplitude1 },
+      uBreatheAmp2: { value: PARTICLE_CONFIG.animation.breatheAmplitude2 },
+      uBreatheAmp3: { value: PARTICLE_CONFIG.animation.breatheAmplitude3 },
+      uSwayFreq: { value: PARTICLE_CONFIG.animation.swayFrequency },
+      uSwayAmp: { value: PARTICLE_CONFIG.animation.swayAmplitude },
     },
     transparent: true,
     depthWrite: false,
@@ -223,16 +253,22 @@ const createParticleShaderMaterial = (
   });
 };
 
-
 // === MAIN COMPONENT ===
 export const TreeParticles: React.FC<TreeParticlesProps> = ({
   isExploded,
   config,
   onParticlesClick,
+  photos,
 }) => {
   // Global State
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
+  const { viewport } = useThree();
+
+  // Local State
+  const [texturesLoaded, setTexturesLoaded] = React.useState(false);
+  const preloadStartedRef = useRef<string | null>(null);
+  const explosionStartTimeRef = useRef(0);
 
   // Refs for each layer
   const entityLayerRef = useRef<THREE.Points>(null);
@@ -249,6 +285,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Animation state
   const progressRef = useRef(0.0);
   const targetProgressRef = useRef(0.0);
+  const rootRef = useRef<THREE.Group>(null);
+  const shakeIntensity = useRef(0);
 
   // LOD state
   const lodRef = useRef<LODLevel>(LOD_LEVELS[0]);
@@ -256,6 +294,50 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Textures
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
+
+  // === PHOTO DATA GENERATION ===
+  const photoData = useMemo(() => {
+    const aspectRatio = viewport.width / viewport.height;
+    // Generate target positions for photos
+    const photoPositions = generatePhotoPositions(PHOTO_COUNT, aspectRatio);
+
+    // Get available source URLs (unique set)
+    const sourceUrls = photos.length > 0
+      ? photos.map((p) => p.url)
+      : MEMORIES.map((m) => m.image);
+
+    // Distribute URLs to positions, avoiding neighbors having same photo
+    const photoUrls = distributePhotos(photoPositions, sourceUrls);
+
+    return {
+      positions: photoPositions,
+      urls: photoUrls,
+      count: photoPositions.length,
+    };
+  }, [photos, viewport.width, viewport.height]);
+
+  // === PRELOAD TEXTURES ===
+  useEffect(() => {
+    // Compute key from URL list (sorted unique URLs joined)
+    const uniqueUrls = [...new Set(photoData.urls)].sort();
+    const currentKey = uniqueUrls.join("|");
+
+    // Skip if this exact batch was already preloaded
+    if (preloadStartedRef.current === currentKey) return;
+
+    // Update ref with current batch key before preloading
+    preloadStartedRef.current = currentKey;
+
+    // Preload in batches
+    preloadTextures(uniqueUrls, 5, (loaded, total) => {
+      if (loaded === total) {
+        setTexturesLoaded(true);
+      }
+    }).catch((err) => {
+      console.warn("Texture preload error:", err);
+      setTexturesLoaded(true);
+    });
+  }, [photoData.urls]);
 
   // === DYNAMIC COLOR VARIANTS ===
   // Generates color variants (base, light, deep, dark) from the selected tree color
@@ -267,18 +349,30 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     return {
       base: base,
-      light: new THREE.Color().setHSL(hsl.h, hsl.s * 0.8, Math.min(hsl.l + 0.2, 0.95)),
-      deep: new THREE.Color().setHSL(hsl.h, hsl.s * 1.2, Math.max(hsl.l - 0.15, 0.2)),
+      light: new THREE.Color().setHSL(
+        hsl.h,
+        hsl.s * 0.8,
+        Math.min(hsl.l + 0.2, 0.95),
+      ),
+      deep: new THREE.Color().setHSL(
+        hsl.h,
+        hsl.s * 1.2,
+        Math.max(hsl.l - 0.15, 0.2),
+      ),
       dark: new THREE.Color().setHSL(hsl.h, hsl.s, Math.max(hsl.l - 0.3, 0.1)),
     };
   }, [treeColor]);
 
-
-
   // === ENTITY LAYER (50% - Normal Blending) ===
+  // Extended with photo particle marking for morph effect
   const entityLayerData = useMemo(() => {
     // Calculate count based on total particle budget
-    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.entity, PARTICLE_CONFIG.minCounts.tree * 0.7));
+    const count = Math.floor(
+      Math.max(
+        particleCount * PARTICLE_CONFIG.ratios.entity,
+        PARTICLE_CONFIG.minCounts.tree * 0.7,
+      ),
+    );
 
     // Standard position (used for initial render)
     const pos = new Float32Array(count * 3);
@@ -296,6 +390,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     // Branch angles
     const branchAngles = new Float32Array(count);
+    // Photo particle flag (1.0 = photo, 0.0 = regular)
+    const isPhotoParticle = new Float32Array(count);
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
 
@@ -373,7 +469,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       } else if (isInner) {
         c = colorVariants.deep;
       } else {
-        c = colorVariants.base.clone().lerp(colorVariants.light, heightFactor * 0.5);
+        c = colorVariants.base
+          .clone()
+          .lerp(colorVariants.light, heightFactor * 0.5);
       }
 
       col[i * 3] = c.r;
@@ -382,6 +480,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       // Size with tip enhancement
       siz[i] = 0.5 + Math.random() * 0.4 + (isTip ? 0.2 : 0);
+
+      // Initialize as non-photo particle
+      isPhotoParticle[i] = 0.0;
     }
 
     return {
@@ -393,13 +494,19 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       sizes: siz,
       random,
       branchAngles,
-      count
+      isPhotoParticle,
+      count,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
   // === GLOW LAYER (20% - Additive Blending) ===
   const glowLayerData = useMemo(() => {
-    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.glow, PARTICLE_CONFIG.minCounts.tree * 0.3));
+    const count = Math.floor(
+      Math.max(
+        particleCount * PARTICLE_CONFIG.ratios.glow,
+        PARTICLE_CONFIG.minCounts.tree * 0.3,
+      ),
+    );
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -409,6 +516,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
     const flickerPhase = new Float32Array(count); // For sparkle animation
+    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in glow
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
 
@@ -484,14 +592,20 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       random,
       branchAngles,
       flickerPhase,
-      count
+      isPhotoParticle,
+      count,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
   // === ORNAMENTS - Special ornaments with distribution algorithm ===
   const ornamentData = useMemo(() => {
     // Scale ornaments proportionally to particle count
-    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.ornament, PARTICLE_CONFIG.minCounts.ornament));
+    const count = Math.floor(
+      Math.max(
+        particleCount * PARTICLE_CONFIG.ratios.ornament,
+        PARTICLE_CONFIG.minCounts.ornament,
+      ),
+    );
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -500,6 +614,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const siz = new Float32Array(count);
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
+    const isPhotoParticle = new Float32Array(count); // All zeros - no photo particles in ornaments
 
     const treeHeight = PARTICLE_CONFIG.treeHeight;
     const treeBottom = PARTICLE_CONFIG.treeBottomY;
@@ -537,7 +652,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const x = Math.cos(theta) * baseR;
       const z = Math.sin(theta) * baseR;
 
-      const startPos: [number, number, number] = [x, y + Math.sin(theta * 3) * 0.1, z];
+      const startPos: [number, number, number] = [
+        x,
+        y + Math.sin(theta * 3) * 0.1,
+        z,
+      ];
       pos[idx * 3] = x;
       pos[idx * 3 + 1] = y + Math.sin(theta * 3) * 0.1;
       pos[idx * 3 + 2] = z;
@@ -570,7 +689,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Special ornament clusters
     clusters.forEach((cluster) => {
       const particlesPerCluster = 18;
-      const heightRatio = (cluster.y - PARTICLE_CONFIG.treeBottomY) / treeHeight;
+      const heightRatio =
+        (cluster.y - PARTICLE_CONFIG.treeBottomY) / treeHeight;
       const baseR = getTreeRadius(heightRatio) * 0.9 + 0.5;
       const cx = Math.cos(cluster.angle) * baseR;
       const cz = Math.sin(cluster.angle) * baseR;
@@ -612,19 +732,24 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Color by ornament type
         let c: THREE.Color;
         switch (cluster.type) {
-          case 'BUS':
+          case "BUS":
             c = STATIC_COLORS.londonRed;
             break;
-          case 'FLAG':
-            c = p % 3 === 0 ? STATIC_COLORS.ukRed : p % 3 === 1 ? STATIC_COLORS.ukBlue : STATIC_COLORS.white;
+          case "FLAG":
+            c =
+              p % 3 === 0
+                ? STATIC_COLORS.ukRed
+                : p % 3 === 1
+                  ? STATIC_COLORS.ukBlue
+                  : STATIC_COLORS.white;
             break;
-          case 'CORGI':
+          case "CORGI":
             c = STATIC_COLORS.corgiTan;
             break;
-          case 'BIG_BEN':
+          case "BIG_BEN":
             c = STATIC_COLORS.silver;
             break;
-          case 'GIFT':
+          case "GIFT":
             c = Math.random() > 0.5 ? colorVariants.base : STATIC_COLORS.white;
             break;
           default:
@@ -648,15 +773,20 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       sizes: siz,
       random,
       branchAngles,
-      count: idx
+      isPhotoParticle,
+      count: idx,
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
-
-  // === GIFT BOXES ===
+  // === GIFT BOXES (Photo Source) ===
   const giftData = useMemo(() => {
     // Scale gifts proportionally to particle count
-    const count = Math.floor(Math.max(particleCount * PARTICLE_CONFIG.ratios.gift, PARTICLE_CONFIG.minCounts.gift));
+    const count = Math.floor(
+      Math.max(
+        particleCount * PARTICLE_CONFIG.ratios.gift,
+        PARTICLE_CONFIG.minCounts.gift,
+      ),
+    );
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
     const positionEnd = new Float32Array(count * 3);
@@ -665,18 +795,93 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const siz = new Float32Array(count);
     const random = new Float32Array(count);
     const branchAngles = new Float32Array(count);
+    const isPhotoParticle = new Float32Array(count);
+
+    // Store start positions of particles chosen to be photos
+    // This will be used by PolaroidPhoto components to match the particle they replace
+    const photoParticleStartPositions: [number, number, number][] = [];
 
     const gifts = [
-      { r: 2.0, ang: 0, w: 2.2, h: 2.0, c: colorVariants.base, rib: STATIC_COLORS.white },
-      { r: 2.3, ang: 1.2, w: 1.8, h: 1.6, c: STATIC_COLORS.silver, rib: colorVariants.dark },
-      { r: 2.1, ang: 2.5, w: 2.5, h: 1.8, c: colorVariants.dark, rib: STATIC_COLORS.gold },
-      { r: 2.4, ang: 3.8, w: 1.6, h: 2.2, c: STATIC_COLORS.white, rib: STATIC_COLORS.ukRed },
-      { r: 2.2, ang: 5.0, w: 2.0, h: 1.5, c: STATIC_COLORS.cream, rib: STATIC_COLORS.silver },
-      { r: 3.2, ang: 0.6, w: 1.4, h: 1.2, c: colorVariants.light, rib: STATIC_COLORS.silver },
-      { r: 3.5, ang: 2.0, w: 1.6, h: 1.4, c: STATIC_COLORS.white, rib: colorVariants.base },
-      { r: 3.3, ang: 3.5, w: 1.3, h: 1.1, c: STATIC_COLORS.silver, rib: STATIC_COLORS.gold },
-      { r: 3.6, ang: 4.8, w: 1.5, h: 1.3, c: colorVariants.dark, rib: STATIC_COLORS.white },
-      { r: 3.8, ang: 5.8, w: 1.2, h: 1.0, c: STATIC_COLORS.ukBlue, rib: STATIC_COLORS.white },
+      {
+        r: 2.0,
+        ang: 0,
+        w: 2.2,
+        h: 2.0,
+        c: colorVariants.base,
+        rib: STATIC_COLORS.white,
+      },
+      {
+        r: 2.3,
+        ang: 1.2,
+        w: 1.8,
+        h: 1.6,
+        c: STATIC_COLORS.silver,
+        rib: colorVariants.dark,
+      },
+      {
+        r: 2.1,
+        ang: 2.5,
+        w: 2.5,
+        h: 1.8,
+        c: colorVariants.dark,
+        rib: STATIC_COLORS.gold,
+      },
+      {
+        r: 2.4,
+        ang: 3.8,
+        w: 1.6,
+        h: 2.2,
+        c: STATIC_COLORS.white,
+        rib: STATIC_COLORS.ukRed,
+      },
+      {
+        r: 2.2,
+        ang: 5.0,
+        w: 2.0,
+        h: 1.5,
+        c: STATIC_COLORS.cream,
+        rib: STATIC_COLORS.silver,
+      },
+      {
+        r: 3.2,
+        ang: 0.6,
+        w: 1.4,
+        h: 1.2,
+        c: colorVariants.light,
+        rib: STATIC_COLORS.silver,
+      },
+      {
+        r: 3.5,
+        ang: 2.0,
+        w: 1.6,
+        h: 1.4,
+        c: STATIC_COLORS.white,
+        rib: colorVariants.base,
+      },
+      {
+        r: 3.3,
+        ang: 3.5,
+        w: 1.3,
+        h: 1.1,
+        c: STATIC_COLORS.silver,
+        rib: STATIC_COLORS.gold,
+      },
+      {
+        r: 3.6,
+        ang: 4.8,
+        w: 1.5,
+        h: 1.3,
+        c: colorVariants.dark,
+        rib: STATIC_COLORS.white,
+      },
+      {
+        r: 3.8,
+        ang: 5.8,
+        w: 1.2,
+        h: 1.0,
+        c: STATIC_COLORS.ukBlue,
+        rib: STATIC_COLORS.white,
+      },
     ];
 
     const perGift = Math.floor(count / gifts.length);
@@ -695,7 +900,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         let uy = Math.random() - 0.5;
         let uz = Math.random() - 0.5;
 
-        // Bias to surface for box appearance (Stronger bias for sharper edges)
+        // Bias to surface for box appearance
         if (Math.random() > 0.1) {
           const axis = Math.floor(Math.random() * 3);
           if (axis === 0) ux = ux > 0 ? 0.5 : -0.5;
@@ -724,7 +929,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         positionStart[idx * 3 + 1] = fy;
         positionStart[idx * 3 + 2] = fz;
 
-        const endPos = getExplosionTarget(config.explosionRadius);
+        // Default explosion target
+        let endPos = getExplosionTarget(config.explosionRadius);
+
+        // WILL BE OVERRIDDEN if this particle is selected as a photo
         positionEnd[idx * 3] = endPos[0];
         positionEnd[idx * 3 + 1] = endPos[1];
         positionEnd[idx * 3 + 2] = endPos[2];
@@ -744,44 +952,162 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         col[idx * 3] = c.r;
         col[idx * 3 + 1] = c.g;
         col[idx * 3 + 2] = c.b;
-        siz[idx] = 0.8; // Larger particles for solid look
+        siz[idx] = 0.8;
+
+        isPhotoParticle[idx] = 0.0;
         idx++;
       }
     });
 
+    // Select particles to be photos - BUT DO NOT MARK THEM AS PHOTOS in the shader
+    // We want the box to remain INTACT until the photos are printed.
+    // Instead, we just capture the spawn positions for the PolaroidPhoto components.
+
+    // We want to distribute photos evenly across the gifts
+    const photosPerGift = Math.ceil(photoData.count / gifts.length);
+    const giftCenters: { center: [number, number, number]; angle: number }[] =
+      [];
+
+    // Calculate centers for all gifts
+    gifts.forEach((gift) => {
+      const cx = Math.cos(gift.ang) * gift.r;
+      const cz = Math.sin(gift.ang) * gift.r;
+      const cy = -6.5 + gift.h / 2;
+      // Spawn point is at the top of the box
+      giftCenters.push({ center: [cx, cy + gift.h / 2, cz], angle: gift.ang });
+    });
+
+    // Assign each photo to a gift box in round-robin fashion
+    for (let i = 0; i < photoData.count; i++) {
+      const giftIndex = i % giftCenters.length;
+      const spawnPoint = giftCenters[giftIndex].center;
+
+      photoParticleStartPositions.push([
+        spawnPoint[0],
+        spawnPoint[1],
+        spawnPoint[2],
+      ]);
+    }
+
     return {
       positions: pos,
       positionStart,
-      positionEnd,
+      positionEnd, // We don't need to modify this anymore as gifts don't morph
       controlPoints,
       colors: col,
       sizes: siz,
       random,
       branchAngles,
-      count: idx
+      isPhotoParticle, // All zeros, keeping boxes solid
+      photoParticleStartPositions,
+      count: idx,
     };
-  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
+  }, [
+    particleCount,
+    config.explosionRadius,
+    colorVariants,
+    PARTICLE_CONFIG,
+    photoData,
+  ]);
 
   // === SHADER MATERIAL CREATION ===
   useEffect(() => {
     const treeColorThree = new THREE.Color(treeColor);
 
     // Create materials with proper base sizes matching original PointsMaterial
-    // Entity layer: size 0.55, normal blending
-    entityMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.55);
-    entityMaterialRef.current.depthWrite = true;
+    // Add error handling with fallback to ShaderMaterial if shader compilation fails
+    try {
+      // Entity layer: size 0.55, normal blending
+      entityMaterialRef.current = createParticleShaderMaterial(
+        treeColorThree,
+        featherTexture,
+        0.55,
+      );
+      entityMaterialRef.current.depthWrite = true;
 
-    // Glow layer: size 0.45, additive blending
-    glowMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.45);
-    glowMaterialRef.current.blending = THREE.AdditiveBlending;
+      // Glow layer: size 0.45, additive blending
+      glowMaterialRef.current = createParticleShaderMaterial(
+        treeColorThree,
+        sparkleTexture,
+        0.45,
+      );
+      glowMaterialRef.current.blending = THREE.AdditiveBlending;
 
-    // Ornaments: size 0.5, additive blending
-    ornamentMaterialRef.current = createParticleShaderMaterial(treeColorThree, sparkleTexture, 0.5);
-    ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
+      // Ornaments: size 0.5, additive blending
+      ornamentMaterialRef.current = createParticleShaderMaterial(
+        treeColorThree,
+        sparkleTexture,
+        0.5,
+      );
+      ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
 
-    // Gifts: size 0.7, normal blending
-    giftMaterialRef.current = createParticleShaderMaterial(treeColorThree, featherTexture, 0.7);
-    giftMaterialRef.current.depthWrite = true;
+      // Gifts: size 0.7, normal blending
+      giftMaterialRef.current = createParticleShaderMaterial(
+        treeColorThree,
+        featherTexture,
+        0.7,
+      );
+      giftMaterialRef.current.depthWrite = true;
+    } catch (error) {
+      console.error(
+        "Shader compilation failed, falling back to safe ShaderMaterial",
+        error,
+      );
+      // Fallback to proper ShaderMaterial with same uniforms to avoid runtime crashes
+      const createFallbackShaderMaterial = (
+        baseSize: number,
+        texture: THREE.Texture | null,
+      ): THREE.ShaderMaterial => {
+        return new THREE.ShaderMaterial({
+          vertexShader: particleVertexShader,
+          fragmentShader: particleFragmentShader,
+          uniforms: {
+            uProgress: { value: 0.0 },
+            uTime: { value: 0.0 },
+            uTreeColor: { value: treeColorThree },
+            uMap: { value: texture },
+            uBaseSize: { value: baseSize },
+            uBreatheFreq1: { value: PARTICLE_CONFIG.animation.breatheFrequency1 },
+            uBreatheFreq2: { value: PARTICLE_CONFIG.animation.breatheFrequency2 },
+            uBreatheFreq3: { value: PARTICLE_CONFIG.animation.breatheFrequency3 },
+            uBreatheAmp1: { value: PARTICLE_CONFIG.animation.breatheAmplitude1 },
+            uBreatheAmp2: { value: PARTICLE_CONFIG.animation.breatheAmplitude2 },
+            uBreatheAmp3: { value: PARTICLE_CONFIG.animation.breatheAmplitude3 },
+            uSwayFreq: { value: PARTICLE_CONFIG.animation.swayFrequency },
+            uSwayAmp: { value: PARTICLE_CONFIG.animation.swayAmplitude },
+          },
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.NormalBlending,
+          vertexColors: true,
+        });
+      };
+
+      // Create fallback materials with proper ShaderMaterial instances
+      entityMaterialRef.current = createFallbackShaderMaterial(
+        0.55,
+        featherTexture,
+      );
+      entityMaterialRef.current.depthWrite = true;
+
+      glowMaterialRef.current = createFallbackShaderMaterial(
+        0.45,
+        sparkleTexture,
+      );
+      glowMaterialRef.current.blending = THREE.AdditiveBlending;
+
+      ornamentMaterialRef.current = createFallbackShaderMaterial(
+        0.5,
+        sparkleTexture,
+      );
+      ornamentMaterialRef.current.blending = THREE.AdditiveBlending;
+
+      giftMaterialRef.current = createFallbackShaderMaterial(
+        0.7,
+        featherTexture,
+      );
+      giftMaterialRef.current.depthWrite = true;
+    }
 
     // Cleanup
     return () => {
@@ -792,13 +1118,28 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
   }, [treeColor, featherTexture, sparkleTexture]);
 
-  // === UPDATE TARGET PROGRESS ===
+  // === UPDATE TARGET PROGRESS & START TIME ===
   useEffect(() => {
     targetProgressRef.current = isExploded ? 1.0 : 0.0;
+    if (isExploded) {
+      // Capture the timestamp when explosion starts
+      // We can't access 'state.clock' here easily without a hook,
+      // but we can assume this effect runs on frame or shortly after.
+      // Actually best to set a flag and capture time in useFrame
+      // OR just look at uTime in shader.
+      // Let's rely on useFrame to capture "transition start".
+    }
   }, [isExploded]);
 
   // === ANIMATION FRAME ===
-  const { camera } = useThree();
+  const { camera, clock } = useThree(); // Get clock directly
+
+  // Track explosion start in a ref accessible to logic
+  useEffect(() => {
+    if (isExploded) {
+      explosionStartTimeRef.current = clock.elapsedTime;
+    }
+  }, [isExploded, clock]); // Clock is stable from useThree
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
@@ -809,8 +1150,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     lodRef.current = getLODLevel(cameraDistance);
 
     // === GPU STATE MACHINE: Interpolate uProgress uniform ===
-    // Damping factor for smooth transition (satisfies AC#6: "Midnight Magic" aesthetic)
-    const dampingSpeed = isExploded ? 0.02 : 0.04; // Slower for explosion, faster for reset
+    // Damping speeds: Explosion (0.02) is slower for high-velocity effect,
+    // Reset (0.04) is faster for quicker return. Matches AC6 "Midnight Magic" aesthetic
+    // requirement: "high velocity, rapid damping" for explosion phase.
+    const dampingSpeed = isExploded
+      ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
+      : PARTICLE_CONFIG.animation.dampingSpeedReset;
     const diff = targetProgressRef.current - progressRef.current;
     progressRef.current += diff * dampingSpeed;
 
@@ -819,90 +1164,361 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       entityMaterialRef.current,
       glowMaterialRef.current,
       ornamentMaterialRef.current,
-      giftMaterialRef.current,
+      // giftMaterialRef.current is handled separately below
     ];
 
     materials.forEach((mat) => {
-      if (mat) {
+      if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
         mat.uniforms.uProgress.value = progressRef.current;
         mat.uniforms.uTime.value = time;
       }
     });
 
+    // === BOX DISSOLVE LOGIC ===
+    // Gifts should remain solid while photos are printing.
+    // Printing duration = (Total Photos * Stagger Delay) + Individual Animation Time
+    // 99 photos * 0.05s = 4.95s. Plus 1.5s buffer.
+    const printingDuration = PHOTO_COUNT * 0.05 + 1.5;
+
+    if (
+      giftMaterialRef.current &&
+      giftMaterialRef.current instanceof THREE.ShaderMaterial &&
+      giftMaterialRef.current.uniforms
+    ) {
+      if (isExploded) {
+        // Fix for disappearing particles:
+        // Keep gift boxes solid and at their original position (uProgress = 0.0)
+        // throughout the entire explosion sequence. They serve as the anchor.
+        giftMaterialRef.current.uniforms.uProgress.value = 0.0;
+      } else {
+        // When resetting, follow the main progress (which goes back to 0.0)
+        giftMaterialRef.current.uniforms.uProgress.value = progressRef.current;
+      }
+      giftMaterialRef.current.uniforms.uTime.value = time;
+    }
+
     // Rotation animation for visual appeal
-    const layers = [entityLayerRef, glowLayerRef, ornamentsRef, giftsRef];
     const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
 
-    layers.forEach((ref) => {
-      if (ref.current) {
-        ref.current.rotation.y += rotSpeed;
-      }
-    });
+    // Check if refs exist before accessing rotation
+    if (entityLayerRef.current) entityLayerRef.current.rotation.y += rotSpeed;
+    if (glowLayerRef.current) glowLayerRef.current.rotation.y += rotSpeed;
+    if (ornamentsRef.current) ornamentsRef.current.rotation.y += rotSpeed;
+    if (giftsRef.current) giftsRef.current.rotation.y += rotSpeed;
   });
 
   const treeKey = `tree-${particleCount}-${treeColor}`;
 
+  // === SHAKE ANIMATION ===
+  // Trigger shake on explosion
+  useEffect(() => {
+    if (isExploded) {
+      shakeIntensity.current = 1.0;
+    }
+  }, [isExploded]);
+
+  useFrame((state, delta) => {
+    // Process Shake
+    if (shakeIntensity.current > 0.001 && rootRef.current) {
+      const shakePower = shakeIntensity.current * shakeIntensity.current; // Quadratic falloff for better feel
+      const rx = (Math.random() - 0.5) * 0.5 * shakePower; // 0.5 unit shake
+      const ry = (Math.random() - 0.5) * 0.5 * shakePower;
+      const rz = (Math.random() - 0.5) * 0.5 * shakePower;
+
+      rootRef.current.position.set(rx, ry, rz);
+
+      // Decay
+      shakeIntensity.current = THREE.MathUtils.lerp(shakeIntensity.current, 0, delta * 5.0);
+    } else if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
+      // Reset to 0 when done
+      rootRef.current.position.set(0, 0, 0);
+    }
+  });
+
   return (
-    <group onClick={(e) => { e.stopPropagation(); onParticlesClick(); }}>
+    <group
+      ref={rootRef}
+      onClick={(e) => {
+        e.stopPropagation();
+        onParticlesClick();
+      }}
+    >
       {/* === ENTITY LAYER (Normal Blending + Depth Write) === */}
       <points key={`entity-${treeKey}`} ref={entityLayerRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={entityLayerData.count} array={entityLayerData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-positionStart" count={entityLayerData.count} array={entityLayerData.positionStart} itemSize={3} />
-          <bufferAttribute attach="attributes-positionEnd" count={entityLayerData.count} array={entityLayerData.positionEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-controlPoint" count={entityLayerData.count} array={entityLayerData.controlPoints} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={entityLayerData.count} array={entityLayerData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aScale" count={entityLayerData.count} array={entityLayerData.sizes} itemSize={1} />
-          <bufferAttribute attach="attributes-aRandom" count={entityLayerData.count} array={entityLayerData.random} itemSize={1} />
-          <bufferAttribute attach="attributes-aBranchAngle" count={entityLayerData.count} array={entityLayerData.branchAngles} itemSize={1} />
+          <bufferAttribute
+            attach="attributes-position"
+            count={entityLayerData.count}
+            array={entityLayerData.positions}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionStart"
+            count={entityLayerData.count}
+            array={entityLayerData.positionStart}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionEnd"
+            count={entityLayerData.count}
+            array={entityLayerData.positionEnd}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-controlPoint"
+            count={entityLayerData.count}
+            array={entityLayerData.controlPoints}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aColor"
+            count={entityLayerData.count}
+            array={entityLayerData.colors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aScale"
+            count={entityLayerData.count}
+            array={entityLayerData.sizes}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aRandom"
+            count={entityLayerData.count}
+            array={entityLayerData.random}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aBranchAngle"
+            count={entityLayerData.count}
+            array={entityLayerData.branchAngles}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aIsPhotoParticle"
+            count={entityLayerData.count}
+            array={entityLayerData.isPhotoParticle}
+            itemSize={1}
+          />
         </bufferGeometry>
-        {entityMaterialRef.current && <primitive object={entityMaterialRef.current} attach="material" />}
+        {entityMaterialRef.current && (
+          <primitive object={entityMaterialRef.current} attach="material" />
+        )}
       </points>
 
       {/* === GLOW LAYER (Additive Blending) === */}
       <points key={`glow-${treeKey}`} ref={glowLayerRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={glowLayerData.count} array={glowLayerData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-positionStart" count={glowLayerData.count} array={glowLayerData.positionStart} itemSize={3} />
-          <bufferAttribute attach="attributes-positionEnd" count={glowLayerData.count} array={glowLayerData.positionEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-controlPoint" count={glowLayerData.count} array={glowLayerData.controlPoints} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={glowLayerData.count} array={glowLayerData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aScale" count={glowLayerData.count} array={glowLayerData.sizes} itemSize={1} />
-          <bufferAttribute attach="attributes-aRandom" count={glowLayerData.count} array={glowLayerData.random} itemSize={1} />
-          <bufferAttribute attach="attributes-aBranchAngle" count={glowLayerData.count} array={glowLayerData.branchAngles} itemSize={1} />
+          <bufferAttribute
+            attach="attributes-position"
+            count={glowLayerData.count}
+            array={glowLayerData.positions}
+            itemSize={3}
+          />
+
+          <bufferAttribute
+            attach="attributes-positionStart"
+            count={glowLayerData.count}
+            array={glowLayerData.positionStart}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionEnd"
+            count={glowLayerData.count}
+            array={glowLayerData.positionEnd}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-controlPoint"
+            count={glowLayerData.count}
+            array={glowLayerData.controlPoints}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aColor"
+            count={glowLayerData.count}
+            array={glowLayerData.colors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aScale"
+            count={glowLayerData.count}
+            array={glowLayerData.sizes}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aRandom"
+            count={glowLayerData.count}
+            array={glowLayerData.random}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aBranchAngle"
+            count={glowLayerData.count}
+            array={glowLayerData.branchAngles}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aIsPhotoParticle"
+            count={glowLayerData.count}
+            array={glowLayerData.isPhotoParticle}
+            itemSize={1}
+          />
         </bufferGeometry>
-        {glowMaterialRef.current && <primitive object={glowMaterialRef.current} attach="material" />}
+        {glowMaterialRef.current && (
+          <primitive object={glowMaterialRef.current} attach="material" />
+        )}
       </points>
 
       {/* Ornaments and pearls */}
       <points ref={ornamentsRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={ornamentData.count} array={ornamentData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-positionStart" count={ornamentData.count} array={ornamentData.positionStart} itemSize={3} />
-          <bufferAttribute attach="attributes-positionEnd" count={ornamentData.count} array={ornamentData.positionEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-controlPoint" count={ornamentData.count} array={ornamentData.controlPoints} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={ornamentData.count} array={ornamentData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aScale" count={ornamentData.count} array={ornamentData.sizes} itemSize={1} />
-          <bufferAttribute attach="attributes-aRandom" count={ornamentData.count} array={ornamentData.random} itemSize={1} />
-          <bufferAttribute attach="attributes-aBranchAngle" count={ornamentData.count} array={ornamentData.branchAngles} itemSize={1} />
+          <bufferAttribute
+            attach="attributes-position"
+            count={ornamentData.count}
+            array={ornamentData.positions}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionStart"
+            count={ornamentData.count}
+            array={ornamentData.positionStart}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionEnd"
+            count={ornamentData.count}
+            array={ornamentData.positionEnd}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-controlPoint"
+            count={ornamentData.count}
+            array={ornamentData.controlPoints}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aColor"
+            count={ornamentData.count}
+            array={ornamentData.colors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aScale"
+            count={ornamentData.count}
+            array={ornamentData.sizes}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aRandom"
+            count={ornamentData.count}
+            array={ornamentData.random}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aBranchAngle"
+            count={ornamentData.count}
+            array={ornamentData.branchAngles}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aIsPhotoParticle"
+            count={ornamentData.count}
+            array={ornamentData.isPhotoParticle}
+            itemSize={1}
+          />
         </bufferGeometry>
-        {ornamentMaterialRef.current && <primitive object={ornamentMaterialRef.current} attach="material" />}
+        {ornamentMaterialRef.current && (
+          <primitive object={ornamentMaterialRef.current} attach="material" />
+        )}
       </points>
 
       {/* Gift boxes */}
       <points ref={giftsRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={giftData.count} array={giftData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-positionStart" count={giftData.count} array={giftData.positionStart} itemSize={3} />
-          <bufferAttribute attach="attributes-positionEnd" count={giftData.count} array={giftData.positionEnd} itemSize={3} />
-          <bufferAttribute attach="attributes-controlPoint" count={giftData.count} array={giftData.controlPoints} itemSize={3} />
-          <bufferAttribute attach="attributes-aColor" count={giftData.count} array={giftData.colors} itemSize={3} />
-          <bufferAttribute attach="attributes-aScale" count={giftData.count} array={giftData.sizes} itemSize={1} />
-          <bufferAttribute attach="attributes-aRandom" count={giftData.count} array={giftData.random} itemSize={1} />
-          <bufferAttribute attach="attributes-aBranchAngle" count={giftData.count} array={giftData.branchAngles} itemSize={1} />
+          <bufferAttribute
+            attach="attributes-position"
+            count={giftData.count}
+            array={giftData.positions}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionStart"
+            count={giftData.count}
+            array={giftData.positionStart}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionEnd"
+            count={giftData.count}
+            array={giftData.positionEnd}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-controlPoint"
+            count={giftData.count}
+            array={giftData.controlPoints}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aColor"
+            count={giftData.count}
+            array={giftData.colors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aScale"
+            count={giftData.count}
+            array={giftData.sizes}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aRandom"
+            count={giftData.count}
+            array={giftData.random}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aBranchAngle"
+            count={giftData.count}
+            array={giftData.branchAngles}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aIsPhotoParticle"
+            count={giftData.count}
+            array={giftData.isPhotoParticle}
+            itemSize={1}
+          />
         </bufferGeometry>
-        {giftMaterialRef.current && <primitive object={giftMaterialRef.current} attach="material" />}
+        {giftMaterialRef.current && (
+          <primitive object={giftMaterialRef.current} attach="material" />
+        )}
       </points>
+
+      {/* === POLAROID PHOTOS === */}
+      {texturesLoaded && (
+        <group>
+          {photoData.positions.map((pos, i) => {
+            // Only render if we have a matching start position from the gifts
+            if (i >= giftData.photoParticleStartPositions.length) return null;
+
+            return (
+              <PolaroidPhoto
+                key={i}
+                url={photoData.urls[i]}
+                position={[pos.x, pos.y, pos.z]}
+                rotation={pos.rotation}
+                scale={pos.scale * config.photoSize}
+                isExploded={isExploded}
+                particleStartPosition={giftData.photoParticleStartPositions[i]}
+                morphIndex={i}
+                totalPhotos={photoData.positions.length}
+              />
+            );
+          })}
+        </group>
+      )}
     </group>
   );
 };

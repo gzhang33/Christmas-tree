@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 
+interface PerformanceData {
+  fps: number;
+  frameTime: number;
+  drawCalls: number;
+  triangles: number;
+  particleCount: number;
+  lodLevel: string;
+  memoryUsage: number;
+}
+
+interface DebugStoreProps {
+  performanceData?: PerformanceData;
+}
+
 /**
  * Debug Store Panel
  * 
@@ -11,8 +25,9 @@ import { useStore } from '../../store/useStore';
  * - Store state updates correctly
  * - LocalStorage persistence works
  * - State changes trigger re-renders
+ * - Performance metrics (FPS, draw calls, etc.)
  */
-export const DebugStore: React.FC = () => {
+export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
     const [isVisible, setIsVisible] = useState(false);
 
     // Subscribe to all store state
@@ -75,6 +90,51 @@ export const DebugStore: React.FC = () => {
                     <span className="text-cyan-400">{activePhotoId || 'null'}</span>
                 </div>
             </div>
+
+            {/* Performance Metrics Section */}
+            {performanceData && (
+                <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+                    <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Performance</div>
+                    <div className="space-y-2 text-xs font-mono">
+                        <div className="flex justify-between">
+                            <span className="text-white/60">FPS:</span>
+                            <span className={
+                                performanceData.fps >= 55 ? 'text-green-400' :
+                                performanceData.fps >= 40 ? 'text-yellow-400' :
+                                'text-red-400'
+                            }>
+                                {performanceData.fps}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/60">Frame Time:</span>
+                            <span className="text-cyan-400">{performanceData.frameTime.toFixed(2)}ms</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/60">Draw Calls:</span>
+                            <span className="text-cyan-400">{performanceData.drawCalls}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/60">Triangles:</span>
+                            <span className="text-cyan-400">
+                                {performanceData.triangles >= 1000000 
+                                    ? `${(performanceData.triangles / 1000000).toFixed(1)}M`
+                                    : performanceData.triangles >= 1000
+                                    ? `${(performanceData.triangles / 1000).toFixed(1)}K`
+                                    : performanceData.triangles}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/60">LOD Level:</span>
+                            <span className="text-cyan-400">{performanceData.lodLevel}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/60">VRAM Est.:</span>
+                            <span className="text-cyan-400">~{performanceData.memoryUsage}MB</span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
                 <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Actions</div>

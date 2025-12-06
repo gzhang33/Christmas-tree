@@ -35,4 +35,24 @@ export const PARTICLE_CONFIG = {
         rotationSpeed: 0.1,    // Orbit speed
         countRatio: 0.01,      // 1% of total particles (redundant with ratios.magicDust but good for reference)
     },
+
+    // Tree Animation Constants (for shader breathing/sway effects)
+    animation: {
+        // Breathing animation frequencies (multi-layer organic movement)
+        breatheFrequency1: 0.6,    // Primary breathing layer
+        breatheFrequency2: 1.2,    // Secondary breathing layer
+        breatheFrequency3: 0.4,    // Tertiary breathing layer
+        breatheAmplitude1: 0.04,   // Primary breathing amplitude
+        breatheAmplitude2: 0.03,   // Secondary breathing amplitude
+        breatheAmplitude3: 0.02,   // Tertiary breathing amplitude
+
+        // Sway animation (tree movement)
+        swayFrequency: 0.5,        // Sway oscillation frequency
+        swayAmplitude: 0.08,       // Maximum sway distance
+
+        // Explosion physics damping speeds
+        // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return
+        dampingSpeedExplosion: 0.0025,  // Slower damping to compensate for high shader scalar (2.2x)
+        dampingSpeedReset: 0.02,      // Faster damping for quicker return to tree shape
+    },
 } as const;

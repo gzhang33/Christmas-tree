@@ -45,12 +45,12 @@ development_status:
   epic-2: contexted
   2-0-test-infra: done
   2-1-color-config: done
-  2-2-explosion-physics: review
-  2-3-morphing-effect: ready-for-dev
+  2-2-explosion-physics: done
+  2-3-morphing-effect: done
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-magnetic-hover: backlog
+  epic-3: contexted
+  3-1-magnetic-hover: review
   3-2-lightbox-overlay: backlog
   3-3-return-to-tree: backlog
   epic-3-retrospective: optional

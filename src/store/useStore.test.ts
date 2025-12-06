@@ -35,6 +35,11 @@ describe('useStore', () => {
       const activePhotoId = useStore.getState().activePhotoId;
       expect(activePhotoId).toBeNull();
     });
+
+    it('should initialize with hoveredPhotoId as null', () => {
+      const hoveredPhotoId = useStore.getState().hoveredPhotoId;
+      expect(hoveredPhotoId).toBeNull();
+    });
   });
 
   describe('Actions', () => {
@@ -59,7 +64,7 @@ describe('useStore', () => {
       // First trigger explosion
       useStore.getState().triggerExplosion();
       expect(useStore.getState().isExploded).toBe(true);
-      
+
       // Then reset
       useStore.getState().resetExplosion();
       expect(useStore.getState().isExploded).toBe(false);
@@ -75,10 +80,16 @@ describe('useStore', () => {
       // First set a photo
       useStore.getState().setActivePhoto('test-photo-123');
       expect(useStore.getState().activePhotoId).toBe('test-photo-123');
-      
+
       // Then clear it
       useStore.getState().setActivePhoto(null);
       expect(useStore.getState().activePhotoId).toBeNull();
+    });
+
+    it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
+      const photoId = 'hover-photo-789';
+      useStore.getState().setHoveredPhoto(photoId);
+      expect(useStore.getState().hoveredPhotoId).toBe(photoId);
     });
   });
 
@@ -86,7 +97,7 @@ describe('useStore', () => {
     it('should persist treeColor to localStorage', () => {
       const newColor = '#00FF00';
       useStore.getState().setTreeColor(newColor);
-      
+
       // Wait for persistence to complete
       return new Promise<void>((resolve) => {
         setTimeout(() => {
@@ -104,7 +115,7 @@ describe('useStore', () => {
     it('should persist particleCount to localStorage', () => {
       const newCount = 25000;
       useStore.getState().setParticleCount(newCount);
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           const stored = localStorage.getItem('christmas-tree-storage');
@@ -120,7 +131,7 @@ describe('useStore', () => {
 
     it('should NOT persist isExploded to localStorage', () => {
       useStore.getState().triggerExplosion();
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           const stored = localStorage.getItem('christmas-tree-storage');
@@ -137,7 +148,7 @@ describe('useStore', () => {
 
     it('should NOT persist activePhotoId to localStorage', () => {
       useStore.getState().setActivePhoto('test-photo-456');
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           const stored = localStorage.getItem('christmas-tree-storage');
@@ -146,6 +157,23 @@ describe('useStore', () => {
             const parsed = JSON.parse(stored);
             // activePhotoId should not be in persisted state
             expect(parsed.state.activePhotoId).toBeUndefined();
+          }
+          resolve();
+        }, 100);
+      });
+    });
+
+    it('should NOT persist hoveredPhotoId to localStorage', () => {
+      useStore.getState().setHoveredPhoto('test-photo-999');
+
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          const stored = localStorage.getItem('christmas-tree-storage');
+          expect(stored).toBeTruthy();
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            // hoveredPhotoId should not be in persisted state
+            expect(parsed.state.hoveredPhotoId).toBeUndefined();
           }
           resolve();
         }, 100);
@@ -162,7 +190,7 @@ describe('useStore', () => {
         version: 0,
       };
       localStorage.setItem('christmas-tree-storage', JSON.stringify(persistedState));
-      
+
       // Create a new store instance to test restoration
       // Note: In a real scenario, this would happen on page reload
       // For testing, we'll verify the store can read from localStorage
@@ -176,6 +204,9 @@ describe('useStore', () => {
     });
   });
 });
+
+
+
 
 
 
