@@ -175,9 +175,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     const { frameGeometry, photoGeometry } = useMemo(() => getSharedGeometries(), []);
 
     // Create materials once (using texture from cache)
-    useEffect(() => {
+    // Use useMemo ensures they are ready for the first render
+    const materials = useMemo(() => {
         // Frame material - Standard material for light interaction
-        frameMaterialRef.current = new THREE.MeshStandardMaterial({
+        const frameMat = new THREE.MeshStandardMaterial({
             color: '#ffffff',
             roughness: 0.4,
             metalness: 0.1,
@@ -189,13 +190,21 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         });
 
         // Clone shared material to reuse program but have unique uniforms (map)
-        photoMaterialRef.current = masterPhotoMaterial.clone();
+        const photoMat = masterPhotoMaterial.clone();
+
+        return { frameMat, photoMat };
+    }, []);
+
+    // Sync refs for useFrame and Cleanup
+    useEffect(() => {
+        frameMaterialRef.current = materials.frameMat;
+        photoMaterialRef.current = materials.photoMat;
 
         return () => {
-            frameMaterialRef.current?.dispose();
-            photoMaterialRef.current?.dispose();
+            materials.frameMat.dispose();
+            materials.photoMat.dispose();
         };
-    }, []);
+    }, [materials]);
 
     // Handle explosion state change
     useEffect(() => {
@@ -206,8 +215,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             const cachedTexture = getCachedTexture(url);
             if (cachedTexture) {
                 // For ShaderMaterial, we update uniforms.map
-                if (photoMaterialRef.current) {
-                    photoMaterialRef.current.uniforms.map.value = cachedTexture;
+                if (materials.photoMat) {
+                    materials.photoMat.uniforms.map.value = cachedTexture;
                 }
                 anim.textureLoaded = true;
             }
@@ -239,13 +248,13 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             hover.tiltY = 0;
 
             // Reset material opacity
-            if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
-            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.opacity.value = 0;
+            if (materials.frameMat) materials.frameMat.opacity = 0;
+            if (materials.photoMat) materials.photoMat.uniforms.opacity.value = 0;
 
             // Hide immediately on collapse
             if (groupRef.current) groupRef.current.visible = false;
         }
-    }, [isExploded, url, particleStartPosition]);
+    }, [isExploded, url, particleStartPosition, materials]);
 
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 
@@ -412,12 +421,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
                 // Opacity runs over total duration (Fade in during Ejection mainly)
                 const opacityProgress = Math.min(elapsed / 0.5, 1);
-                if (frameMaterialRef.current) frameMaterialRef.current.opacity = opacityProgress;
+                if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
 
                 // Update Shader Uniforms
-                if (photoMaterialRef.current && anim.textureLoaded) {
-                    photoMaterialRef.current.uniforms.opacity.value = opacityProgress;
-                    photoMaterialRef.current.uniforms.uDevelop.value = developProgress;
+                if (materials.photoMat && anim.textureLoaded) {
+                    materials.photoMat.uniforms.opacity.value = opacityProgress;
+                    materials.photoMat.uniforms.uDevelop.value = developProgress;
                 }
 
                 // Apply updates
@@ -433,7 +442,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         } else if (isExploded) {
             // === PHASE 2: ORBIT & FLOAT ===
             // Ensure fully developed
-            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.uDevelop.value = 1.0;
+            if (materials.photoMat) materials.photoMat.uniforms.uDevelop.value = 1.0;
 
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
@@ -528,11 +537,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                     group.position.add(tempVec3);
 
                     // Glow
-                    if (frameMaterialRef.current) {
-                        frameMaterialRef.current.emissiveIntensity = popProgress * HOVER_CONFIG.emissiveIntensity;
+                    if (materials.frameMat) {
+                        materials.frameMat.emissiveIntensity = popProgress * HOVER_CONFIG.emissiveIntensity;
                     }
                 } else {
-                    if (frameMaterialRef.current) frameMaterialRef.current.emissiveIntensity = 0;
+                    if (materials.frameMat) materials.frameMat.emissiveIntensity = 0;
                 }
             }
         }
@@ -545,6 +554,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     return (
         <group
             ref={groupRef}
+            visible={false}
             position={particleStartPosition}
             scale={0}
             onPointerOver={handlePointerOver}
@@ -553,16 +563,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         >
             {/* Polaroid Frame */}
             <mesh geometry={frameGeometry}>
-                {frameMaterialRef.current && (
-                    <primitive object={frameMaterialRef.current} attach="material" />
-                )}
+                <primitive object={materials.frameMat} attach="material" />
             </mesh>
 
             {/* Photo Image - Merged Front & Back */}
             <mesh position={[0, 0, 0]} geometry={photoGeometry}>
-                {photoMaterialRef.current && (
-                    <primitive object={photoMaterialRef.current} attach="material" />
-                )}
+                <primitive object={materials.photoMat} attach="material" />
             </mesh>
         </group>
     );

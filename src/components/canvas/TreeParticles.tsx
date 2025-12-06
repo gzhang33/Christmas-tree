@@ -1224,28 +1224,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const treeKey = `tree-${particleCount}-${treeColor}`;
 
-  // === SHAKE ANIMATION ===
-  // Trigger shake on explosion
-  useEffect(() => {
-    if (isExploded) {
-      shakeIntensity.current = 1.0;
-    }
-  }, [isExploded]);
+  // === SHAKE ANIMATION REMOVED ===
+  // (User requested removal of shake effect)
 
   useFrame((state, delta) => {
-    // Process Shake
-    if (shakeIntensity.current > 0.001 && rootRef.current) {
-      const shakePower = shakeIntensity.current * shakeIntensity.current; // Quadratic falloff for better feel
-      const rx = (Math.random() - 0.5) * 0.5 * shakePower; // 0.5 unit shake
-      const ry = (Math.random() - 0.5) * 0.5 * shakePower;
-      const rz = (Math.random() - 0.5) * 0.5 * shakePower;
+    // Process Shake - REMOVED
+    // if (shakeIntensity.current > 0.001 && rootRef.current) { ... }
 
-      rootRef.current.position.set(rx, ry, rz);
-
-      // Decay
-      shakeIntensity.current = THREE.MathUtils.lerp(shakeIntensity.current, 0, delta * 5.0);
-    } else if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
-      // Reset to 0 when done
+    // Ensure position is reset 
+    if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
       rootRef.current.position.set(0, 0, 0);
     }
   });
