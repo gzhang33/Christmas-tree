@@ -217,6 +217,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             anim.startTime = -1;
             anim.currentPosition.set(...particleStartPosition);
             anim.orbitAngle = null; // Reset orbit
+
+            // CRITICAL OPTIMIZATION:
+            // Start invisible to prevent 100 textures uploading in the same frame.
+            // Visibility will be toggled true in useFrame when delay is reached.
+            if (groupRef.current) groupRef.current.visible = false;
+
         } else {
             anim.isVisible = false;
             anim.isAnimating = false;
@@ -235,6 +241,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             // Reset material opacity
             if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
             if (photoMaterialRef.current) photoMaterialRef.current.uniforms.opacity.value = 0;
+
+            // Hide immediately on collapse
+            if (groupRef.current) groupRef.current.visible = false;
         }
     }, [isExploded, url, particleStartPosition]);
 
@@ -317,9 +326,21 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 anim.startTime = time;
             }
             // Calculate morph progress with stagger
+            // Stagger logic: each photo waits delay = morphIndex * 0.05
             const delay = morphIndex * 0.05;
             const startTime = anim.startTime + delay;
             const elapsed = time - startTime;
+
+            // === STAGGERED VISIBILITY ===
+            // Only make visible when its turn comes + small buffer
+            // This spreads texture uploads over 5 seconds instead of 1 frame
+            if (elapsed >= 0) {
+                if (!group.visible) group.visible = true;
+            } else {
+                // Keep invisible if waiting
+                if (group.visible) group.visible = false;
+                return; // Skip calculation
+            }
 
             // === SYNCHRONIZED ARRIVAL LOGIC ===
             const minTransitTime = 0.8;
@@ -518,6 +539,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     });
 
     // Don't render when not visible
+    // Note: We keep this component mounted to track time, but geometry visibility is toggled
     if (!isExploded && !animRef.current.isVisible) return null;
 
     return (
