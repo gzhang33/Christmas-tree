@@ -68,8 +68,15 @@ void main() {
   // Calculate a random threshold for each particle to start moving
   // Use aRandom and vertical height to create an organic erosion front
   float erosionNoise = aRandom; 
-  float heightDelay = (positionStart.y + 10.0) / 25.0; // Normalize height -5 to 20 approx
-  float trigger = (uProgress * 1.05) - (erosionNoise * 0.3 + heightDelay * 0.2);
+  // Invert height logic: Top triggers first (Low delay), Bottom triggers last (High delay)
+  // Tree ranges approx -5.5 to +8.5. Mapping +14 down to -6 covers it well.
+  float heightDelay = (14.0 - positionStart.y) / 20.0; 
+  
+  // uProgress Scale must be > (1.0 + MaxDelay) to ensure completion
+  // We want a strong top-down effect, so we increase heightDelay weight (0.2 -> 0.6)
+  // Total deductions max approx 0.3 (noise) + 0.6 (height) = 0.9
+  // So uProgress scale needs to be > 1.9. Let's use 2.2 for safety.
+  float trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0);
   float localProgress = clamp(trigger, 0.0, 1.0);
   
   // 2. Easing
