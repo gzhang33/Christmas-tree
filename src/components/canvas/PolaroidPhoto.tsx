@@ -25,6 +25,7 @@ const dummyObj = new THREE.Object3D();
 const qOrbit = new THREE.Quaternion();
 const qTarget = new THREE.Quaternion();
 const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
+const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
 const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
 
 interface PolaroidPhotoProps {
@@ -159,6 +160,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         currentRotation: new THREE.Euler(0, 0, 0),
         textureLoaded: false,
         orbitAngle: null as number | null, // Track accumulated orbit angle
+        simulatedTime: 0, // Track time adjusted for slowdown
     });
 
     // Hover state (using refs to avoid re-renders - critical for 60fps)
@@ -294,14 +296,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
         if (!hover.isHovered || !groupRef.current) return;
 
-        // Get intersection point in local coordinates
-        const point = e.point.clone();
-        groupRef.current.worldToLocal(point);
+        // Get intersection point in local coordinates using scratch vector (No Sync/Clone)
+        tempMouseVec.copy(e.point);
+        groupRef.current.worldToLocal(tempMouseVec);
 
         // Calculate normalized offset from center (-1 to 1)
         // Frame dimensions: width=1.0, height=1.2
-        const normalizedX = (point.x / (FRAME.width / 2));
-        const normalizedY = (point.y / (FRAME.height / 2));
+        const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
+        const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
 
         // Clamp values to avoid extreme tilts
         const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
@@ -458,9 +460,13 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // Initialize accumulated angle if needed
                 if (anim.orbitAngle === null) {
                     anim.orbitAngle = Math.atan2(position[2], position[0]);
+                    anim.simulatedTime = 0; // Start simulated time
                 }
 
-                const hoverTime = time - absoluteArrivalTime;
+                // Advance simulated time based on rotation multiplier (handling slowdown)
+                anim.simulatedTime += delta * hover.rotationMultiplier;
+                const hoverTime = anim.simulatedTime;
+
                 const idx = morphIndex * 0.5;
 
                 // Orbit

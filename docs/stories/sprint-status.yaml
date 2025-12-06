@@ -50,7 +50,7 @@ development_status:
   epic-2-retrospective: optional
 
   epic-3: contexted
-  3-1-magnetic-hover: in-progress
+  3-1-magnetic-hover: done
   3-2-lightbox-overlay: backlog
   3-3-return-to-tree: backlog
   epic-3-retrospective: optional

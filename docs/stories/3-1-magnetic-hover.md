@@ -1,6 +1,6 @@
 # Story 3.1: Magnetic Hover & Camera Drift
 
-Status: review
+Status: done
 
 ## Story
 
@@ -37,8 +37,8 @@ so that the memory cloud feels alive, immersive, and responsive to my interactio
 
 ### Review Follow-ups (AI)
 
-- [ ] [AI-Review][Med] Fix Magnetic Hover Rotation: Integrate `hover.rotationMultiplier` into the rotation calculation in `PolaroidPhoto.tsx` to actually slow down spin (AC #1)
-- [ ] [AI-Review][Low] Optimize `handlePointerMove`: Avoid `e.point.clone()` allocation
+- [x] [AI-Review][Med] Fix Magnetic Hover Rotation: Integrate `hover.rotationMultiplier` into the rotation calculation in `PolaroidPhoto.tsx` to actually slow down spin (AC #1)
+- [x] [AI-Review][Low] Optimize `handlePointerMove`: Avoid `e.point.clone()` allocation
 
 ## Dev Notes
 
@@ -59,6 +59,10 @@ so that the memory cloud feels alive, immersive, and responsive to my interactio
 
 ## Dev Agent Record
 
+### Completion Notes
+**Completed:** 2025-12-06
+**Definition of Done:** All acceptance criteria met, code reviewed, tests passing
+
 ### Context Reference
 
 - [Context File](./3-1-magnetic-hover.context.xml)
@@ -78,6 +82,9 @@ Gemini 2.0 Flash
 - Implemented 3D Tilt Interaction in `PolaroidPhoto.tsx`: Pointer move calculates normalized offset from card center, applies X/Y rotation tilt up to ±14° (~0.25 rad). Smooth interpolation prevents jitter.
 - Performance: Used refs for all animation state to avoid React re-renders. Exponential lerp provides smooth 60fps transitions.
 - Cursor: Standard pointer cursor used on hover (no custom icon per AC:3).
+- **Fixes (Review Follow-up)**:
+  - Fixed AC#1 violation: Implemented `simulatedTime` in `PolaroidPhoto.tsx` to correctly dampen rotation speed when `rotationMultiplier` decreases on hover.
+  - Optimized `handlePointerMove`: Replaced `e.point.clone()` with shared `tempMouseVec` to reduce GC pressure.
 
 ### File List
 
