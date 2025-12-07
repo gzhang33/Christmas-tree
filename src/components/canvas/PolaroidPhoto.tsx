@@ -57,6 +57,24 @@ interface PolaroidPhotoProps {
     totalPhotos: number;
     textureReady?: boolean; // New prop
     instanceId: number; // Unique instance ID for this particle
+
+    // NEW: External animation support (optional)
+    useExternalAnimation?: boolean; // If true, disable internal useFrame
+    onRegisterAnimation?: (data: {
+        groupRef: React.RefObject<THREE.Group>;
+        frameMaterial: THREE.MeshStandardMaterial | null;
+        photoMaterial: THREE.ShaderMaterial | null;
+        animState: any;
+        hoverState: any;
+        position: [number, number, number];
+        rotation: [number, number, number];
+        scale: number;
+        particleStartPosition: [number, number, number];
+        morphIndex: number;
+        totalPhotos: number;
+        instanceId: number;
+        isThisActive: boolean;
+    }) => void;
 }
 
 // Polaroid frame dimensions
@@ -168,6 +186,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     totalPhotos,
     textureReady = false, // Default to false
     instanceId,
+    useExternalAnimation = false, // NEW: Default to false (backward compatible)
+    onRegisterAnimation, // NEW: Optional callback
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -298,6 +318,27 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         }
     }, [isExploded, url, particleStartPosition, materials, textureReady]);
 
+    // === NEW: Register animation data with PhotoManager (if using external animation) ===
+    useEffect(() => {
+        if (useExternalAnimation && onRegisterAnimation) {
+            onRegisterAnimation({
+                groupRef,
+                frameMaterial: frameMaterialRef.current,
+                photoMaterial: photoMaterialRef.current,
+                animState: animRef.current,
+                hoverState: hoverRef.current,
+                position,
+                rotation,
+                scale,
+                particleStartPosition,
+                morphIndex,
+                totalPhotos,
+                instanceId,
+                isThisActive,
+            });
+        }
+    }, [useExternalAnimation, onRegisterAnimation, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
+
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 
     const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
@@ -353,7 +394,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     }, []);
 
     // Animation frame - optimized to minimize allocations
+    // NEW: Skip if using external animation (PhotoManager handles it)
     useFrame((state, delta) => {
+        // Early exit if using external animation
+        if (useExternalAnimation) return;
+
         const group = groupRef.current;
         const anim = animRef.current;
         const hover = hoverRef.current;

@@ -221,19 +221,15 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         // === 3. POST-PROCESSING UPDATES (only if effects are enabled) ===
         if (!enableEffects) return;
 
-        // DOF Logic
+        // DOF Logic - FIXED: Disable DOF when hovering to keep focused photo sharp
+        // DOF should only blur background when NOT hovering
         if (dofRef.current) {
-            let targetFocalLength = 0.05;
+            // When hovering, we want the hovered photo to be SHARP
+            // So we disable DOF entirely (focalLength = 0 means no blur)
+            let targetFocalLength = 0.0; // Default: no blur
 
-            if (isHovered) {
-                targetFocalLength = 0.3; // High blur for background
-                dofRef.current.target.set(0, 0, 0);
-            } else if (isExploded) {
-                targetFocalLength = 0.01; // Minimal blur
-                dofRef.current.target.set(0, 0, 0);
-            } else {
-                dofRef.current.target.set(0, 0, 0);
-            }
+            // Note: We've removed the hover blur logic
+            // The hovered photo should always be sharp
 
             dofRef.current.focalLength = THREE.MathUtils.lerp(
                 dofRef.current.focalLength, targetFocalLength, delta * 2
@@ -257,15 +253,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             {/* PERFORMANCE: Only render effects when needed */}
             {enableEffects && (
                 <EffectComposer enableNormalPass={false}>
-                    {hoveredPhotoId && (
-                        <DepthOfField
-                            ref={dofRef}
-                            target={[0, 0, 0]}
-                            focalLength={0.05}
-                            bokehScale={2}
-                            height={360}
-                        />
-                    )}
+                    {/* REMOVED: DepthOfField - causes blur on hover/active photos */}
+                    {/* We want hovered and active photos to be SHARP, not blurred */}
                     <Bloom
                         ref={bloomRef}
                         luminanceThreshold={1.1}

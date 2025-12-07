@@ -1,4 +1,5 @@
-import React, { useRef, useMemo, useEffect } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react"; // NEW: Added useState
+
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { AppConfig } from "../../types.ts";
@@ -12,10 +13,10 @@ import {
 } from "../../config/photoConfig";
 import { getTreeRadius } from "../../utils/treeUtils";
 
-// Shader imports using raw-loader syntax for Vite
 import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
 import { PolaroidPhoto } from "./PolaroidPhoto";
+import { PhotoManager, PhotoAnimationData } from "./PhotoManager"; // NEW: Import PhotoManager
 import { MEMORIES } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
 import { distributePhotos } from "../../utils/photoDistribution";
@@ -285,6 +286,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const [texturesLoaded, setTexturesLoaded] = React.useState(false);
   const preloadStartedRef = useRef<string | null>(null);
   const explosionStartTimeRef = useRef(0);
+
+  // NEW: Photo animation data for PhotoManager
+  const [photoAnimations, setPhotoAnimations] = useState<PhotoAnimationData[]>([]);
 
   // Refs for each layer
   const entityLayerRef = useRef<THREE.Points>(null);
@@ -1568,10 +1572,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
               totalPhotos={photoData.positions.length}
               textureReady={texturesLoaded}
               instanceId={i}
+              useExternalAnimation={true} // NEW: Enable external animation
+              onRegisterAnimation={(data) => { // NEW: Register callback
+                setPhotoAnimations(prev => {
+                  // Update or add animation data
+                  const newData = [...prev];
+                  const existingIndex = newData.findIndex(d => d.instanceId === i);
+                  if (existingIndex >= 0) {
+                    newData[existingIndex] = data;
+                  } else {
+                    newData.push(data);
+                  }
+                  return newData;
+                });
+              }}
             />
           );
         })}
       </group>
+
+      {/* NEW: PhotoManager - Single useFrame for all photos */}
+      <PhotoManager photos={photoAnimations} isExploded={isExploded} />
     </group>
   );
 };
