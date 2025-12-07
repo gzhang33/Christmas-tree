@@ -29,14 +29,12 @@ const CAMERA_DRIFT = {
 };
 
 // Volumetric light rays component
-const VolumetricRays: React.FC<{ isExploded: boolean }> = ({ isExploded }) => {
-    const raysRef = useRef<THREE.Group>(null);
-
-    useFrame((state) => {
-        if (raysRef.current && !isExploded) {
-            raysRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-        }
-    });
+// OPTIMIZED: useFrame moved to Experience for better performance
+const VolumetricRays: React.FC<{
+    isExploded: boolean;
+    raysRef: React.RefObject<THREE.Group>; // NEW: Accept ref from parent
+}> = ({ isExploded, raysRef }) => {
+    // REMOVED: Internal useFrame - now handled by Experience
 
     if (isExploded) return null;
 
@@ -89,6 +87,9 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     const ambientRef = useRef<THREE.AmbientLight>(null);
     const mainSpotRef = useRef<THREE.SpotLight>(null);
     const fillSpotRef = useRef<THREE.SpotLight>(null);
+
+    // NEW: Ref for VolumetricRays (moved from component)
+    const raysRef = useRef<THREE.Group>(null);
 
     const magicDustCount = useMemo(() => {
         return Math.floor(
@@ -166,10 +167,15 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     // === PERFORMANCE: Dynamic post-processing toggle ===
     const enableEffects = isExploded || !!hoveredPhotoId;
 
-    // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + Post-Processing ===
+    // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + VolumetricRays + Post-Processing ===
     useFrame((state, delta) => {
         const idle = idleRef.current;
         const isHovered = !!hoveredPhotoId;
+
+        // === 0. VOLUMETRIC RAYS ROTATION (moved from VolumetricRays component) ===
+        if (raysRef.current && !isExploded) {
+            raysRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+        }
 
         // === 1. IDLE CHECK & CAMERA DRIFT ===
         if (!isExploded) {
@@ -327,7 +333,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 distance={35}
             />
 
-            <VolumetricRays isExploded={isExploded} />
+            <VolumetricRays isExploded={isExploded} raysRef={raysRef} />
 
             {/* === ENVIRONMENT === */}
             <Stars radius={150} depth={60} count={6000} factor={4} saturation={0.1} fade speed={0.3} />
