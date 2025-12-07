@@ -1536,6 +1536,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
               morphIndex={i}
               totalPhotos={photoData.positions.length}
               textureReady={texturesLoaded}
+              instanceId={i}
             />
           );
         })}

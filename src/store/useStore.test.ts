@@ -11,7 +11,7 @@ describe('useStore', () => {
       treeColor: DEFAULT_TREE_COLOR,
       particleCount: 18000,
       isExploded: false,
-      activePhotoId: null,
+      activePhoto: null,
     });
   });
 
@@ -31,9 +31,9 @@ describe('useStore', () => {
       expect(isExploded).toBe(false);
     });
 
-    it('should initialize with activePhotoId as null', () => {
-      const activePhotoId = useStore.getState().activePhotoId;
-      expect(activePhotoId).toBeNull();
+    it('should initialize with activePhoto as null', () => {
+      const activePhoto = useStore.getState().activePhoto;
+      expect(activePhoto).toBeNull();
     });
 
     it('should initialize with hoveredPhotoId as null', () => {
@@ -70,20 +70,29 @@ describe('useStore', () => {
       expect(useStore.getState().isExploded).toBe(false);
     });
 
-    it('should update activePhotoId when setActivePhoto is called', () => {
-      const photoId = 'test-photo-123';
-      useStore.getState().setActivePhoto(photoId);
-      expect(useStore.getState().activePhotoId).toBe(photoId);
+    it('should update activePhoto when setActivePhoto is called', () => {
+      const photoData = {
+        id: 'test-photo-123',
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number]
+      };
+      useStore.getState().setActivePhoto(photoData);
+      expect(useStore.getState().activePhoto).toEqual(photoData);
     });
 
-    it('should set activePhotoId to null when setActivePhoto is called with null', () => {
+    it('should set activePhoto to null when setActivePhoto is called with null', () => {
       // First set a photo
-      useStore.getState().setActivePhoto('test-photo-123');
-      expect(useStore.getState().activePhotoId).toBe('test-photo-123');
+      const photoData = {
+        id: 'test-photo-123',
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number]
+      };
+      useStore.getState().setActivePhoto(photoData);
+      expect(useStore.getState().activePhoto).toEqual(photoData);
 
       // Then clear it
       useStore.getState().setActivePhoto(null);
-      expect(useStore.getState().activePhotoId).toBeNull();
+      expect(useStore.getState().activePhoto).toBeNull();
     });
 
     it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
@@ -146,8 +155,13 @@ describe('useStore', () => {
       });
     });
 
-    it('should NOT persist activePhotoId to localStorage', () => {
-      useStore.getState().setActivePhoto('test-photo-456');
+    it('should NOT persist activePhoto to localStorage', () => {
+      const photoData = {
+        id: 'test-photo-456',
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number]
+      };
+      useStore.getState().setActivePhoto(photoData);
 
       return new Promise<void>((resolve) => {
         setTimeout(() => {
@@ -155,8 +169,8 @@ describe('useStore', () => {
           expect(stored).toBeTruthy();
           if (stored) {
             const parsed = JSON.parse(stored);
-            // activePhotoId should not be in persisted state
-            expect(parsed.state.activePhotoId).toBeUndefined();
+            // activePhoto should not be in persisted state
+            expect(parsed.state.activePhoto).toBeUndefined();
           }
           resolve();
         }, 100);

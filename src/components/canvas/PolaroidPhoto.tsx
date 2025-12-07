@@ -11,14 +11,16 @@
  * - Magnetic Hover: Scale 1.5x, slow rotation on hover
  * - 3D Tilt: Dynamic tilt based on mouse position
  */
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
+import { useVideoTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
 import { MORPH_TIMING } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
+import { MEMORIES } from '../../config/assets';
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
@@ -27,6 +29,27 @@ const qTarget = new THREE.Quaternion();
 const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
 const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
 const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
+
+// Helper to handle Video Texture swapping
+const VideoHandler = ({ videoUrl, material }: { videoUrl: string, material: THREE.ShaderMaterial | null }) => {
+    const texture = useVideoTexture(videoUrl, { start: true, muted: true, loop: true });
+
+    useEffect(() => {
+        if (material) {
+            const oldMap = material.uniforms.map.value;
+            material.uniforms.map.value = texture;
+            material.uniforms.map.value = texture;
+
+
+            return () => {
+                // Revert to original texture (image) on unmount
+                material.uniforms.map.value = oldMap;
+            };
+        }
+    }, [material, texture]);
+
+    return null;
+};
 
 interface PolaroidPhotoProps {
     url: string;
@@ -38,6 +61,7 @@ interface PolaroidPhotoProps {
     morphIndex: number;
     totalPhotos: number;
     textureReady?: boolean; // New prop
+    instanceId: number; // Unique instance ID for this particle
 }
 
 // Polaroid frame dimensions
@@ -141,6 +165,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     morphIndex,
     totalPhotos,
     textureReady = false, // Default to false
+    instanceId,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
@@ -148,6 +173,16 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
+    const setActivePhoto = useStore(state => state.setActivePhoto);
+    const activePhoto = useStore(state => state.activePhoto);
+
+    // Identify memory ID from URL
+    const memoryId = useMemo(() => {
+        return MEMORIES.find(m => m.image === url)?.id || url;
+    }, [url]);
+
+    // Check exact instance ID for uniqueness
+    const isThisActive = activePhoto?.instanceId === instanceId;
 
     // Animation state (using refs to avoid re-renders)
     const animRef = useRef({
@@ -489,9 +524,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 group.position.set(baseX, position[1] + yBob, baseZ);
 
                 // 2. Calculate Base Rotation (Spinning) & Convert to Quaternion
-                const spinY = rotation[1] + hoverTime * 0.15;
-                const spinX = rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05;
-                const spinZ = rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05;
+                // Stop spinning if Active
+                const spinY = isThisActive ? rotation[1] : (rotation[1] + hoverTime * 0.15);
+                const spinX = isThisActive ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
+                const spinZ = isThisActive ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
 
                 // Reset rotation to ensure FromEuler works cleanly on base state
                 group.rotation.set(0, 0, 0);
@@ -499,8 +535,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 qOrbit.setFromEuler(reusableEuler);
 
                 // 3. Auto-Face Calibration (Slerp to Camera Check)
-                if (hover.currentScale > 1.01) {
-                    const popProgress = (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
+                // FORCE face camera if Active
+                if (hover.currentScale > 1.01 || isThisActive) {
+                    const popProgress = isThisActive
+                        ? 1.0
+                        : (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
 
                     // Compute Face Camera Quaternion
                     // Move dummy to current position so lookAt works correctly
@@ -522,6 +561,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 }
 
                 // 5. Apply Scale
+                // If Active, override scale to 2.5x (ZOOM_SCALE)
+                if (isThisActive) {
+                    hover.targetScale = 2.5;
+                }
+
                 const finalScale = scale * hover.currentScale;
                 group.scale.setScalar(finalScale);
 
@@ -530,20 +574,19 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                     const popProgress = (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
 
                     // Adaptive Pop: Move to Ideal Distance
-                    // Goal: Bring photo to HOVER_CONFIG.idealDistance from camera
-                    const currentDist = group.position.distanceTo(state.camera.position);
-                    const idealDist = HOVER_CONFIG.idealDistance;
+                    // ONLY if NOT active (because CameraController handles position when Active)
+                    if (!isThisActive) {
+                        // Goal: Bring photo to HOVER_CONFIG.idealDistance from camera
+                        const currentDist = group.position.distanceTo(state.camera.position);
+                        const idealDist = HOVER_CONFIG.idealDistance;
+                        const distToTravel = Math.max(HOVER_CONFIG.popDistance, currentDist - idealDist);
 
-                    // The distance we NEED to move to reach ideal
-                    // We want to move towards camera.
-                    // If currentDist (30) > ideal (8), we move 22.
-                    const distToTravel = Math.max(HOVER_CONFIG.popDistance, currentDist - idealDist);
+                        // Reuse tempVec3 to avoid per-frame allocations
+                        tempVec3.subVectors(state.camera.position, group.position).normalize();
+                        tempVec3.multiplyScalar(distToTravel * popProgress);
 
-                    // Reuse tempVec3 to avoid per-frame allocations
-                    tempVec3.subVectors(state.camera.position, group.position).normalize();
-                    tempVec3.multiplyScalar(distToTravel * popProgress);
-
-                    group.position.add(tempVec3);
+                        group.position.add(tempVec3);
+                    }
 
                     // Glow
                     if (materials.frameMat) {
@@ -556,9 +599,17 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         }
     });
 
+    // Check for video
+    const videoUrl = useMemo(() => {
+        const memory = MEMORIES.find(m => m.image === url);
+        return memory?.video || null;
+    }, [url]);
+
     // Don't render when not visible
     // Note: We keep this component mounted to track time, but geometry visibility is toggled
     if (!isExploded && !animRef.current.isVisible) return null;
+
+
 
     return (
         <group
@@ -569,7 +620,66 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             onPointerOver={handlePointerOver}
             onPointerOut={handlePointerOut}
             onPointerMove={handlePointerMove}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isExploded || !groupRef.current) return;
+
+                // Toggle Logic:
+                // If this photo is already active, clicking it again de-selects it (Return to Sea).
+                if (isThisActive) {
+                    setActivePhoto(null);
+                } else {
+                    // Activate this photo
+                    const pos = groupRef.current.position;
+                    const rot = groupRef.current.rotation;
+
+                    setActivePhoto({
+                        id: memoryId,
+                        instanceId,
+                        position: [pos.x, pos.y, pos.z],
+                        rotation: [rot.x, rot.y, rot.z]
+                    });
+                }
+            }}
         >
+            {/* Render Video Handler if active and video exists */}
+            {isThisActive && videoUrl && materials.photoMat && (
+                <React.Suspense fallback={null}>
+                    <VideoHandler videoUrl={videoUrl} material={materials.photoMat} />
+                </React.Suspense>
+            )}
+
+            {/* Close Button UI */}
+            {isThisActive && (
+                <Html position={[0.6, 0.6, 0]} center zIndexRange={[100, 0]}>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePhoto(null);
+                        }}
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '50%',
+                            width: '40px',
+                            height: '40px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease',
+                            pointerEvents: 'auto',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'}
+                    >
+                        ✕
+                    </button>
+                </Html>
+            )}
+
             {/* Polaroid Frame */}
             <mesh geometry={frameGeometry}>
                 <primitive object={materials.frameMat} attach="material" />

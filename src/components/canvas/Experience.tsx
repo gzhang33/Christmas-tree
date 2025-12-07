@@ -4,6 +4,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
+import { CameraController } from './CameraController.tsx';
+
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { useStore } from '../../store/useStore';
@@ -11,6 +13,7 @@ import { PARTICLE_CONFIG } from '../../config/particles';
 import { EffectComposer, Bloom, DepthOfField, ChromaticAberration } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { AppState } from '../../store/useStore';
 
 interface ExperienceProps {
     uiState: UIState;
@@ -63,6 +66,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     const { config, isExploded, toggleExplosion, photos } = uiState;
     const particleCount = useStore((state) => state.particleCount);
     const hoveredPhotoId = useStore((state) => state.hoveredPhotoId); // Consume hover state
+    const activePhoto = useStore((state) => state.activePhoto);
     const { camera } = useThree();
 
     // OrbitControls ref for idle detection
@@ -168,12 +172,15 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 // We'd need exact distance, but for now fixed "macro" feel
                 targetFocus = 0.1; // 0-1 range typically
                 targetFocalLength = 0.3; // High blur for background
+                dofRef.current.target = new THREE.Vector3(0, 0, 0); // Reset target
             } else if (isExploded) {
                 targetFocus = 0.0; // Focus on everything
                 targetFocalLength = 0.01; // Minimal blur
+                dofRef.current.target = new THREE.Vector3(0, 0, 0);
             } else {
                 targetFocus = 0.0;
                 targetFocalLength = 0.05; // Standard portrait blur
+                dofRef.current.target = new THREE.Vector3(0, 0, 0);
             }
 
             // Lerp Params
@@ -217,6 +224,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
             <DreiOrbitControls
                 ref={controlsRef}
+                enabled={!activePhoto} // Disable controls when looking at a photo
                 enablePan={false}
                 minDistance={10}
                 maxDistance={50}
@@ -280,10 +288,23 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             {/* === THE TREE === */}
             <TreeParticles isExploded={isExploded} config={config} onParticlesClick={toggleExplosion} photos={photos} />
 
+            {/* === LIGHTBOX OVERLAY === */}
+            <CameraController />
 
 
             {/* === FLOOR === */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.6, 0]} receiveShadow>
+            {/* === FLOOR === */}
+            <mesh
+                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, -6.6, 0]}
+                receiveShadow
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (useStore.getState().activePhoto) {
+                        useStore.getState().setActivePhoto(null);
+                    }
+                }}
+            >
                 <circleGeometry args={[25, 64]} />
                 <meshStandardMaterial color="#050001" metalness={0.7} roughness={0.3} envMapIntensity={0.5} />
             </mesh>

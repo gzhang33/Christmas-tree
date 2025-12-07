@@ -1,0 +1,92 @@
+<context>
+  <story_id>3-2-lightbox-overlay</story_id>
+  <description>
+    Implement an "Immersive Zoom" feature where clicking a floating photo seamlessly transitions the camera to view it in high detail.
+    Crucially, this must REUSE the existing "Magnetic Hover" physics (tilt, rotation) defined in Story 3.1, but scale the photo up and
+    move the camera closer, rather than spawning a separate 2D overlay.
+    It should also support "Live Photo" video playback when zoomed.
+  </description>
+
+  <requirements>
+    <requirement>
+      <id>1</id>
+      <description>Immersive Zoom: Camera pans/dollies to the target photo. Photo scales up significantly.</description>
+    </requirement>
+    <requirement>
+      <id>2</id>
+      <description>Reuse Hover Physics: The zoomed photo must retain 3D tilt interaction (mouse movement).</description>
+    </requirement>
+    <requirement>
+      <id>3</id>
+      <description>No Overlay: Remove any gray backdrop or separate 2D/3D plane. Maintain context of the scene.</description>
+    </requirement>
+    <requirement>
+      <id>4</id>
+      <description>Live Photo: Auto-play video texture when zoomed (Active). Stop when zoomed out.</description>
+    </requirement>
+    <requirement>
+      <id>5</id>
+      <description>Refactor: Remove previous `LightboxPlane.tsx` implementation.</description>
+    </requirement>
+  </requirements>
+
+  <technical_context>
+    <existing_components>
+      <component>
+        <name>PolaroidPhoto.tsx</name>
+        <path>src/components/canvas/PolaroidPhoto.tsx</path>
+        <description>
+          Handles rendering of individual photos. Currently implements "Magnetic Hover" (scale 1.5x) and 3D Tilt.
+          CURRENT STATE: Has logic to Hide itself `if (isThisActive) return null`.
+          REQUIRED CHANGE: Remove the hiding logic. Add "Zoomed" state logic (TargetScale = 2.5x).
+          Add conditional Video Texture rendering.
+        </description>
+      </component>
+
+      <component>
+        <name>Experience.tsx</name>
+        <path>src/components/canvas/Experience.tsx</path>
+        <description>
+          Main scene. Currently renders `LightboxPlane`.
+          REQUIRED CHANGE: Remove `LightboxPlane`. Add `CameraController`.
+        </description>
+      </component>
+
+      <component>
+        <name>useStore.ts</name>
+        <path>src/store/useStore.ts</path>
+        <description>
+          Global state. Already has `activePhoto` (id, position, rotation).
+          Refactor Idea: `activePhoto` might just need ID if CameraController calculates position dynamically,
+          but keeping position/rotation is fine for transition math.
+        </description>
+      </component>
+    </existing_components>
+
+    <architecture_pattern>
+      <name>Camera-Driven Interaction</name>
+      <description>
+        Instead of moving the object to the camera (Lightbox), we move the Camera to the object.
+        This preserves the spatial context and 3D feel.
+      </description>
+    </architecture_pattern>
+
+    <assets>
+      <type>Video</type>
+      <path>public/photos/*.mp4</path>
+      <handling>
+        Use `activePhotoId` to find corresponding `MEMORY` entry.
+        If `video` property exists, load `useVideoTexture`.
+        Apply to `map` uniform of `PolaroidPhoto` shader when active.
+      </handling>
+    </assets>
+  </technical_context>
+
+  <previous_implementation_status>
+    <note>
+      A previous attempt used `LightboxPlane.tsx` (a separate overlay mesh).
+      This approach was rejected by User Feedback on 2025-12-06.
+      Code exists but is deprecated. The new approach is "Refactor & Reuse".
+    </note>
+  </previous_implementation_status>
+</context>
