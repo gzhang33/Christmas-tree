@@ -4,8 +4,10 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { AppConfig } from "../../types.ts";
 import { useStore } from "../../store/useStore";
+import { getOptimizedCloudinaryUrl } from "../../utils/cloudinaryUtils"; // NEW: Cloudinary Optimization
 import { STATIC_COLORS, DEFAULT_TREE_COLOR } from "../../config/colors";
 import { PARTICLE_CONFIG } from "../../config/particles";
+import PhotoWorker from '../../workers/photoPositions.worker?worker'; // Import Worker
 import {
   PHOTO_COUNT,
   generatePhotoPositions,
@@ -316,26 +318,47 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const featherTexture = useMemo(() => createFeatherTexture(), []);
   const sparkleTexture = useMemo(() => createSparkleTexture(), []);
 
-  // === PHOTO DATA GENERATION ===
-  const photoData = useMemo(() => {
+  // === PHOTO DATA GENERATION (ASYNC WORKER) ===
+  const [photoData, setPhotoData] = useState<{
+    positions: PhotoPosition[];
+    urls: string[];
+    count: number;
+  }>({ positions: [], urls: [], count: 0 });
+
+  useEffect(() => {
     const aspectRatio = viewport.width / viewport.height;
-    // Generate target positions for photos
-    const photoPositions = generatePhotoPositions(PHOTO_COUNT, aspectRatio);
 
     // Get available source URLs (unique set)
-    const sourceUrls = photos.length > 0
+    // Get available source URLs (unique set)
+    // OPTIMIZED: Apply Cloudinary transformations if applicable
+    const sourceUrls = (photos.length > 0
       ? photos.map((p) => p.url)
-      : MEMORIES.map((m) => m.image);
+      : MEMORIES.map((m) => m.image)
+    ).map(url => getOptimizedCloudinaryUrl(url, 512)); // Optimize to 512px width
 
-    // Distribute URLs to positions, avoiding neighbors having same photo
-    const photoUrls = distributePhotos(photoPositions, sourceUrls);
+    // Instantiate Worker
+    const worker = new PhotoWorker();
 
-    return {
-      positions: photoPositions,
-      urls: photoUrls,
-      count: photoPositions.length,
+    worker.onmessage = (e) => {
+      setPhotoData(e.data);
+      worker.terminate();
+    };
+
+    worker.postMessage({
+      count: PHOTO_COUNT,
+      aspectRatio,
+      sourceUrls
+    });
+
+    return () => {
+      worker.terminate();
     };
   }, [photos, viewport.width, viewport.height]);
+
+  // Deprecated synchronous logic
+  /* 
+  const photoData = useMemo(() => { ... } 
+  */
 
   // === PRELOAD TEXTURES ===
   useEffect(() => {
