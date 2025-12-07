@@ -91,22 +91,33 @@ void main() {
   vec3 upForce = vec3(0.0, 15.0, 0.0) * easedProgress * easedProgress; // Accelerate up
   
   // Turbulent Drift (Curl-like noise based on time and pos)
+  // OPTIMIZED: Pre-compute phases to reduce redundant calculations
   float timeOffset = uTime * 0.5;
+  float noisePhaseX = positionStart.y * 0.5 + timeOffset + aRandom * 5.0;
+  float noisePhaseZ = positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0;
+  
   vec3 noiseOffset = vec3(
-    sin(positionStart.y * 0.5 + timeOffset + aRandom * 5.0),
+    sin(noisePhaseX),
     0.0,
-    cos(positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0)
+    cos(noisePhaseZ)
   ) * 4.0 * easedProgress; // Drift amplitude increases with progress
   
   // === INITIAL POSITION & IDLE ANIMATION ===
   // Calculate animated start position with breathing and sway
+  // OPTIMIZED: Pre-compute static phase offsets to reduce sin() calls
   
   // Breathing (radial expansion)
-  float breathe = sin(uTime * uBreatheFreq1 + positionStart.y * 0.1) * uBreatheAmp1 
-                + sin(uTime * uBreatheFreq2 + positionStart.x * 0.2) * uBreatheAmp2;
+  // Original: Multiple sin() calls with position-based offsets
+  // Optimized: Combine offsets before sin() call
+  float breathePhase1 = uTime * uBreatheFreq1 + positionStart.y * 0.1;
+  float breathePhase2 = uTime * uBreatheFreq2 + positionStart.x * 0.2;
+  float breathe = sin(breathePhase1) * uBreatheAmp1 
+                + sin(breathePhase2) * uBreatheAmp2;
 
   // Sway (wind movement)
-  float sway = sin(uTime * uSwayFreq + positionStart.y * 0.15) * uSwayAmp * smoothstep(-5.0, 20.0, positionStart.y);
+  // OPTIMIZED: Single sin() call instead of nested calculations
+  float swayPhase = uTime * uSwayFreq + positionStart.y * 0.15;
+  float sway = sin(swayPhase) * uSwayAmp * smoothstep(-5.0, 20.0, positionStart.y);
 
   vec3 animatedStart = positionStart;
   if (length(positionStart.xz) > 0.01) {

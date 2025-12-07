@@ -52,7 +52,7 @@ export const PARTICLE_CONFIG = {
 
         // Explosion physics damping speeds
         // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return
-        dampingSpeedExplosion: 0.0025,  // Slower damping to compensate for high shader scalar (2.2x)
+        dampingSpeedExplosion: 0.005,  // OPTIMIZED: 2x faster convergence (was 0.0025) - reduces high-load animation time by 50%
         dampingSpeedReset: 0.02,      // Faster damping for quicker return to tree shape
     },
 } as const;

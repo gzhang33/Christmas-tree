@@ -15,12 +15,13 @@ import { getTreeRadius } from "../../utils/treeUtils";
 
 import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
-import { PolaroidPhoto } from "./PolaroidPhoto";
+import { PolaroidPhoto, masterPhotoMaterial } from "./PolaroidPhoto"; // NEW: Import masterPhotoMaterial for pool init
 import { PhotoManager, PhotoAnimationData } from "./PhotoManager"; // NEW: Import PhotoManager
 import { MEMORIES } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
 import { distributePhotos } from "../../utils/photoDistribution";
 import { PhotoData } from "../../types.ts";
+import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/materialPool"; // NEW: Material pool
 
 interface TreeParticlesProps {
   isExploded: boolean;
@@ -348,6 +349,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Update ref with current batch key before preloading
     preloadStartedRef.current = currentKey;
 
+    // OPTIMIZED: Initialize material pool before preloading textures
+    // This ensures the pool is ready when PolaroidPhoto components mount
+    try {
+      initPhotoMaterialPool(masterPhotoMaterial);
+      console.log('[MaterialPool] Initialized with master material');
+    } catch (e) {
+      console.warn('[MaterialPool] Initialization failed:', e);
+    }
+
     // Preload in batches
     preloadTextures(uniqueUrls, 5, (loaded, total) => {
       if (loaded === total) {
@@ -357,6 +367,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       console.warn("Texture preload error:", err);
       setTexturesLoaded(true);
     });
+
+    // Cleanup: Dispose material pool on unmount
+    return () => {
+      try {
+        disposePhotoMaterialPool();
+        console.log('[MaterialPool] Disposed');
+      } catch (e) {
+        console.warn('[MaterialPool] Disposal failed:', e);
+      }
+    };
   }, [photoData.urls]);
 
   // === DYNAMIC COLOR VARIANTS ===

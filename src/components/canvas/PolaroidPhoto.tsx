@@ -21,6 +21,7 @@ import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
 import { MEMORIES } from '../../config/assets';
+import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
@@ -124,7 +125,8 @@ const getSharedGeometries = () => {
 };
 
 // Shared Material (Created once to reuse WebGLProgram)
-const masterPhotoMaterial = new THREE.ShaderMaterial({
+// EXPORTED: Used by material pool for initialization
+export const masterPhotoMaterial = new THREE.ShaderMaterial({
     uniforms: {
         map: { value: null },
         uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
@@ -237,7 +239,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     const { frameGeometry, photoGeometry } = useMemo(() => getSharedGeometries(), []);
 
     // Create materials once (using texture from cache)
-    // Use useMemo ensures they are ready for the first render
+    // OPTIMIZED: Use material pool to reduce creation overhead
     const materials = useMemo(() => {
         // Frame material - Standard material for light interaction
         const frameMat = new THREE.MeshStandardMaterial({
@@ -251,20 +253,33 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             opacity: 0,
         });
 
-        // Clone shared material to reuse program but have unique uniforms (map)
-        const photoMat = masterPhotoMaterial.clone();
+        // OPTIMIZED: Acquire photo material from pool instead of cloning
+        // This reuses ShaderMaterial instances and reduces initialization overhead
+        const cachedTexture = getCachedTexture(url);
+        const photoMat = cachedTexture
+            ? getPhotoMaterialPool().acquire(cachedTexture)
+            : masterPhotoMaterial.clone(); // Fallback if pool not ready
 
         return { frameMat, photoMat };
-    }, []);
+    }, [url]); // Add url dependency for texture updates
 
     // Sync refs for useFrame and Cleanup
+    // OPTIMIZED: Release material back to pool on unmount
     useEffect(() => {
         frameMaterialRef.current = materials.frameMat;
         photoMaterialRef.current = materials.photoMat;
 
         return () => {
+            // Dispose frame material
             materials.frameMat.dispose();
-            materials.photoMat.dispose();
+
+            // OPTIMIZED: Release photo material back to pool instead of disposing
+            try {
+                getPhotoMaterialPool().release(materials.photoMat);
+            } catch (e) {
+                // Fallback: dispose if pool not available
+                materials.photoMat.dispose();
+            }
         };
     }, [materials]);
 
