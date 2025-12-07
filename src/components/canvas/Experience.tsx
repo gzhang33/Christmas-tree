@@ -14,6 +14,9 @@ import { EffectComposer, Bloom, DepthOfField, ChromaticAberration } from '@react
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
+// Scratch vector for camera drift (avoids per-frame allocation)
+const tempDriftVec = new THREE.Vector3();
+
 interface ExperienceProps {
     uiState: UIState;
 }
@@ -155,126 +158,131 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         };
     }, [isExploded, camera]);
 
-    // Camera Drift Logic: Dolly in slowly when idle and exploded
-    useFrame((state, delta) => {
-        const idle = idleRef.current;
-
-        if (!isExploded) {
-            idle.isIdle = false;
-            return;
-        }
-
-        // Check if user became idle
-        if (!idle.isInteracting) {
-            const timeSinceInteraction = Date.now() - idle.lastInteractionTime;
-            idle.isIdle = timeSinceInteraction > CAMERA_DRIFT.idleThreshold;
-        }
-
-        // Apply drift when idle (and NOT hovering)
-        if (idle.isIdle && !hoveredPhotoId) {
-            const currentDistance = camera.position.length();
-
-            // Only drift if not too close
-            if (currentDistance > CAMERA_DRIFT.minDistance) {
-                // Move camera toward origin (center of cloud)
-                const direction = camera.position.clone().normalize().negate();
-                const movement = direction.multiplyScalar(CAMERA_DRIFT.speed * delta);
-                camera.position.add(movement);
-
-                // Update OrbitControls to match new camera position
-                controlsRef.current?.update();
-            }
-        }
-    });
-
-    // Light Dimming Logic (Visual Focus)
-    useFrame((state, delta) => {
-        const isHovered = !!hoveredPhotoId;
-        // Dim to 30% brightness when hovered
-        const targetFactor = isHovered ? 0.3 : 1.0;
-        const lerpSpeed = 3.0 * delta;
-
-        if (ambientRef.current) {
-            ambientRef.current.intensity = THREE.MathUtils.lerp(ambientRef.current.intensity, 0.15 * targetFactor, lerpSpeed);
-        }
-        if (mainSpotRef.current) {
-            mainSpotRef.current.intensity = THREE.MathUtils.lerp(mainSpotRef.current.intensity, 1.2 * targetFactor, lerpSpeed);
-        }
-        if (fillSpotRef.current) {
-            fillSpotRef.current.intensity = THREE.MathUtils.lerp(fillSpotRef.current.intensity, 0.8 * targetFactor, lerpSpeed);
-        }
-    });
-
     // === POST PROCESSING REFS ===
     const dofRef = useRef<any>(null);
     const chromaticRef = useRef<any>(null);
     const bloomRef = useRef<any>(null);
 
-    // === POST PROCESSING LOGIC ===
-    useFrame((state, delta) => {
-        // DOF Logic:
-        // - Static Tree: Shallow focus (focusDistance 0, focalLength 0.05)
-        // - Exploded: Deep focus (focusDistance 0, focalLength 0.02)
-        // - Hovered: Macro focus (focusDistance ~hovered, focalLength 0.15)
+    // === PERFORMANCE: Dynamic post-processing toggle ===
+    const enableEffects = isExploded || !!hoveredPhotoId;
 
+    // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + Post-Processing ===
+    useFrame((state, delta) => {
+        const idle = idleRef.current;
+        const isHovered = !!hoveredPhotoId;
+
+        // === 1. IDLE CHECK & CAMERA DRIFT ===
+        if (!isExploded) {
+            idle.isIdle = false;
+        } else {
+            // Check if user became idle
+            if (!idle.isInteracting) {
+                const timeSinceInteraction = Date.now() - idle.lastInteractionTime;
+                idle.isIdle = timeSinceInteraction > CAMERA_DRIFT.idleThreshold;
+            }
+
+            // Apply drift when idle (and NOT hovering)
+            if (idle.isIdle && !isHovered) {
+                const currentDistance = camera.position.length();
+
+                // Only drift if not too close
+                if (currentDistance > CAMERA_DRIFT.minDistance) {
+                    // Reuse scratch vector to avoid GC
+                    tempDriftVec.copy(camera.position).normalize().negate();
+                    tempDriftVec.multiplyScalar(CAMERA_DRIFT.speed * delta);
+                    camera.position.add(tempDriftVec);
+
+                    // Update OrbitControls to match new camera position
+                    controlsRef.current?.update();
+                }
+            }
+        }
+
+        // === 2. LIGHT DIMMING ===
+        const targetFactor = isHovered ? 0.3 : 1.0;
+        const lerpSpeed = 3.0 * delta;
+
+        if (ambientRef.current) {
+            ambientRef.current.intensity = THREE.MathUtils.lerp(
+                ambientRef.current.intensity, 0.15 * targetFactor, lerpSpeed
+            );
+        }
+        if (mainSpotRef.current) {
+            mainSpotRef.current.intensity = THREE.MathUtils.lerp(
+                mainSpotRef.current.intensity, 1.2 * targetFactor, lerpSpeed
+            );
+        }
+        if (fillSpotRef.current) {
+            fillSpotRef.current.intensity = THREE.MathUtils.lerp(
+                fillSpotRef.current.intensity, 0.8 * targetFactor, lerpSpeed
+            );
+        }
+
+        // === 3. POST-PROCESSING UPDATES (only if effects are enabled) ===
+        if (!enableEffects) return;
+
+        // DOF Logic
         if (dofRef.current) {
-            let targetFocus = 0.0;
             let targetFocalLength = 0.05;
 
-            if (hoveredPhotoId) {
-                // Focus on photo (approx distance ~18-20 units from camera)
-                // We'd need exact distance, but for now fixed "macro" feel
-                targetFocus = 0.1; // 0-1 range typically
+            if (isHovered) {
                 targetFocalLength = 0.3; // High blur for background
-                dofRef.current.target.set(0, 0, 0); // Reset target (no allocation)
+                dofRef.current.target.set(0, 0, 0);
             } else if (isExploded) {
-                targetFocus = 0.0; // Focus on everything
                 targetFocalLength = 0.01; // Minimal blur
                 dofRef.current.target.set(0, 0, 0);
             } else {
-                targetFocus = 0.0;
-                targetFocalLength = 0.05; // Standard portrait blur
                 dofRef.current.target.set(0, 0, 0);
             }
 
-            // Lerp Params
-            dofRef.current.focalLength = THREE.MathUtils.lerp(dofRef.current.focalLength, targetFocalLength, delta * 2);
+            dofRef.current.focalLength = THREE.MathUtils.lerp(
+                dofRef.current.focalLength, targetFocalLength, delta * 2
+            );
         }
 
-        // Chromatic Aberration & Bloom Pulse (Impact Effect)
-        // Check if we just exploded (you might need a transient state or timestamp)
-        // For now, simpler: slight abberation during explosion
+        // Chromatic Aberration
         if (chromaticRef.current) {
-            const targetOffset = isExploded && !hoveredPhotoId ? 0.002 : 0.0002;
-            chromaticRef.current.offset.x = THREE.MathUtils.lerp(chromaticRef.current.offset.x, targetOffset, delta);
-            chromaticRef.current.offset.y = THREE.MathUtils.lerp(chromaticRef.current.offset.y, targetOffset, delta);
+            const targetOffset = isExploded && !isHovered ? 0.002 : 0.0002;
+            chromaticRef.current.offset.x = THREE.MathUtils.lerp(
+                chromaticRef.current.offset.x, targetOffset, delta
+            );
+            chromaticRef.current.offset.y = THREE.MathUtils.lerp(
+                chromaticRef.current.offset.y, targetOffset, delta
+            );
         }
     });
 
     return (
         <>
-            <EffectComposer enableNormalPass={false}>
-                <DepthOfField
-                    ref={dofRef}
-                    target={[0, 0, 0]}
-                    focalLength={0.05}
-                    bokehScale={2}
-                    height={480}
-                />
-                <Bloom
-                    ref={bloomRef}
-                    luminanceThreshold={1.1} // High threshold to only catch bright sparks
-                    levels={9}
-                    intensity={1.0}
-                    radius={0.8}
-                />
-                <ChromaticAberration
-                    ref={chromaticRef}
-                    offset={new THREE.Vector2(0.0002, 0.0002)}
-                    radialModulation={false}
-                    modulationOffset={0}
-                />
-            </EffectComposer>
+            {/* PERFORMANCE: Only render effects when needed */}
+            {enableEffects && (
+                <EffectComposer enableNormalPass={false}>
+                    {hoveredPhotoId && (
+                        <DepthOfField
+                            ref={dofRef}
+                            target={[0, 0, 0]}
+                            focalLength={0.05}
+                            bokehScale={2}
+                            height={360}
+                        />
+                    )}
+                    <Bloom
+                        ref={bloomRef}
+                        luminanceThreshold={1.1}
+                        levels={9}
+                        intensity={1.0}
+                        radius={0.8}
+                    />
+                    {isExploded && !hoveredPhotoId && (
+                        <ChromaticAberration
+                            ref={chromaticRef}
+                            offset={new THREE.Vector2(0.0002, 0.0002)}
+                            radialModulation={false}
+                            modulationOffset={0}
+                        />
+                    )}
+                </EffectComposer>
+            )}
 
             <DreiOrbitControls
                 ref={controlsRef}

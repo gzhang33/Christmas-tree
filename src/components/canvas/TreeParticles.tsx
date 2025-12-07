@@ -1259,22 +1259,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     if (glowLayerRef.current) glowLayerRef.current.rotation.y += rotSpeed;
     if (ornamentsRef.current) ornamentsRef.current.rotation.y += rotSpeed;
     if (giftsRef.current) giftsRef.current.rotation.y += rotSpeed;
-  });
 
-  const treeKey = `tree-${particleCount}-${treeColor}`;
-
-  // === SHAKE ANIMATION REMOVED ===
-  // (User requested removal of shake effect)
-
-  useFrame((state, delta) => {
-    // Process Shake - REMOVED
-    // if (shakeIntensity.current > 0.001 && rootRef.current) { ... }
-
-    // Ensure position is reset 
+    // Ensure root position is reset (shake animation removed)
     if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
       rootRef.current.position.set(0, 0, 0);
     }
   });
+
+  const treeKey = `tree-${particleCount}-${treeColor}`;
 
   return (
     <group
