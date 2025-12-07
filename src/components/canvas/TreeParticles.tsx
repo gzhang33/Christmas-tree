@@ -468,14 +468,35 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const heightFactor = t;
 
       let c: THREE.Color;
+      // TREE-04: Enhanced color mixing with Warm Gold and Deep Red accents
+      const colorRoll = Math.random();
       if (isTip) {
-        c = Math.random() > 0.4 ? STATIC_COLORS.cream : colorVariants.light;
+        // Tips: mostly cream/light, with 8% warm gold accent
+        if (colorRoll < 0.08) {
+          c = STATIC_COLORS.warmGold;
+        } else if (colorRoll < 0.48) {
+          c = STATIC_COLORS.cream;
+        } else {
+          c = colorVariants.light;
+        }
       } else if (isInner) {
-        c = colorVariants.deep;
+        // Inner: mostly deep, with 5% deep red accent
+        if (colorRoll < 0.05) {
+          c = STATIC_COLORS.deepRed;
+        } else {
+          c = colorVariants.deep;
+        }
       } else {
-        c = colorVariants.base
-          .clone()
-          .lerp(colorVariants.light, heightFactor * 0.5);
+        // Middle: base gradient with 3% warm gold and 2% deep red
+        if (colorRoll < 0.03) {
+          c = STATIC_COLORS.warmGold;
+        } else if (colorRoll < 0.05) {
+          c = STATIC_COLORS.deepRed;
+        } else {
+          c = colorVariants.base
+            .clone()
+            .lerp(colorVariants.light, heightFactor * 0.5);
+        }
       }
 
       col[i * 3] = c.r;

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Experience } from './components/canvas/Experience.tsx';
 import { Controls } from './components/ui/Controls.tsx';
+import { ParticleTitle } from './components/ui/ParticleTitle.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { AUDIO } from './config/assets.ts';
@@ -293,47 +294,8 @@ function App() {
       {/* Performance Monitor Overlay */}
       <PerformanceOverlay visible={showPerformance} data={performanceData} />
 
-      {/* Intro Text */}
-      {!isExploded && photos.length === 0 && (
-        <div
-          className="absolute pointer-events-none z-10 text-white/80"
-          style={{
-            top: 'clamp(1rem, 4vh, 2rem)',
-            left: 'clamp(1rem, 3vw, 2.5rem)',
-            maxWidth: isHeroTextCompact ? 'min(60vw, 18rem)' : '22rem',
-          }}
-        >
-          <div className="flex flex-col text-left leading-tight">
-            <span
-              style={{
-                fontFamily: '"Great Vibes", "Great_Vibes", cursive',
-                letterSpacing: '0.18em',
-                fontSize: isHeroTextCompact ? 'clamp(2.4rem, 8vw, 3.2rem)' : 'clamp(3.2rem, 4vw, 4rem)',
-                background: 'linear-gradient(180deg, #fff7fb 0%, #ffd6e3 45%, #f7a0c0 100%)',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                textShadow: '0 0 25px rgba(255,183,197,0.9), 0 8px 45px rgba(62,4,20,0.7)',
-              }}
-            >
-              Merry
-            </span>
-            <span
-              style={{
-                fontFamily: '"Great Vibes", "Great_Vibes", cursive',
-                letterSpacing: '0.18em',
-                fontSize: isHeroTextCompact ? 'clamp(2.4rem, 8vw, 3.2rem)' : 'clamp(3.2rem, 4vw, 4rem)',
-                paddingLeft: isHeroTextCompact ? '0.75rem' : '1.5rem',
-                background: 'linear-gradient(180deg, #fff7fb 0%, #ffd6e3 45%, #f7a0c0 100%)',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                textShadow: '0 0 25px rgba(255,183,197,0.9), 0 8px 45px rgba(62,4,20,0.7)',
-              }}
-            >
-              Christmas
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Particle Title (TREE-03) */}
+      <ParticleTitle isExploded={isExploded} isCompact={isHeroTextCompact} />
 
       {/* Decorative corner gradient */}
       <div
