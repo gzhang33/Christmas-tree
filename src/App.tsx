@@ -11,6 +11,7 @@ import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
 import { useStore } from './store/useStore.ts';
 import * as THREE from 'three';
+import { encodeState, decodeState } from './utils/shareUtils';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -166,11 +167,22 @@ function App() {
     });
   }, []);
 
-  const addPhotos = useCallback((files: FileList) => {
-    const newPhotos: PhotoData[] = Array.from(files).map((file) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      url: URL.createObjectURL(file),
-    }));
+  const addPhotos = useCallback((input: FileList | string[]) => {
+    let newPhotos: PhotoData[] = [];
+
+    if (input instanceof FileList) {
+      newPhotos = Array.from(input).map((file) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        url: URL.createObjectURL(file), // Local preview
+      }));
+    } else if (Array.isArray(input)) {
+      // Handle direct URL strings (e.g. from Cloudinary)
+      newPhotos = input.map((url) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        url: url,
+      }));
+    }
+
     setPhotos((prev) => [...prev, ...newPhotos]);
   }, []);
 
@@ -208,6 +220,48 @@ function App() {
     setPerformanceData((prev) => ({ ...prev, ...data, particleCount: estimatedParticleCount }));
   }, [estimatedParticleCount]);
 
+  // Share Logic
+  const generateShareUrl = useCallback(() => {
+    const shareCode = encodeState(photos, useStore.getState().treeColor, config); // Read directly from store
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?s=${shareCode}`;
+  }, [photos, config]); // treeColor is read from store getter
+
+  // startup restoration
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareCode = params.get('s');
+
+    if (shareCode) {
+      import('./utils/shareUtils').then(({ decodeState }) => {
+        const data = decodeState(shareCode);
+        if (data) {
+          // Restore Photos
+          if (data.p && Array.isArray(data.p)) {
+            const restoredPhotos = data.p.map(url => ({
+              id: Math.random().toString(36).substring(2, 9),
+              url: url
+            }));
+            setPhotos(restoredPhotos);
+          }
+
+          // Restore Config
+          if (data.cfg) {
+            setConfig(prev => ({ ...prev, ...data.cfg }));
+          }
+
+          // Restore Color
+          if (data.c) {
+            useStore.getState().setTreeColor(data.c);
+          }
+
+          // Optional: clear URL to keep it clean? 
+          // window.history.replaceState({}, '', window.location.pathname);
+        }
+      });
+    }
+  }, []);
+
   // UI Context
   const uiState: UIState = {
     isExploded,
@@ -218,6 +272,7 @@ function App() {
     updateConfig,
     isMuted,
     toggleMute,
+    generateShareUrl,
   };
 
   return (

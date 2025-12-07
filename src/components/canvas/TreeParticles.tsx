@@ -340,7 +340,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const worker = new PhotoWorker();
 
     worker.onmessage = (e) => {
-      setPhotoData(e.data);
+      // Worker returns the array of positions directly
+      const positions = Array.isArray(e.data) ? e.data : [];
+      setPhotoData({
+        positions: positions,
+        urls: sourceUrls,
+        count: positions.length
+      });
       worker.terminate();
     };
 
@@ -1598,7 +1604,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       {/* === POLAROID PHOTOS === */}
       {/* Mounted always to avoid render lag on click, but hidden until needed */}
       <group>
-        {photoData.positions.map((pos, i) => {
+        {(photoData.positions || []).map((pos, i) => {
           // Only render if we have a matching start position from the gifts
           if (i >= giftData.photoParticleStartPositions.length) return null;
 

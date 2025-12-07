@@ -31,6 +31,29 @@ View your app in AI Studio: https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2
    ```
 3. Open the printed local URL in your browser (default: http://localhost:5173).
 
+## Configuration (Cloudinary)
+
+This project integrates with **Cloudinary** to enable the **Share Memories** feature. This allows users to upload photos, customize the tree, and generate a unique, persistent link to share with others.
+
+1. **Create Account**: Sign up for free at [Cloudinary](https://cloudinary.com/).
+2. **Get Cloud Name**: Find your cloud name in the Dashboard.
+3. **Create Upload Preset**:
+    - Go to **Settings** > **Upload** > **Upload presets**.
+    - Click **Add Upload Preset**.
+    - Name it (e.g., `christmas-tree`).
+    - **CRITICAL**: Set **Signing Mode** to **Unsigned**.
+    - Save.
+4. **Setup Environment**:
+    - Copy the example config: `cp .env.example .env.local`
+    - Fill in your details in `.env.local`:
+      ```bash
+      VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
+      VITE_CLOUDINARY_UPLOAD_PRESET=your_preset_name
+      ```
+5. **Restart**: Rerun `npm run dev` to load the new variables.
+
+> **Note**: Without Cloudinary configuration, the application works in "Local Mode". Photos will display locally but the shared links will not work for others.
+
 ## Available scripts
 
 - `npm run dev` – start the Vite development server with hot reloading.
