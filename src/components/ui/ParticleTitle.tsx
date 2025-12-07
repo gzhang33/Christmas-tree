@@ -99,7 +99,11 @@ const sampleTextToParticles = (
                     y: y,
                     originX: x,
                     originY: y,
+<<<<<<< HEAD
                     size: 0.78 + Math.random() * 0.5, // Smaller particles
+=======
+                    size: 2 + Math.random() * 2,
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
                     color: CHRISTMAS_COLORS[Math.floor(Math.random() * CHRISTMAS_COLORS.length)],
                     delay: erosionFactor,
                     random: Math.random(),
@@ -123,6 +127,7 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
         christmas: Particle[];
     }>({ merry: [], christmas: [] });
 
+<<<<<<< HEAD
     // Increased font size with bold weight for clarity
     const fontSize = isCompact ? 64 : 80;
     const fontFamily = '"Mountains of Christmas", cursive';
@@ -159,6 +164,42 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
             setParticles({ merry: merryParticles, christmas: christmasParticles });
         });
     }, [fontSize, isCompact]);
+=======
+    // Increased font size
+    const fontSize = isCompact ? 56 : 72;
+    const fontFamily = '"Great Vibes", cursive';
+
+    // Generate particles on mount
+    useEffect(() => {
+        const merryParticles = sampleTextToParticles(
+            'Merry',
+            fontSize,
+            fontFamily,
+            420,
+            3
+        );
+        const christmasParticles = sampleTextToParticles(
+            'Christmas',
+            fontSize,
+            fontFamily,
+            560,
+            3
+        );
+
+        // Offset Christmas particles below Merry
+        christmasParticles.forEach((p) => {
+            p.originY += fontSize * 1.15;
+            p.y += fontSize * 1.15;
+            p.originX += isCompact ? 16 : 32; // Indent
+            p.x += isCompact ? 16 : 32;
+            // Adjust erosion factor for second line (triggers later)
+            p.delay = 0.3 + p.delay * 0.7;
+        });
+
+        setParticles({ merry: merryParticles, christmas: christmasParticles });
+    }, [fontSize, isCompact]);
+
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
     // Track explosion start time
     useEffect(() => {
         if (isExploded && explosionStartRef.current === null) {
@@ -191,6 +232,7 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                 let size = particle.size;
 
                 if (isExploded && explosionStartRef.current !== null) {
+<<<<<<< HEAD
                     // Use damping-based progress matching TreeParticles shader timing
                     // dampingSpeedExplosion = 0.0025, called ~60 times per second
                     const explosionElapsed = (currentTime - explosionStartRef.current) / 1000;
@@ -201,6 +243,11 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                     // This matches: progressRef += (1 - progressRef) * dampingSpeed per frame
                     const effectiveFrames = explosionElapsed / frameTime;
                     const globalProgress = 1 - Math.pow(1 - dampingSpeed, effectiveFrames);
+=======
+                    // Calculate global progress (0-1 over ~2.5 seconds)
+                    const explosionElapsed = (currentTime - explosionStartRef.current) / 1000;
+                    const globalProgress = Math.min(explosionElapsed / 2.5, 1);
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
 
                     // Calculate local progress per particle (matching shader logic)
                     // trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0)
@@ -268,8 +315,13 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                 ctx.save();
                 ctx.globalAlpha = alpha;
 
+<<<<<<< HEAD
                 // Outer glow - reduced for clarity
                 ctx.shadowBlur = 6;
+=======
+                // Outer glow
+                ctx.shadowBlur = 12;
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
                 ctx.shadowColor = particle.color;
 
                 // Draw particle
@@ -294,7 +346,11 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
     }, [particles, isExploded]);
 
     // Calculate canvas dimensions (increased for larger text)
+<<<<<<< HEAD
     const canvasWidth = isCompact ? 480 : 640;
+=======
+    const canvasWidth = isCompact ? 400 : 520;
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
     const canvasHeight = fontSize * 2.8;
 
     return (
@@ -305,15 +361,25 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                     top: 'clamp(1rem, 4vh, 2rem)',
                     left: 'clamp(1rem, 3vw, 2.5rem)',
                 }}
+<<<<<<< HEAD
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
+=======
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isExploded ? 0 : 1 }}
+                transition={{ duration: isExploded ? 2.5 : 0.8 }}
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
             >
                 <canvas
                     ref={canvasRef}
                     width={canvasWidth}
                     height={canvasHeight}
                     style={{
+<<<<<<< HEAD
                         filter: 'drop-shadow(0 0 8px rgba(220, 20, 60, 0.5)) drop-shadow(0 0 6px rgba(34, 139, 34, 0.4))',
+=======
+                        filter: 'drop-shadow(0 0 25px rgba(220, 20, 60, 0.6)) drop-shadow(0 0 15px rgba(34, 139, 34, 0.5))',
+>>>>>>> 46f86ad080338945779d101338dafd16a1ef5fa6
                     }}
                 />
             </motion.div>
