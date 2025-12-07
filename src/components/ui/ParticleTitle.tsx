@@ -51,7 +51,6 @@ const sampleTextToParticles = (
     ctx.textBaseline = 'top';
 
     ctx.fillText(text, 0, fontSize * 0.2);
-    ctx.fillText(text, 0, fontSize * 0.2);
 
     // Sample pixel data
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -153,6 +152,7 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
             if (timeoutId) clearTimeout(timeoutId);
         };
     }, [fontSize, fontFamily, isCompact]);
+
     // Track explosion start time
     useEffect(() => {
         if (isExploded && explosionStartRef.current === null) {
