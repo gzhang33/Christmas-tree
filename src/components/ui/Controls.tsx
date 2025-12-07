@@ -29,13 +29,14 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
         setLocalParticleCount(particleCount);
     }, [particleCount]);
 
-    // Debounce update to store
+    // Debounce update to store with longer delay for performance (TREE-08)
     useEffect(() => {
         const timer = setTimeout(() => {
             if (localParticleCount !== particleCount) {
+                // Perform update only after user stops sliding
                 setParticleCount(localParticleCount);
             }
-        }, 300);
+        }, 500); // Increased debounce for heavy operations
         return () => clearTimeout(timer);
     }, [localParticleCount, setParticleCount, particleCount]);
 
@@ -179,9 +180,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="2500"
+                                        min="10000"
                                         max="100000"
-                                        step="1000"
+                                        step="2500"
                                         value={localParticleCount}
                                         onChange={(e) => {
                                             const val = parseInt(e.target.value);

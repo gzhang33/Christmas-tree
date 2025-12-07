@@ -13,7 +13,6 @@ import { PARTICLE_CONFIG } from '../../config/particles';
 import { EffectComposer, Bloom, DepthOfField, ChromaticAberration } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { AppState } from '../../store/useStore';
 
 interface ExperienceProps {
     uiState: UIState;
@@ -101,6 +100,42 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         idleRef.current.lastInteractionTime = Date.now();
     }, []);
 
+    // Reset camera position when returning from exploded state to tree state
+    const prevIsExplodedRef = useRef(isExploded);
+    useEffect(() => {
+        // Detect transition from exploded (true) to tree (false)
+        if (prevIsExplodedRef.current && !isExploded) {
+            // Smoothly animate camera back to initial position
+            const initialPos = new THREE.Vector3(0, 5, 28);
+            const initialLookAt = new THREE.Vector3(0, 0, 0);
+
+            // Use GSAP or manual lerp in useFrame for smooth transition
+            // For now, we'll use a simple approach with requestAnimationFrame
+            const startPos = camera.position.clone();
+            const startTime = Date.now();
+            const duration = 1500; // 1.5 seconds
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                camera.position.lerpVectors(startPos, initialPos, eased);
+                camera.lookAt(initialLookAt);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            animate();
+        }
+
+        prevIsExplodedRef.current = isExploded;
+    }, [isExploded, camera]);
+
     // Camera Drift Logic: Dolly in slowly when idle and exploded
     useFrame((state, delta) => {
         const idle = idleRef.current;
@@ -172,15 +207,15 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 // We'd need exact distance, but for now fixed "macro" feel
                 targetFocus = 0.1; // 0-1 range typically
                 targetFocalLength = 0.3; // High blur for background
-                dofRef.current.target = new THREE.Vector3(0, 0, 0); // Reset target
+                dofRef.current.target.set(0, 0, 0); // Reset target (no allocation)
             } else if (isExploded) {
                 targetFocus = 0.0; // Focus on everything
                 targetFocalLength = 0.01; // Minimal blur
-                dofRef.current.target = new THREE.Vector3(0, 0, 0);
+                dofRef.current.target.set(0, 0, 0);
             } else {
                 targetFocus = 0.0;
                 targetFocalLength = 0.05; // Standard portrait blur
-                dofRef.current.target = new THREE.Vector3(0, 0, 0);
+                dofRef.current.target.set(0, 0, 0);
             }
 
             // Lerp Params

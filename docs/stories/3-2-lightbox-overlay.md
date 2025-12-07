@@ -68,7 +68,7 @@ So that the experience feels like physically examining a memory rather than open
 
 ### Completion Notes
 **Completed:** 2025-12-06
-**Definition of Done:** All acceptance criteria met, tests passing.
+**Definition of Done:** AI Review
 
 ### Completion Notes List
 - Pivoted Lightbox approach to "Immersive Zoom" per User Feedback (2025-12-06).

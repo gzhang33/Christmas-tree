@@ -42,4 +42,7 @@ export const STATIC_COLORS = {
   ukBlue: new THREE.Color('#012169'),
   londonRed: new THREE.Color('#CC0000'),
   corgiTan: new THREE.Color('#D4A574'),
+  // Enhanced festive colors for visual depth (TREE-04)
+  warmGold: new THREE.Color('#FFB347'),
+  deepRed: new THREE.Color('#8B0000'),
 };

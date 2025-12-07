@@ -33,22 +33,17 @@ const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculat
 // Helper to handle Video Texture swapping
 const VideoHandler = ({ videoUrl, material }: { videoUrl: string, material: THREE.ShaderMaterial | null }) => {
     const texture = useVideoTexture(videoUrl, { start: true, muted: true, loop: true });
-
     useEffect(() => {
         if (material) {
             const oldMap = material.uniforms.map.value;
             material.uniforms.map.value = texture;
-            material.uniforms.map.value = texture;
-
 
             return () => {
                 // Revert to original texture (image) on unmount
                 material.uniforms.map.value = oldMap;
             };
         }
-    }, [material, texture]);
-
-    return null;
+    }, [material, texture]); return null;
 };
 
 interface PolaroidPhotoProps {

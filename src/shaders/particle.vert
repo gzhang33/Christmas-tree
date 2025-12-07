@@ -210,6 +210,5 @@ void main() {
   // Optimization: If particle is fully transparent, move out of clip space
   // This skips the fragment shader entirely
   if (vAlpha <= 0.01) {
-      gl_Position = vec4(2.0, 2.0, 2.0, 0.0);
-  }
-}
+      gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+  }}

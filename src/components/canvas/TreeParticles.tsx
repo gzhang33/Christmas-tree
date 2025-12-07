@@ -146,6 +146,22 @@ const getExplosionTarget = (
 };
 
 /**
+ * Calculate erosion factor for particle dissipation effect
+ * Returns a normalized value [0,1] where:
+ * - 0 = top of tree (erodes first)
+ * - 1 = bottom of tree (erodes last)
+ * 
+ * @param yPosition - Y coordinate of the particle
+ * @returns Clamped erosion factor [0,1]
+ */
+const calculateErosionFactor = (yPosition: number): number => {
+  const treeTopY = PARTICLE_CONFIG.treeBottomY + PARTICLE_CONFIG.treeHeight;
+  const erosionRange = PARTICLE_CONFIG.treeHeight + Math.abs(PARTICLE_CONFIG.treeBottomY);
+  const factor = (treeTopY - yPosition) / erosionRange;
+  return Math.max(0, Math.min(1, factor)); // Clamp to [0,1]
+};
+
+/**
  * Calculate Bezier control point for explosion arc
  * Control Point = Start + Explosion Vector (radial outward * force)
  */
@@ -439,7 +455,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[i * 3 + 2] = z;
 
       // Calculate Erosion Factor (Pre-computed from Shader)
-      erosionFactors[i] = (14.0 - finalY) / 20.0;
+      // Uses finalY (with sag/droop) to match the actual rendered particle position
+      erosionFactors[i] = calculateErosionFactor(finalY);
 
       // Initial position is the same as start
       pos[i * 3] = x;
@@ -468,14 +485,35 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const heightFactor = t;
 
       let c: THREE.Color;
+      // TREE-04: Enhanced color mixing with Warm Gold and Deep Red accents
+      const colorRoll = Math.random();
       if (isTip) {
-        c = Math.random() > 0.4 ? STATIC_COLORS.cream : colorVariants.light;
+        // Tips: mostly cream/light, with 8% warm gold accent
+        if (colorRoll < 0.08) {
+          c = STATIC_COLORS.warmGold;
+        } else if (colorRoll < 0.48) {
+          c = STATIC_COLORS.cream;
+        } else {
+          c = colorVariants.light;
+        }
       } else if (isInner) {
-        c = colorVariants.deep;
+        // Inner: mostly deep, with 5% deep red accent
+        if (colorRoll < 0.05) {
+          c = STATIC_COLORS.deepRed;
+        } else {
+          c = colorVariants.deep;
+        }
       } else {
-        c = colorVariants.base
-          .clone()
-          .lerp(colorVariants.light, heightFactor * 0.5);
+        // Middle: base gradient with 3% warm gold and 2% deep red
+        if (colorRoll < 0.03) {
+          c = STATIC_COLORS.warmGold;
+        } else if (colorRoll < 0.05) {
+          c = STATIC_COLORS.deepRed;
+        } else {
+          c = colorVariants.base
+            .clone()
+            .lerp(colorVariants.light, heightFactor * 0.5);
+        }
       }
 
       col[i * 3] = c.r;
@@ -547,7 +585,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[i * 3 + 1] = y;
       positionStart[i * 3 + 2] = z;
 
-      erosionFactors[i] = (14.0 - y) / 20.0;
+      // Uses raw y (no sag) since glow layer doesn't apply droop/sag adjustments
+      erosionFactors[i] = calculateErosionFactor(y);
 
       pos[i * 3] = x;
       pos[i * 3 + 1] = y;
@@ -675,7 +714,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionStart[idx * 3 + 1] = y;
       positionStart[idx * 3 + 2] = z;
 
-      erosionFactors[idx] = (14.0 - y) / 20.0;
+      erosionFactors[idx] = calculateErosionFactor(y);
 
       const endPos = getExplosionTarget(config.explosionRadius);
       positionEnd[idx * 3] = endPos[0];
@@ -728,7 +767,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         positionStart[idx * 3 + 1] = y;
         positionStart[idx * 3 + 2] = z;
 
-        erosionFactors[idx] = (14.0 - y) / 20.0;
+        erosionFactors[idx] = calculateErosionFactor(y);
 
         const endPos = getExplosionTarget(config.explosionRadius);
         positionEnd[idx * 3] = endPos[0];
