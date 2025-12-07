@@ -4,10 +4,11 @@
 
 ## 🎄 Part 1: Christmas Tree Scene (Initial State)
 
-- [ ] **[TREE-01] Idle Animation (Breathing Light)**
-  - **Task:** Implement a rhythmic loop animation for the tree body or top light.
+- [x] **[TREE-01] Idle Animation (Breathing Light)**
+  - **Task:** Implement a rhythmic loop animation for the tree body.
   - **Logic:** Cycle duration 2-3 seconds.
   - **Effect:** Gentle scale up/down or opacity pulse to indicate "Standby" mode.
+  - **Implementation:** Multi-layer breathing animation implemented in `particle.vert` shader (lines 104-115) with configurable frequencies (0.6Hz, 1.2Hz, 0.4Hz) and amplitudes (0.04, 0.03, 0.02). Uniforms set in `createParticleShaderMaterial` and updated in `useFrame` loop. Creates organic radial expansion effect combined with sway animation.
 
 - [x] **[TREE-03] Particle Title ("Merry Christmas")**
   - **Task:** Refactor the left-top title to use a Particle System instead of static text.
