@@ -1611,7 +1611,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           return (
             <PolaroidPhoto
               key={i}
-              url={photoData.urls[i]}
+              url={photoData.urls[i % photoData.urls.length]}
               position={[pos.x, pos.y, pos.z]}
               rotation={pos.rotation}
               scale={pos.scale * config.photoSize}
