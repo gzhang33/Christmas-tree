@@ -205,10 +205,12 @@ void main() {
   vColor = aColor;
   vDepth = -mvPosition.z;
   vIsPhotoParticle = aIsPhotoParticle;
+  vFlash = 0.0; // No flash effect in dissipation animation
   
   // === EARLY DISCARD ===
   // Optimization: If particle is fully transparent, move out of clip space
   // This skips the fragment shader entirely
   if (vAlpha <= 0.01) {
       gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
-  }}
+  }
+}

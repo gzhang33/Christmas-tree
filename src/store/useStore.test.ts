@@ -80,30 +80,15 @@ describe('useStore', () => {
       useStore.getState().setActivePhoto(photoData);
       expect(useStore.getState().activePhoto).toEqual(photoData);
     });
-    it('should set activePhoto to null when setActivePhoto is called with null', () => {
-      // First set a photo
-      const photoData = {
-        id: 'test-photo-123',
-        instanceId: 0,
-        position: [0, 0, 0] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number]
-      };
-      useStore.getState().setActivePhoto(photoData);
-      expect(useStore.getState().activePhoto).toEqual(photoData);
-
-      // Then clear it
-      useStore.getState().setActivePhoto(null);
-      expect(useStore.getState().activePhoto).toBeNull();
-    });  // Then clear it
+    // Then clear it
     useStore.getState().setActivePhoto(null);
     expect(useStore.getState().activePhoto).toBeNull();
   });
-
-  it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
-    const photoId = 'hover-photo-789';
-    useStore.getState().setHoveredPhoto(photoId);
-    expect(useStore.getState().hoveredPhotoId).toBe(photoId);
-  });
+});
+it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
+  const photoId = 'hover-photo-789';
+  useStore.getState().setHoveredPhoto(photoId);
+  expect(useStore.getState().hoveredPhotoId).toBe(photoId);
 });
 
 describe('Persistence Middleware', () => {
@@ -162,6 +147,7 @@ describe('Persistence Middleware', () => {
   it('should NOT persist activePhoto to localStorage', () => {
     const photoData = {
       id: 'test-photo-456',
+      instanceId: 0,
       position: [0, 0, 0] as [number, number, number],
       rotation: [0, 0, 0] as [number, number, number]
     };

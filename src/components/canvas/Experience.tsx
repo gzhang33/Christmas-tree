@@ -5,10 +5,10 @@ import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
 import { CameraController } from './CameraController.tsx';
+import { useStore } from '../../store/useStore';
 
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
-import { useStore } from '../../store/useStore';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { EffectComposer, Bloom, DepthOfField, ChromaticAberration } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -66,6 +66,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     const particleCount = useStore((state) => state.particleCount);
     const hoveredPhotoId = useStore((state) => state.hoveredPhotoId); // Consume hover state
     const activePhoto = useStore((state) => state.activePhoto);
+    const setActivePhoto = useStore((state) => state.setActivePhoto);
     const { camera } = useThree();
 
     // OrbitControls ref for idle detection
@@ -77,6 +78,9 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         lastInteractionTime: Date.now(),
         isIdle: false,
     });
+
+    // RAF animation ID for camera reset animation
+    const animationIdRef = useRef<number | null>(null);
 
     // Light refs for dimming effect
     const ambientRef = useRef<THREE.AmbientLight>(null);
@@ -105,12 +109,17 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     useEffect(() => {
         // Detect transition from exploded (true) to tree (false)
         if (prevIsExplodedRef.current && !isExploded) {
+            // Cancel any existing animation to avoid overlap
+            if (animationIdRef.current !== null) {
+                cancelAnimationFrame(animationIdRef.current);
+                animationIdRef.current = null;
+            }
+
             // Smoothly animate camera back to initial position
             const initialPos = new THREE.Vector3(0, 5, 28);
             const initialLookAt = new THREE.Vector3(0, 0, 0);
 
-            // Use GSAP or manual lerp in useFrame for smooth transition
-            // For now, we'll use a simple approach with requestAnimationFrame
+            // Use manual lerp with requestAnimationFrame for smooth transition
             const startPos = camera.position.clone();
             const startTime = Date.now();
             const duration = 1500; // 1.5 seconds
@@ -126,14 +135,24 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 camera.lookAt(initialLookAt);
 
                 if (progress < 1) {
-                    requestAnimationFrame(animate);
+                    animationIdRef.current = requestAnimationFrame(animate);
+                } else {
+                    animationIdRef.current = null;
                 }
             };
 
-            animate();
+            animationIdRef.current = requestAnimationFrame(animate);
         }
 
         prevIsExplodedRef.current = isExploded;
+
+        // Cleanup: cancel animation on unmount or when isExploded changes
+        return () => {
+            if (animationIdRef.current !== null) {
+                cancelAnimationFrame(animationIdRef.current);
+                animationIdRef.current = null;
+            }
+        };
     }, [isExploded, camera]);
 
     // Camera Drift Logic: Dolly in slowly when idle and exploded
@@ -335,8 +354,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 receiveShadow
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (useStore.getState().activePhoto) {
-                        useStore.getState().setActivePhoto(null);
+                    if (activePhoto) {
+                        setActivePhoto(null);
                     }
                 }}
             >

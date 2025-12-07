@@ -42,13 +42,13 @@ export const PARTICLE_CONFIG = {
         breatheFrequency1: 0.6,    // Primary breathing layer
         breatheFrequency2: 1.2,    // Secondary breathing layer
         breatheFrequency3: 0.4,    // Tertiary breathing layer
-        breatheAmplitude1: 0.04,   // Primary breathing amplitude
-        breatheAmplitude2: 0.03,   // Secondary breathing amplitude
-        breatheAmplitude3: 0.02,   // Tertiary breathing amplitude
+        breatheAmplitude1: 0.15,   // Primary breathing amplitude (increased for visibility)
+        breatheAmplitude2: 0.10,   // Secondary breathing amplitude (increased for visibility)
+        breatheAmplitude3: 0.08,   // Tertiary breathing amplitude (increased for visibility)
 
         // Sway animation (tree movement)
         swayFrequency: 0.5,        // Sway oscillation frequency
-        swayAmplitude: 0.08,       // Maximum sway distance
+        swayAmplitude: 0.15,       // Maximum sway distance (increased for visibility)
 
         // Explosion physics damping speeds
         // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return

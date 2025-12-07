@@ -89,13 +89,20 @@ const getSharedGeometries = () => {
         backGeo.translate(0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001);
 
         // Merge
-        sharedPhotoGeometry = mergeBufferGeometries([frontGeo, backGeo]);
+        const merged = mergeBufferGeometries([frontGeo, backGeo]);
+        if (!merged) {
+            console.error('Failed to merge photo geometries');
+            // Fallback to front geometry only
+            sharedPhotoGeometry = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+            sharedPhotoGeometry.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001);
+        } else {
+            sharedPhotoGeometry = merged;
+        }
 
         // Cleanup intermediates
         frontGeo.dispose();
         backGeo.dispose();
-    }
-    return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
+    } return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
 };
 
 // Shared Material (Created once to reuse WebGLProgram)
