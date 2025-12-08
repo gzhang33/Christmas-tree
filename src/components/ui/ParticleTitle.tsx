@@ -8,7 +8,7 @@
  * - Dispersion effect synchronized with tree explosion (matching shader params)
  * - Christmas red/green/gold/white color palette
  */
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { TITLE_CONFIG, TITLE_COLORS } from '../../config/particleTitle';
@@ -99,7 +99,9 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
 
     // Font configuration from centralized config
     const fontSize = isCompact ? TITLE_CONFIG.font.size.compact : TITLE_CONFIG.font.size.normal;
-    const fontFamily = TITLE_CONFIG.font.family;
+    // Use the fallback stack if defined, otherwise default to family
+    // @ts-ignore - fallback property added in config
+    const fontFamily = TITLE_CONFIG.font.fallback || TITLE_CONFIG.font.family;
 
     // Generate particles on mount
     useEffect(() => {
@@ -162,6 +164,11 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
         }
     }, [isExploded]);
 
+    // Memoize the specific particle combination to prevent per-frame allocation
+    const allParticles = useMemo(() => {
+        return [...particles.line1, ...particles.line2];
+    }, [particles.line1, particles.line2]);
+
     // Animation loop
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -171,7 +178,6 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
         if (!ctx) return;
 
         const startTime = performance.now();
-        const allParticles = [...particles.line1, ...particles.line2];
 
         const animate = (currentTime: number) => {
             const elapsed = (currentTime - startTime) / 1000;
@@ -185,16 +191,16 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                 let size = particle.size;
 
                 if (isExploded && explosionStartRef.current !== null) {
-                    // Use damping-based progress matching TreeParticles shader timing
-                    // dampingSpeedExplosion = 0.0025, called ~60 times per second
+                    // Use time-based exponential decay for frame-rate independence
                     const explosionElapsed = (currentTime - explosionStartRef.current) / 1000;
-                    const frameTime = 1 / 60; // Assuming 60fps
-                    const dampingSpeed = PARTICLE_CONFIG.animation.dampingSpeedExplosion;
 
-                    // Simulate damping: progress = 1 - (1 - dampingSpeed)^frames
-                    // This matches: progressRef += (1 - progressRef) * dampingSpeed per frame
-                    const effectiveFrames = explosionElapsed / frameTime;
-                    const globalProgress = 1 - Math.pow(1 - dampingSpeed, effectiveFrames);
+                    // Convert per-frame damping (at 60fps) to per-second decay rate constant
+                    // If per-frame logic was: progress += (1 - progress) * k
+                    // That is discrete approx of: dy/dt = -60*k*y => y(t) = exp(-60*k*t) for the remaining part (1-progress)
+                    const dampingSpeedPerFrame = PARTICLE_CONFIG.animation.dampingSpeedExplosion;
+                    const decayRate = dampingSpeedPerFrame * 60;
+
+                    const globalProgress = 1 - Math.exp(-decayRate * explosionElapsed);
 
                     // Calculate local progress per particle (matching shader logic)
                     // trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0)
@@ -300,7 +306,7 @@ export const ParticleTitle: React.FC<ParticleTitleProps> = ({
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [particles, isExploded]);
+    }, [allParticles, isExploded]);
 
     // Calculate canvas dimensions from config
     const canvasWidth = isCompact ? TITLE_CONFIG.sampling.canvasWidth.compact : TITLE_CONFIG.sampling.canvasWidth.normal;

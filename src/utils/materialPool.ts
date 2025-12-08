@@ -46,9 +46,10 @@ export class MaterialPool {
             // Create new material
             material = this.masterMaterial.clone();
             if (material.uniforms.map) material.uniforms.map.value = texture;
+            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
             this.totalCreated++;
         }
-
         this.activeCount++;
         return material;
     }
@@ -82,15 +83,15 @@ export class MaterialPool {
         // Warning if active materials exist
         if (this.activeCount > 0) {
             console.warn(`Disposing pool with ${this.activeCount} active materials. This may cause memory leaks.`);
+            // 不重置 activeCount，让它继续反映实际情况
         }
 
         for (const material of this.pool) {
             material.dispose();
         }
         this.pool = [];
-        this.activeCount = 0;
-        this.totalCreated = 0;
-        this.totalAcquired = 0;
+        // 只清理池子，保留统计信息以便调试
+        // 如果确定要完全重置，可以保持原样
     }
 
     /**

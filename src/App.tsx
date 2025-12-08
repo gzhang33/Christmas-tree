@@ -233,43 +233,55 @@ function App() {
     const shareCode = params.get('s');
 
     if (shareCode) {
-      import('./utils/shareUtils').then(({ decodeState }) => {
-        const data = decodeState(shareCode);
-        if (data) {
-          // Restore Photos
-          if (data.p && Array.isArray(data.p)) {
-            // 验证URL格式
-            const validUrls = data.p.filter(url =>
-              typeof url === 'string' &&
-              (url.startsWith('https://') || url.startsWith('http://'))
-            );
-            const restoredPhotos = validUrls.map(url => ({
-              id: Math.random().toString(36).substring(2, 9),
-              url: url
-            }));
-            setPhotos(restoredPhotos);
-          }
-
-          // Restore Config
-          if (data.cfg) {
-            // 只恢复已知的配置项，并验证数值范围
-            const safeConfig: Partial<AppConfig> = {};
-            if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
-              safeConfig.snowDensity = data.cfg.snowDensity;
-            }
-            // ... 对其他配置项做类似验证
-            setConfig(prev => ({ ...prev, ...safeConfig }));
-          }
-
-          // Restore Color
-          if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
-            useStore.getState().setTreeColor(data.c);
-          }
-
-          // Optional: clear URL to keep it clean? 
-          // window.history.replaceState({}, '', window.location.pathname);
+      const data = decodeState(shareCode);
+      if (data) {
+        // Restore Photos
+        if (data.p && Array.isArray(data.p)) {
+          // 验证URL格式
+          const validUrls = data.p.filter(url =>
+            typeof url === 'string' &&
+            (url.startsWith('https://') || url.startsWith('http://'))
+          );
+          const restoredPhotos = validUrls.map(url => ({
+            id: Math.random().toString(36).substring(2, 9),
+            url: url
+          }));
+          setPhotos(restoredPhotos);
         }
-      });
+
+        // Restore Config
+        if (data.cfg) {
+          // 只恢复已知的配置项，并验证数值范围
+          const safeConfig: Partial<AppConfig> = {};
+          if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
+            safeConfig.snowDensity = data.cfg.snowDensity;
+          }
+          if (typeof data.cfg.rotationSpeed === 'number' && data.cfg.rotationSpeed >= 0 && data.cfg.rotationSpeed <= 5) {
+            safeConfig.rotationSpeed = data.cfg.rotationSpeed;
+          }
+          if (typeof data.cfg.photoSize === 'number' && data.cfg.photoSize >= 0.5 && data.cfg.photoSize <= 5) {
+            safeConfig.photoSize = data.cfg.photoSize;
+          }
+          if (typeof data.cfg.explosionRadius === 'number' && data.cfg.explosionRadius >= 0 && data.cfg.explosionRadius <= 100) {
+            safeConfig.explosionRadius = data.cfg.explosionRadius;
+          }
+          if (typeof data.cfg.snowSpeed === 'number' && data.cfg.snowSpeed >= 0 && data.cfg.snowSpeed <= 10) {
+            safeConfig.snowSpeed = data.cfg.snowSpeed;
+          }
+          if (typeof data.cfg.windStrength === 'number' && data.cfg.windStrength >= 0 && data.cfg.windStrength <= 5) {
+            safeConfig.windStrength = data.cfg.windStrength;
+          }
+          setConfig(prev => ({ ...prev, ...safeConfig }));
+        }
+
+        // Restore Color
+        if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
+          useStore.getState().setTreeColor(data.c);
+        }
+
+        // Optional: clear URL to keep it clean? 
+        // window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   }, []);
   // UI Context

@@ -63,25 +63,19 @@ export const decodeState = (encoded: string): ShareableState | null => {
             return null;
         }
 
-        // Validate 'p' (photos) is an array of strings
-        if (data.p) {
-            if (!Array.isArray(data.p)) {
-                console.warn("Invalid share state: 'p' must be an array");
-                return null;
-            }
-            if (data.p.some((item: any) => typeof item !== 'string')) {
-                console.warn("Invalid share state: 'p' must contain only strings");
-                return null;
-            }
-        }
-
-        // Validate 'c' (color) is a string
-        if (data.c && typeof data.c !== 'string') {
-            console.warn("Invalid share state: 'c' must be a string");
+        // Validate 'p' (photos) is REQUIRED and must be an array of strings
+        if (!data.p || !Array.isArray(data.p) || data.p.some((item: any) => typeof item !== 'string')) {
+            console.warn("Invalid share state: 'p' is missing or invalid (must be string[])");
             return null;
         }
 
-        // Validate 'cfg' (config) is an object
+        // Validate 'c' (color) is REQUIRED and must be a string
+        if (!data.c || typeof data.c !== 'string') {
+            console.warn("Invalid share state: 'c' is missing or invalid (must be string)");
+            return null;
+        }
+
+        // Validate 'cfg' (config) is OPTIONAL but if present must be an object
         if (data.cfg && (typeof data.cfg !== 'object' || Array.isArray(data.cfg))) {
             console.warn("Invalid share state: 'cfg' must be an object");
             return null;

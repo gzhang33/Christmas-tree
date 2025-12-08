@@ -23,7 +23,12 @@ export const TITLE_CONFIG = {
         // 字体族名称
         // 用途：定义标题使用的字体样式
         // 影响：改变文字的视觉风格，需确保字体已在 index.html 中加载
+        // Font family with fallbacks
+        // Use 'Merry Christmas Flake' strictly for canvas sampling to match the loaded font file.
+        // For DOM text elements, use proper fallback stack.
+        // Here we define the primary font for sampling.
         family: 'Merry Christmas Flake',
+        fallback: "'Merry Christmas Flake', 'Great Vibes', serif",
 
         // 字体大小（像素）
         // 用途：控制标题文字的尺寸
@@ -32,6 +37,9 @@ export const TITLE_CONFIG = {
             compact: 75,  // 紧凑模式（小屏幕）
             normal: 90,   // 正常模式（大屏幕）
         },
+
+        // Font loading delay (ms)
+        loadDelay: 150,
     },
 
     // ========== 文本内容配置 ==========

@@ -14,8 +14,7 @@ describe('useStore', () => {
       activePhoto: null,
     }
    });
-});  });
-
+});
 describe('Initial State', () => {
   it('should initialize with default treeColor', () => {
     const treeColor = useStore.getState().treeColor;

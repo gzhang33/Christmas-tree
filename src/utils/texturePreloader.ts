@@ -27,6 +27,14 @@ export const loadTexture = (url: string): Promise<THREE.Texture> => {
             url,
             (texture) => {
                 loadingPromises.delete(url);
+
+                // Configure texture properties for consistency
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.generateMipmaps = false;
+                texture.needsUpdate = true;
+
                 textureCache.set(url, texture);
                 resolve(texture);
             },

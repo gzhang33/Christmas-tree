@@ -1614,7 +1614,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </points>
 
       {/* === POLAROID PHOTOS === */}
-      {/* === POLAROID PHOTOS === */}
       {/* Mounted always to avoid render lag on click, but hidden until needed */}
       <group>
         {(photoData.positions || []).map((pos, i) => {
@@ -1654,7 +1653,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </group>
 
       {/* NEW: PhotoManager - Single useFrame for all photos */}
-      <PhotoManager photos={photoAnimations} isExploded={isExploded} />
-    </group>
+      <PhotoManager photos={photoAnimations} isExploded={isExploded} />    </group>
   );
 };

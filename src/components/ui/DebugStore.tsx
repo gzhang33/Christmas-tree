@@ -164,9 +164,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-white/50">Hovered Photo</span>
-                        <span className="text-cyan-400 font-semibold">{hoveredPhotoId !== null ? `#${hoveredPhotoId}` : 'None'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
+                        <span className="text-cyan-400 font-semibold">{hoveredPhotoId != null ? `#${hoveredPhotoId}` : 'None'}</span>
+                    </div>                    <div className="flex justify-between items-center">
                         <span className="text-white/50">Active Photo</span>
                         <span className="text-cyan-400 font-semibold">{activePhoto ? `ID: ${activePhoto.id}` : 'None'}</span>
                     </div>
@@ -185,8 +184,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-white/60">FPS Improvement</span>
                             <span className={`font-semibold ${performanceData.fps >= 55 ? 'text-green-400' :
-                                    performanceData.fps >= 40 ? 'text-yellow-400' :
-                                        'text-red-400'
+                                performanceData.fps >= 40 ? 'text-yellow-400' :
+                                    'text-red-400'
                                 }`}>
                                 {performanceData.fps >= 55 ? '✓ Excellent' :
                                     performanceData.fps >= 40 ? '~ Good' :
@@ -198,8 +197,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-white/60">Frame Budget</span>
                             <span className={`font-semibold ${performanceData.frameTime <= 16.7 ? 'text-green-400' :
-                                    performanceData.frameTime <= 25 ? 'text-yellow-400' :
-                                        'text-red-400'
+                                performanceData.frameTime <= 25 ? 'text-yellow-400' :
+                                    'text-red-400'
                                 }`}>
                                 {performanceData.frameTime <= 16.7 ? '✓ 60fps Target' :
                                     performanceData.frameTime <= 25 ? '~ 40fps Target' :
@@ -211,8 +210,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-white/60">Draw Call Efficiency</span>
                             <span className={`font-semibold ${performanceData.drawCalls <= 250 ? 'text-green-400' :
-                                    performanceData.drawCalls <= 400 ? 'text-yellow-400' :
-                                        'text-red-400'
+                                performanceData.drawCalls <= 400 ? 'text-yellow-400' :
+                                    'text-red-400'
                                 }`}>
                                 {performanceData.drawCalls <= 250 ? '✓ Optimized' :
                                     performanceData.drawCalls <= 400 ? '~ Acceptable' :
@@ -224,8 +223,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-white/60">Memory Usage</span>
                             <span className={`font-semibold ${performanceData.memoryUsage <= 200 ? 'text-green-400' :
-                                    performanceData.memoryUsage <= 400 ? 'text-yellow-400' :
-                                        'text-red-400'
+                                performanceData.memoryUsage <= 400 ? 'text-yellow-400' :
+                                    'text-red-400'
                                 }`}>
                                 {performanceData.memoryUsage <= 200 ? '✓ Low' :
                                     performanceData.memoryUsage <= 400 ? '~ Moderate' :
@@ -239,12 +238,12 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-white/60 text-[10px]">Overall Grade</span>
                             <span className={`font-bold text-sm ${performanceData.fps >= 55 && performanceData.frameTime <= 18 ? 'text-green-400' :
-                                    performanceData.fps >= 40 ? 'text-yellow-400' :
-                                        'text-red-400'
+                                performanceData.fps >= 40 && performanceData.frameTime <= 25 ? 'text-yellow-400' :
+                                    'text-red-400'
                                 }`}>
                                 {performanceData.fps >= 55 && performanceData.frameTime <= 18 ? 'A - Excellent' :
-                                    performanceData.fps >= 50 ? 'B - Very Good' :
-                                        performanceData.fps >= 40 ? 'C - Good' :
+                                    performanceData.fps >= 50 && performanceData.frameTime <= 20 ? 'B - Very Good' :
+                                        performanceData.fps >= 40 && performanceData.frameTime <= 25 ? 'C - Good' :
                                             performanceData.fps >= 30 ? 'D - Fair' :
                                                 'F - Poor'}
                             </span>

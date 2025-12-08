@@ -3,6 +3,7 @@
  * 
  * @param url The original image URL
  * @param width The desired width (defaults to 600)
+ * @param quality The desired quality (defaults to 'auto')
  * @param format The desired format (defaults to 'auto' for WebP/AVIF selection)
  * @returns The optimized URL with transformation params inserted
  */
@@ -64,19 +65,27 @@ export const uploadToCloudinary = async (
         const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
         xhr.open('POST', url, true);
+        xhr.timeout = 15000; // 15秒超时
 
+        xhr.ontimeout = () => {
+            reject(new Error('上传超时，请检查网络连接后重试'));
+        };
         // Track progress
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable && onProgress) {
                 const percentComplete = Math.round((e.loaded / e.total) * 100);
-                onProgress(percentComplete);
-            }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-                resolve(response.secure_url);
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            resolve(response.secure_url);
+                        } catch (error) {
+                            reject(new Error('Failed to parse server response'));
+                        }
+                    } else {
+                        reject(new Error(`Upload failed: ${xhr.statusText}`));
+                    }
+                };
             } else {
                 reject(new Error(`Upload failed: ${xhr.statusText}`));
             }
