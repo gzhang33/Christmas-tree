@@ -20,6 +20,7 @@ export class MaterialPool {
     private masterMaterial: THREE.ShaderMaterial;
     private activeCount: number = 0;
     private totalCreated: number = 0;
+    private totalAcquired: number = 0;
 
     constructor(masterMaterial: THREE.ShaderMaterial) {
         this.masterMaterial = masterMaterial;
@@ -32,16 +33,19 @@ export class MaterialPool {
     acquire(texture: THREE.Texture): THREE.ShaderMaterial {
         let material: THREE.ShaderMaterial;
 
+        // Increment usage statistics
+        this.totalAcquired++;
+
         if (this.pool.length > 0) {
             // Reuse from pool
             material = this.pool.pop()!;
-            material.uniforms.map.value = texture;
-            material.uniforms.opacity.value = 0; // Reset opacity
-            material.uniforms.uDevelop.value = 0; // Reset develop
+            if (material.uniforms.map) material.uniforms.map.value = texture;
+            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
         } else {
             // Create new material
             material = this.masterMaterial.clone();
-            material.uniforms.map.value = texture;
+            if (material.uniforms.map) material.uniforms.map.value = texture;
             this.totalCreated++;
         }
 
@@ -51,14 +55,19 @@ export class MaterialPool {
 
     /**
      * Release a material back to the pool
-     * Material can be reused by future acquire() calls
      */
     release(material: THREE.ShaderMaterial): void {
         if (!material) return;
 
+        // Prevent double release
+        if (this.pool.includes(material)) {
+            console.warn('Material already released to pool');
+            return;
+        }
+
         // Reset material state
-        material.uniforms.opacity.value = 0;
-        material.uniforms.uDevelop.value = 0;
+        if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
+        if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
 
         // Add back to pool
         this.pool.push(material);
@@ -70,11 +79,18 @@ export class MaterialPool {
      * Call this when cleaning up
      */
     dispose(): void {
+        // Warning if active materials exist
+        if (this.activeCount > 0) {
+            console.warn(`Disposing pool with ${this.activeCount} active materials. This may cause memory leaks.`);
+        }
+
         for (const material of this.pool) {
             material.dispose();
         }
         this.pool = [];
         this.activeCount = 0;
+        this.totalCreated = 0;
+        this.totalAcquired = 0;
     }
 
     /**
@@ -85,8 +101,8 @@ export class MaterialPool {
             poolSize: this.pool.length,
             activeCount: this.activeCount,
             totalCreated: this.totalCreated,
-            reuseRate: this.totalCreated > 0
-                ? ((this.activeCount - this.totalCreated) / this.activeCount * 100).toFixed(1) + '%'
+            reuseRate: this.totalAcquired > 0
+                ? ((this.totalAcquired - this.totalCreated) / this.totalAcquired * 100).toFixed(1) + '%'
                 : '0%'
         };
     }
@@ -104,6 +120,13 @@ let globalPhotoMaterialPool: MaterialPool | null = null;
  */
 export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial): void {
     if (globalPhotoMaterialPool) {
+        const stats = globalPhotoMaterialPool.getStats();
+        if (stats.activeCount > 0) {
+            throw new Error(
+                `Cannot reinitialize pool with ${stats.activeCount} active materials. ` +
+                `Release all materials before reinitializing.`
+            );
+        }
         globalPhotoMaterialPool.dispose();
     }
     globalPhotoMaterialPool = new MaterialPool(masterMaterial);

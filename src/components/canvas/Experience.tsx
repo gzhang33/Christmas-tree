@@ -350,9 +350,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
 
             {/* === FLOOR === */}
-            {/* === FLOOR === */}
-            <mesh
-                rotation={[-Math.PI / 2, 0, 0]}
+            <mesh rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, -6.6, 0]}
                 receiveShadow
                 onClick={(e) => {

@@ -719,6 +719,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                             e.stopPropagation();
                             setActivePhoto(null);
                         }}
+                        aria-label="关闭照片"
                         style={{
                             background: 'rgba(0, 0, 0, 0.5)',
                             backdropFilter: 'blur(10px)',

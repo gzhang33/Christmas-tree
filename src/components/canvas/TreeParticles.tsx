@@ -336,20 +336,32 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       : MEMORIES.map((m) => m.image)
     ).map(url => getOptimizedCloudinaryUrl(url, 512)); // Optimize to 512px width
 
+    let cancelled = false;
     // Instantiate Worker
     const worker = new PhotoWorker();
 
     worker.onmessage = (e) => {
-      // Worker returns the array of positions directly
-      const positions = Array.isArray(e.data) ? e.data : [];
-      setPhotoData({
-        positions: positions,
-        urls: sourceUrls,
-        count: positions.length
-      });
+      if (cancelled) return;
+
+      const { success, positions, error } = e.data;
+
+      if (success && Array.isArray(positions)) {
+        setPhotoData({
+          positions: positions,
+          urls: sourceUrls,
+          count: positions.length
+        });
+      } else {
+        console.warn('[PhotoWorker] Generation failed:', error);
+        // Fallback or empty state could be handled here
+      }
       worker.terminate();
     };
 
+    worker.onerror = (err) => {
+      console.warn('[PhotoWorker] Error:', err);
+      worker.terminate();
+    };
     worker.postMessage({
       count: PHOTO_COUNT,
       aspectRatio,
@@ -357,6 +369,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     });
 
     return () => {
+      cancelled = true;
       worker.terminate();
     };
   }, [photos, viewport.width, viewport.height]);

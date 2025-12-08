@@ -61,71 +61,43 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                 const uploadedUrls: string[] = [];
                 const totalFiles = files.length;
 
+                const progressMap = new Map<number, number>();
                 // Process files sequentially or parallel (parallel for speed)
                 // We'll map file objects to simple { id, url } format expected by addPhotos
                 await Promise.all(files.map(async (file, index) => {
                     try {
                         const url = await uploadToCloudinary(file, (percent) => {
-                            // Rough aggregate progress
-                            const baseProgress = (index / totalFiles) * 100;
-                            const fileContribution = percent / totalFiles;
-                            setUploadProgress(Math.round(baseProgress + fileContribution));
+                            progressMap.set(index, percent);
+                            const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
+                            setUploadProgress(Math.round(total / totalFiles));
                         });
                         uploadedUrls.push(url);
                     } catch (err) {
                         console.error(`Failed to upload ${file.name}:`, err);
-                        // Fallback to local object URL if cloud upload fails
-                        uploadedUrls.push(URL.createObjectURL(file));
+                        // Fallback to local Data URL if cloud upload fails
+                        const dataUrl = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target?.result as string);
+                            reader.readAsDataURL(file);
+                        });
+                        uploadedUrls.push(dataUrl);
                     }
                 }));
 
                 // Add all successfully processed URLs (cloud or fallback)
-                // Mock FileList-like structure or just pass URLs if `addPhotos` supports it.
-                // Since `addPhotos` expects FileList (based on original code `addPhotos(e.target.files)`),
-                // we might need to modify `addPhotos` OR just proceed if user didn't strict-type it.
-                // Assuming `addPhotos` internally handles files -> URLs. 
-                // Wait, `addPhotos` in `useStore` likely creates ObjectURLs.
-                // To support Cloudinary URLs, we need to bypass the default `addPhotos` logic 
-                // OR update `addPhotos` to accept string URLs.
-                // For now, to keep it simple and conforming to "Option B" (UI focus):
-                // We will use the existing `addPhotos` logic but we can't easily inject Cloudinary URLs 
-                // unless we update the Store.
-
-                // CRITICAL FIX: The current `addPhotos` in `useStore` likely reads files.
-                // If we want to use Cloudinary URLs, we need a new action `addUserPhotoUrl`.
-                // Checking usage: `addPhotos(e.target.files)`. 
-
-                // Let's create a temporary fallback: 
-                // If cloud upload succeeds, we push cloud URLs. 
-                // BUT `addPhotos` takes `FileList`.
-
-                // Strategy: We will use the existing local handler for immediate feedback (instant),
-                // AND start background upload? 
-                // No, user wants "upload to cloudinary".
-
-                // Correction: Since I cannot easily change the Store signature in this turn without viewing it,
-                // I will assume for this step we implement the UI feedback (spinner) 
-                // and pass the `e.target.files` to `addPhotos` as before for IMMEDIATE LOCAL PREVIEW,
-                // but logs that "Cloudinary integration requires Store update".
-
-                // WAIT! The user explicitly asked to "send to cloudinary... get compressed version... for display".
-                // Just relying on local ObjectURL defeats the purpose.
-                // So I MUST update the store/state handling to accept strings.
-
-                // Let's assume for now I will just call `addPhotos` with the files directly `handleFileUpload` originally did,
-                // BUT wrapped with the progress UI.
-                // To fully implement Cloudinary logic, I need to see `addPhotos` implementation.
-                // I'll stick to the UI request first: "Execute Option B in Controls panel".
-
-                // Let's just restore the UI layout functionality first with the Loading indicator.
-                // Actual cloud integration might need a Store refactor in next step if `addPhotos` is strict.
-
-                addPhotos(e.target.files);
+                // Pass arrays of strings (URLs) to addPhotos
+                if (uploadedUrls.length > 0) {
+                    addPhotos(uploadedUrls);
+                }
 
             } catch (error) {
                 console.error("Upload error", error);
-                // Fallback
-                addPhotos(e.target.files);
+
+                // Fallback: Just pass the files directly if something completely crashed before processing
+                // Note: FileList is iterable, but safe to just pass e.target.files if needed
+                if (e.target.files) {
+                    addPhotos(Array.from(e.target.files).map(f => URL.createObjectURL(f)));
+                }
             } finally {
                 setIsUploading(false);
                 setUploadProgress(0);
@@ -217,6 +189,13 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                                     <button
                                         onClick={() => {
+                                            // Check for local Data URLs which break sharing
+                                            const hasLocalPhotos = photos.some(p => p.url.startsWith('data:'));
+
+                                            if (hasLocalPhotos) {
+                                                alert("NOTICE: Some photos are stored locally (Data URL) because cloud upload failed or is not configured.\n\nSharing might not work for others as the link will be too long or invalid.\n\nPlease configure Cloudinary for permanent, shareable links.");
+                                            }
+
                                             const url = uiState.generateShareUrl();
                                             navigator.clipboard.writeText(url);
                                             setIsCopied(true);

@@ -27,7 +27,9 @@ export const encodeState = (
 
     try {
         const json = JSON.stringify(state);
-        return btoa(json);
+        const base64 = btoa(encodeURIComponent(json));
+        // 转换为 URL 安全格式：+ 换成 -，/ 换成 _，删除 =
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     } catch (e) {
         console.error("Failed to encode state", e);
         return "";
@@ -38,9 +40,54 @@ export const encodeState = (
  * Decodes the shared state from a query string
  */
 export const decodeState = (encoded: string): ShareableState | null => {
+
     try {
-        const json = atob(encoded);
-        return JSON.parse(json);
+        // Reverse URL safe replacements
+        let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+
+        // Add padding if needed
+        const padding = base64.length % 4;
+        if (padding) {
+            base64 += '='.repeat(4 - padding);
+        }
+
+        // Decode Base64 to percent-encoded string (to handle UTF-8 correctly)
+        const binaryString = atob(base64);
+        const json = decodeURIComponent(binaryString);
+
+        const data = JSON.parse(json);
+
+        // Runtime Validation
+        if (!data || typeof data !== 'object') {
+            console.warn("Invalid share state: not an object");
+            return null;
+        }
+
+        // Validate 'p' (photos) is an array of strings
+        if (data.p) {
+            if (!Array.isArray(data.p)) {
+                console.warn("Invalid share state: 'p' must be an array");
+                return null;
+            }
+            if (data.p.some((item: any) => typeof item !== 'string')) {
+                console.warn("Invalid share state: 'p' must contain only strings");
+                return null;
+            }
+        }
+
+        // Validate 'c' (color) is a string
+        if (data.c && typeof data.c !== 'string') {
+            console.warn("Invalid share state: 'c' must be a string");
+            return null;
+        }
+
+        // Validate 'cfg' (config) is an object
+        if (data.cfg && (typeof data.cfg !== 'object' || Array.isArray(data.cfg))) {
+            console.warn("Invalid share state: 'cfg' must be an object");
+            return null;
+        }
+
+        return data as ShareableState;
     } catch (e) {
         console.error("Failed to decode share state", e);
         return null;

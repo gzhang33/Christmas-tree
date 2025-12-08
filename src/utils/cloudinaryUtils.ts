@@ -2,7 +2,7 @@
  * Optimizes a Cloudinary image URL with transformation parameters.
  * 
  * @param url The original image URL
- * @param width The desired width (defaults to 800)
+ * @param width The desired width (defaults to 600)
  * @param format The desired format (defaults to 'auto' for WebP/AVIF selection)
  * @returns The optimized URL with transformation params inserted
  */
@@ -11,8 +11,7 @@ export const getOptimizedCloudinaryUrl = (
     width: number = 600,
     quality: string = 'auto',
     format: string = 'auto'
-): string => {
-    // If not a cloudinary url, return original
+): string => {    // If not a cloudinary url, return original
     if (!url || !url.includes('cloudinary.com')) {
         return url;
     }

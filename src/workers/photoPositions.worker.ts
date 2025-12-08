@@ -8,11 +8,27 @@ import { generatePhotoPositions } from '../config/photoConfig';
 
 // Handle messages from the main thread
 self.onmessage = (e: MessageEvent) => {
-    const { count, aspectRatio } = e.data;
+    try {
+        const { count, aspectRatio } = e.data;
 
-    // Perform the heavy calculation
-    const positions = generatePhotoPositions(count, aspectRatio);
+        // Input validation
+        if (typeof count !== 'number' || !isFinite(count) || count <= 0) {
+            throw new Error('Invalid count: must be a positive number');
+        }
+        if (typeof aspectRatio !== 'number' || !isFinite(aspectRatio) || aspectRatio <= 0) {
+            throw new Error('Invalid aspectRatio: must be a positive number');
+        }
 
-    // Send result back to main thread
-    self.postMessage(positions);
+        // Perform the heavy calculation
+        const positions = generatePhotoPositions(count, aspectRatio);
+
+        // Send success result back to main thread
+        self.postMessage({ success: true, positions });
+    } catch (error: any) {
+        // Send error result back to main thread
+        self.postMessage({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
 };

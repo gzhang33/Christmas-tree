@@ -238,7 +238,12 @@ function App() {
         if (data) {
           // Restore Photos
           if (data.p && Array.isArray(data.p)) {
-            const restoredPhotos = data.p.map(url => ({
+            // 验证URL格式
+            const validUrls = data.p.filter(url =>
+              typeof url === 'string' &&
+              (url.startsWith('https://') || url.startsWith('http://'))
+            );
+            const restoredPhotos = validUrls.map(url => ({
               id: Math.random().toString(36).substring(2, 9),
               url: url
             }));
@@ -247,11 +252,17 @@ function App() {
 
           // Restore Config
           if (data.cfg) {
-            setConfig(prev => ({ ...prev, ...data.cfg }));
+            // 只恢复已知的配置项，并验证数值范围
+            const safeConfig: Partial<AppConfig> = {};
+            if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
+              safeConfig.snowDensity = data.cfg.snowDensity;
+            }
+            // ... 对其他配置项做类似验证
+            setConfig(prev => ({ ...prev, ...safeConfig }));
           }
 
           // Restore Color
-          if (data.c) {
+          if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
             useStore.getState().setTreeColor(data.c);
           }
 
@@ -261,7 +272,6 @@ function App() {
       });
     }
   }, []);
-
   // UI Context
   const uiState: UIState = {
     isExploded,

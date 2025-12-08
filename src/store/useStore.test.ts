@@ -12,83 +12,85 @@ describe('useStore', () => {
       particleCount: 18000,
       isExploded: false,
       activePhoto: null,
-    });
+    }
+   });
+});  });
+
+describe('Initial State', () => {
+  it('should initialize with default treeColor', () => {
+    const treeColor = useStore.getState().treeColor;
+    expect(treeColor).toBe(DEFAULT_TREE_COLOR);
   });
 
-  describe('Initial State', () => {
-    it('should initialize with default treeColor', () => {
-      const treeColor = useStore.getState().treeColor;
-      expect(treeColor).toBe(DEFAULT_TREE_COLOR);
-    });
-
-    it('should initialize with default particleCount', () => {
-      const particleCount = useStore.getState().particleCount;
-      expect(particleCount).toBe(18000);
-    });
-
-    it('should initialize with isExploded as false', () => {
-      const isExploded = useStore.getState().isExploded;
-      expect(isExploded).toBe(false);
-    });
-
-    it('should initialize with activePhoto as null', () => {
-      const activePhoto = useStore.getState().activePhoto;
-      expect(activePhoto).toBeNull();
-    });
-
-    it('should initialize with hoveredPhotoId as null', () => {
-      const hoveredPhotoId = useStore.getState().hoveredPhotoId;
-      expect(hoveredPhotoId).toBeNull();
-    });
+  it('should initialize with default particleCount', () => {
+    const particleCount = useStore.getState().particleCount;
+    expect(particleCount).toBe(18000);
   });
 
-  describe('Actions', () => {
-    it('should update treeColor when setTreeColor is called', () => {
-      const newColor = '#FF0000';
-      useStore.getState().setTreeColor(newColor);
-      expect(useStore.getState().treeColor).toBe(newColor);
-    });
+  it('should initialize with isExploded as false', () => {
+    const isExploded = useStore.getState().isExploded;
+    expect(isExploded).toBe(false);
+  });
 
-    it('should update particleCount when setParticleCount is called', () => {
-      const newCount = 20000;
-      useStore.getState().setParticleCount(newCount);
-      expect(useStore.getState().particleCount).toBe(newCount);
-    });
+  it('should initialize with activePhoto as null', () => {
+    const activePhoto = useStore.getState().activePhoto;
+    expect(activePhoto).toBeNull();
+  });
 
-    it('should set isExploded to true when triggerExplosion is called', () => {
-      useStore.getState().triggerExplosion();
-      expect(useStore.getState().isExploded).toBe(true);
-    });
+  it('should initialize with hoveredPhotoId as null', () => {
+    const hoveredPhotoId = useStore.getState().hoveredPhotoId;
+    expect(hoveredPhotoId).toBeNull();
+  });
+});
 
-    it('should set isExploded to false when resetExplosion is called', () => {
-      // First trigger explosion
-      useStore.getState().triggerExplosion();
-      expect(useStore.getState().isExploded).toBe(true);
+describe('Actions', () => {
+  it('should update treeColor when setTreeColor is called', () => {
+    const newColor = '#FF0000';
+    useStore.getState().setTreeColor(newColor);
+    expect(useStore.getState().treeColor).toBe(newColor);
+  });
 
-      // Then reset
-      useStore.getState().resetExplosion();
-      expect(useStore.getState().isExploded).toBe(false);
-    });
+  it('should update particleCount when setParticleCount is called', () => {
+    const newCount = 20000;
+    useStore.getState().setParticleCount(newCount);
+    expect(useStore.getState().particleCount).toBe(newCount);
+  });
 
-    it('should update activePhoto when setActivePhoto is called', () => {
-      const photoData = {
-        id: 'test-photo-123',
-        instanceId: 0,
-        position: [0, 0, 0] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number]
-      };
-      useStore.getState().setActivePhoto(photoData);
-      expect(useStore.getState().activePhoto).toEqual(photoData);
-    });
+  it('should set isExploded to true when triggerExplosion is called', () => {
+    useStore.getState().triggerExplosion();
+    expect(useStore.getState().isExploded).toBe(true);
+  });
+
+  it('should set isExploded to false when resetExplosion is called', () => {
+    // First trigger explosion
+    useStore.getState().triggerExplosion();
+    expect(useStore.getState().isExploded).toBe(true);
+
+    // Then reset
+    useStore.getState().resetExplosion();
+    expect(useStore.getState().isExploded).toBe(false);
+  });
+
+  it('should update activePhoto when setActivePhoto is called', () => {
+    const photoData = {
+      id: 'test-photo-123',
+      instanceId: 0,
+      position: [0, 0, 0] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number]
+    };
+    useStore.getState().setActivePhoto(photoData);
+    expect(useStore.getState().activePhoto).toEqual(photoData);
+
     // Then clear it
     useStore.getState().setActivePhoto(null);
     expect(useStore.getState().activePhoto).toBeNull();
   });
-});
-it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
-  const photoId = 'hover-photo-789';
-  useStore.getState().setHoveredPhoto(photoId);
-  expect(useStore.getState().hoveredPhotoId).toBe(photoId);
+
+  it('should update hoveredPhotoId when setHoveredPhoto is called', () => {
+    const photoId = 'hover-photo-789';
+    useStore.getState().setHoveredPhoto(photoId);
+    expect(useStore.getState().hoveredPhotoId).toBe(photoId);
+  });
 });
 
 describe('Persistence Middleware', () => {
