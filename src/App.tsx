@@ -313,12 +313,14 @@ function App() {
       <div className="absolute inset-0 z-0">
         <Canvas
           camera={{ position: [0, 5, 28], fov: 42 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
           gl={{
-            antialias: true,
-            toneMappingExposure: 1.08, // Optimized exposure to reduce overexposure
+            antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
+            toneMappingExposure: 1.08,
             alpha: false,
             powerPreference: 'high-performance',
+            stencil: false,
+            depth: true
           }}
           onCreated={({ scene }) => {
             scene.background = new THREE.Color('#030002');
@@ -375,12 +377,7 @@ function App() {
       <ParticleTitle isExploded={isExploded} isCompact={isHeroTextCompact} />
 
       {/* Decorative corner gradient */}
-      <div
-        className="absolute bottom-0 left-0 w-96 h-96 pointer-events-none z-0"
-        style={{
-          background: 'radial-gradient(ellipse at bottom left, rgba(255,182,193,0.08) 0%, transparent 70%)',
-        }}
-      />
+
     </div>
   );
 }

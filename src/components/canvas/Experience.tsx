@@ -28,37 +28,7 @@ const CAMERA_DRIFT = {
     minDistance: 12,       // don't get closer than this
 };
 
-// Volumetric light rays component
-// OPTIMIZED: useFrame moved to Experience for better performance
-const VolumetricRays: React.FC<{
-    isExploded: boolean;
-    raysRef: React.RefObject<THREE.Group>; // NEW: Accept ref from parent
-}> = ({ isExploded, raysRef }) => {
-    // REMOVED: Internal useFrame - now handled by Experience
 
-    if (isExploded) return null;
-
-    return (
-        <group ref={raysRef} position={[0, 2, 0]}>
-            {[0, 1, 2, 3].map((i) => {
-                const angle = (i / 4) * Math.PI * 2;
-                return (
-                    <spotLight
-                        key={i}
-                        position={[Math.cos(angle) * 3, 12, Math.sin(angle) * 3]}
-                        target-position={[0, -5, 0]}
-                        color="#FFF0F5"
-                        intensity={0.4}
-                        angle={0.15}
-                        penumbra={1}
-                        decay={1.5}
-                        distance={25}
-                    />
-                );
-            })}
-        </group>
-    );
-};
 
 
 
@@ -172,10 +142,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         const idle = idleRef.current;
         const isHovered = !!hoveredPhotoId;
 
-        // === 0. VOLUMETRIC RAYS ROTATION (moved from VolumetricRays component) ===
-        if (raysRef.current && !isExploded) {
-            raysRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-        }
+
 
         // === 1. IDLE CHECK & CAMERA DRIFT ===
         if (!isExploded) {
@@ -264,7 +231,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                     <Bloom
                         ref={bloomRef}
                         luminanceThreshold={1.1}
-                        levels={9}
+                        levels={5}
                         intensity={1.0}
                         radius={0.8}
                     />
@@ -296,6 +263,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             {/* === CINEMATIC LIGHTING === */}
             <ambientLight ref={ambientRef} intensity={0.15} color="#FFFFFF" />
 
+            {/* Main Key Light */}
             <spotLight
                 ref={mainSpotRef}
                 position={[-5, 10, -5]}
@@ -308,6 +276,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 castShadow={false}
             />
 
+            {/* Fill Light */}
             <spotLight
                 ref={fillSpotRef}
                 position={[5, 8, 5]}
@@ -319,21 +288,11 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 distance={40}
             />
 
-            <pointLight position={[-10, 5, 10]} intensity={1.2} color="#FFB6C1" distance={30} decay={2} />
+            {/* OPTIMIZATION: Configured for 3-point lighting only. 
+                Removed extra PointLights and BackLight to save draw calls/fragment shader cost. 
+            */}
 
-            <pointLight position={[0, -4, 8]} intensity={1.8} color="#FFC0CB" distance={18} decay={2} />
 
-            <spotLight
-                position={[-12, 6, -12]}
-                intensity={2.0}
-                color="#E6E6FA"
-                angle={0.5}
-                penumbra={1}
-                decay={1.5}
-                distance={35}
-            />
-
-            <VolumetricRays isExploded={isExploded} raysRef={raysRef} />
 
             {/* === ENVIRONMENT === */}
             <Stars radius={150} depth={60} count={6000} factor={4} saturation={0.1} fade speed={0.3} />
@@ -364,10 +323,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 <meshStandardMaterial color="#050001" metalness={0.7} roughness={0.3} envMapIntensity={0.5} />
             </mesh>
 
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6.55, 0]}>
-                <circleGeometry args={[8, 32]} />
-                <meshBasicMaterial color="#3D1A2A" transparent opacity={0.3} />
-            </mesh>
+
         </>
     );
 };

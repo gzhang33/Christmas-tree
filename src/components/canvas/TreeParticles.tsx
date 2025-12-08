@@ -217,26 +217,7 @@ const SIZE_COEFFICIENTS: Record<OrnamentType, number> = {
   BAUBLE: 1.0,
 };
 
-// === LOD SYSTEM ===
-interface LODLevel {
-  distance: number;
-  particleRatio: number;
-  enableShadows: boolean;
-  quality: "high" | "medium" | "low";
-}
 
-const LOD_LEVELS: LODLevel[] = [
-  { distance: 20, particleRatio: 1.0, enableShadows: true, quality: "high" },
-  { distance: 35, particleRatio: 0.8, enableShadows: false, quality: "medium" },
-  { distance: 50, particleRatio: 0.5, enableShadows: false, quality: "low" },
-];
-
-const getLODLevel = (cameraDistance: number): LODLevel => {
-  for (const level of LOD_LEVELS) {
-    if (cameraDistance <= level.distance) return level;
-  }
-  return LOD_LEVELS[LOD_LEVELS.length - 1];
-};
 
 // === CUSTOM SHADER MATERIAL ===
 /**
@@ -311,8 +292,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const rootRef = useRef<THREE.Group>(null);
   const shakeIntensity = useRef(0);
 
-  // LOD state
-  const lodRef = useRef<LODLevel>(LOD_LEVELS[0]);
+
 
   // Textures
   const featherTexture = useMemo(() => createFeatherTexture(), []);
@@ -1261,13 +1241,45 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
   }, [isExploded, clock]); // Clock is stable from useThree
 
+  // NEW: Update breathing uniforms based on config toggle
+  useEffect(() => {
+    const {
+      enableBreathing,
+      breatheAmplitude1, breatheAmplitude2, breatheAmplitude3
+    } = PARTICLE_CONFIG.animation;
+
+    // If disabled, zero out amplitudes
+    const amp1 = enableBreathing ? breatheAmplitude1 : 0.0;
+    const amp2 = enableBreathing ? breatheAmplitude2 : 0.0;
+    const amp3 = enableBreathing ? breatheAmplitude3 : 0.0;
+
+    const materials = [
+      entityMaterialRef.current,
+      glowMaterialRef.current,
+      ornamentMaterialRef.current,
+      giftMaterialRef.current
+    ];
+
+    materials.forEach(mat => {
+      if (mat && mat.uniforms) {
+        if (mat.uniforms.uBreatheAmp1) mat.uniforms.uBreatheAmp1.value = amp1;
+        if (mat.uniforms.uBreatheAmp2) mat.uniforms.uBreatheAmp2.value = amp2;
+        if (mat.uniforms.uBreatheAmp3) mat.uniforms.uBreatheAmp3.value = amp3;
+      }
+    });
+
+    console.log('[TreeParticles] Breathing Animation:', enableBreathing ? 'ENABLED' : 'DISABLED');
+
+  }, [
+    PARTICLE_CONFIG.animation.enableBreathing,
+    PARTICLE_CONFIG.animation.breatheAmplitude1,
+    PARTICLE_CONFIG.animation.breatheAmplitude2,
+    PARTICLE_CONFIG.animation.breatheAmplitude3
+  ]);
+
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     const delta = state.clock.getDelta();
-
-    // Update LOD based on camera distance
-    const cameraDistance = camera.position.length();
-    lodRef.current = getLODLevel(cameraDistance);
 
     // === GPU STATE MACHINE: Interpolate uProgress uniform ===
     // Damping speeds: Explosion (0.02) is slower for high-velocity effect,
