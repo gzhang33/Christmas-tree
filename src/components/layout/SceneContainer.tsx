@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from '../canvas/Experience';
 import { Snow } from '../canvas/Snow';
+import { LandingParticles } from '../canvas/LandingParticles';
 import { CinematicEffects } from '../canvas/CinematicEffects';
 import { usePerformanceMonitor } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
@@ -57,8 +58,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                 {/* Snow - shown in all phases */}
                 <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
 
-                {/* Tree Experience - shown once morphing starts or in tree phase */}
-                {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
+                {/* Landing Particles - handles Morphing phase (3D GPU particles) */}
+                {landingPhase === 'morphing' && <LandingParticles />}
+
+                {/* Tree Experience - shown only in tree phase (after morphing completes) */}
+                {landingPhase === 'tree' && <Experience uiState={uiState} />}
 
                 {/* Performance Tracker */}
                 <PerformanceMonitorWrapper
