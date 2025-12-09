@@ -30,29 +30,39 @@ export const PARTICLE_CONFIG = {
     // Magic Dust Specific Configuration
     magicDust: {
         spiralTurns: 3.5,      // Low number of turns = Steep slope (>20 degrees)
-        radiusOffset: 0.8,     // Distance from tree surface
+        radiusOffset: 0.1,     // Distance from tree surface (KEY PARAMETER FOR DISTANCE)
         ascentSpeed: 0.05,     // Vertical speed
         rotationSpeed: 0.1,    // Orbit speed
-        countRatio: 0.01,      // 1% of total particles (redundant with ratios.magicDust but good for reference)
+        countRatio: 0.01,      // 1% of total particles
+
+        // Visuals
+        colors: ['#FFD700', '#FFBF00', '#FFFAF0'],
+        minSize: 0.2,
+        maxSize: 0.5,
+        radiusVariation: 0.3,
+        angleVariation: 0.8,
     },
 
     // Tree Animation Constants (for shader breathing/sway effects)
     animation: {
+        // Global toggle for breathing animations
+        enableBreathing: false,
+
         // Breathing animation frequencies (multi-layer organic movement)
         breatheFrequency1: 0.6,    // Primary breathing layer
         breatheFrequency2: 1.2,    // Secondary breathing layer
         breatheFrequency3: 0.4,    // Tertiary breathing layer
-        breatheAmplitude1: 0.04,   // Primary breathing amplitude
-        breatheAmplitude2: 0.03,   // Secondary breathing amplitude
-        breatheAmplitude3: 0.02,   // Tertiary breathing amplitude
+        breatheAmplitude1: 0.15,   // Primary breathing amplitude (increased for visibility)
+        breatheAmplitude2: 0.10,   // Secondary breathing amplitude (increased for visibility)
+        breatheAmplitude3: 0.08,   // Tertiary breathing amplitude (increased for visibility)
 
         // Sway animation (tree movement)
         swayFrequency: 0.5,        // Sway oscillation frequency
-        swayAmplitude: 0.08,       // Maximum sway distance
+        swayAmplitude: 0.15,       // Maximum sway distance (increased for visibility)
 
         // Explosion physics damping speeds
         // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return
-        dampingSpeedExplosion: 0.0025,  // Slower damping to compensate for high shader scalar (2.2x)
-        dampingSpeedReset: 0.02,      // Faster damping for quicker return to tree shape
+        dampingSpeedExplosion: 0.02,
+        dampingSpeedReset: 0.05,
     },
 } as const;

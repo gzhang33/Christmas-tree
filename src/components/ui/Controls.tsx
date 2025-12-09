@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette, Share2, Check } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
@@ -11,6 +11,7 @@ interface ControlsProps {
 
 export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
 
     // Global State
     const treeColor = useStore((state) => state.treeColor);
@@ -29,22 +30,78 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
         setLocalParticleCount(particleCount);
     }, [particleCount]);
 
-    // Debounce update to store
+    // Debounce update to store with longer delay for performance (TREE-08)
     useEffect(() => {
         const timer = setTimeout(() => {
             if (localParticleCount !== particleCount) {
+                // Perform update only after user stops sliding
                 setParticleCount(localParticleCount);
             }
-        }, 300);
+        }, 500); // Increased debounce for heavy operations
         return () => clearTimeout(timer);
     }, [localParticleCount, setParticleCount, particleCount]);
 
     // Local state from props (for things not yet in store or specific to UI interaction)
     const { updateConfig, addPhotos, photos, isMuted, toggleMute } = uiState;
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Upload state
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            addPhotos(e.target.files);
+            setIsUploading(true);
+            setUploadProgress(0);
+
+            try {
+                // Dynamically import utility to avoid bundling if not used
+                const { uploadToCloudinary } = await import('../../utils/cloudinaryUtils');
+
+                const files = Array.from(e.target.files);
+                const uploadedUrls: string[] = [];
+                const totalFiles = files.length;
+
+                const progressMap = new Map<number, number>();
+                // Process files sequentially or parallel (parallel for speed)
+                // We'll map file objects to simple { id, url } format expected by addPhotos
+                await Promise.all(files.map(async (file, index) => {
+                    try {
+                        const url = await uploadToCloudinary(file, (percent) => {
+                            progressMap.set(index, percent);
+                            const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
+                            setUploadProgress(Math.round(total / totalFiles));
+                        });
+                        uploadedUrls.push(url);
+                    } catch (err) {
+                        console.error(`Failed to upload ${file.name}:`, err);
+                        // Fallback to local Data URL if cloud upload fails
+                        const dataUrl = await new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target?.result as string);
+                            reader.readAsDataURL(file);
+                        });
+                        uploadedUrls.push(dataUrl);
+                    }
+                }));
+
+                // Add all successfully processed URLs (cloud or fallback)
+                // Pass arrays of strings (URLs) to addPhotos
+                if (uploadedUrls.length > 0) {
+                    addPhotos(uploadedUrls);
+                }
+
+            } catch (error) {
+                console.error("Upload error", error);
+
+                // Fallback: Just pass the files directly if something completely crashed before processing
+                // Note: FileList is iterable, but safe to just pass e.target.files if needed
+                if (e.target.files) {
+                    addPhotos(Array.from(e.target.files).map(f => URL.createObjectURL(f)));
+                }
+            } finally {
+                setIsUploading(false);
+                setUploadProgress(0);
+            }
         }
     };
 
@@ -129,6 +186,49 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     >
                                         {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                                     </button>
+
+                                    <button
+                                        onClick={() => {
+                                            // Check for local Data URLs which break sharing
+                                            const hasLocalPhotos = photos.some(p => p.url.startsWith('data:'));
+
+                                            if (hasLocalPhotos) {
+                                                alert("NOTICE: Some photos are stored locally (Data URL) because cloud upload failed or is not configured.\n\nSharing might not work for others as the link will be too long or invalid.\n\nPlease configure Cloudinary for permanent, shareable links.");
+                                            }
+
+                                            const url = uiState.generateShareUrl();
+                                            navigator.clipboard.writeText(url);
+                                            setIsCopied(true);
+                                            setTimeout(() => setIsCopied(false), 2000);
+                                        }}
+                                        className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isCopied
+                                            ? 'border-green-500 text-green-500 bg-green-500/10'
+                                            : 'border-white/20 text-white hover:bg-electric-purple/20 hover:border-electric-purple'}`}
+                                        title={isCopied ? "Copied!" : "Share Memory"}
+                                        aria-label="Share Memory"
+                                    >
+                                        <AnimatePresence mode="wait" initial={false}>
+                                            {isCopied ? (
+                                                <motion.div
+                                                    key="check"
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    exit={{ scale: 0 }}
+                                                >
+                                                    <Check size={18} />
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div
+                                                    key="share"
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    exit={{ scale: 0 }}
+                                                >
+                                                    <Share2 size={18} />
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </button>
                                 </div>
                             </div>
 
@@ -179,9 +279,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="2500"
-                                        max="100000"
-                                        step="1000"
+                                        min="5000"
+                                        max="50000"
+                                        step="2500"
                                         value={localParticleCount}
                                         onChange={(e) => {
                                             const val = parseInt(e.target.value);
@@ -250,9 +350,20 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                         multiple
                                         accept="image/*"
                                         onChange={handleFileUpload}
+                                        disabled={isUploading}
                                         className="hidden"
                                         aria-label="Upload photos"
                                     />
+
+                                    {/* Loading Overlay */}
+                                    {isUploading && (
+                                        <div className="absolute inset-0 bg-deep-gray-blue/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-neon-pink animate-spin mb-2" />
+                                            <span className="text-[0.6rem] font-mono text-neon-pink animate-pulse">
+                                                UPLOADING {uploadProgress}%
+                                            </span>
+                                        </div>
+                                    )}
                                 </label>
 
                                 {photos.length > 0 && (

@@ -16,9 +16,10 @@ export interface UIState {
   isExploded: boolean;
   toggleExplosion: () => void;
   photos: PhotoData[];
-  addPhotos: (files: FileList) => void;
+  addPhotos: (files: FileList | string[]) => void;
   config: AppConfig;
   updateConfig: (key: keyof AppConfig, value: any) => void;
   isMuted: boolean;
   toggleMute: () => void;
+  generateShareUrl: () => string;
 }

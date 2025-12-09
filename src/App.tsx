@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Experience } from './components/canvas/Experience.tsx';
 import { Controls } from './components/ui/Controls.tsx';
+import { ParticleTitle } from './components/ui/ParticleTitle.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { AUDIO } from './config/assets.ts';
@@ -10,6 +11,7 @@ import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
 import { useStore } from './store/useStore.ts';
 import * as THREE from 'three';
+import { encodeState, decodeState } from './utils/shareUtils';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -165,11 +167,22 @@ function App() {
     });
   }, []);
 
-  const addPhotos = useCallback((files: FileList) => {
-    const newPhotos: PhotoData[] = Array.from(files).map((file) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      url: URL.createObjectURL(file),
-    }));
+  const addPhotos = useCallback((input: FileList | string[]) => {
+    let newPhotos: PhotoData[] = [];
+
+    if (input instanceof FileList) {
+      newPhotos = Array.from(input).map((file) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        url: URL.createObjectURL(file), // Local preview
+      }));
+    } else if (Array.isArray(input)) {
+      // Handle direct URL strings (e.g. from Cloudinary)
+      newPhotos = input.map((url) => ({
+        id: Math.random().toString(36).substring(2, 9),
+        url: url,
+      }));
+    }
+
     setPhotos((prev) => [...prev, ...newPhotos]);
   }, []);
 
@@ -207,6 +220,70 @@ function App() {
     setPerformanceData((prev) => ({ ...prev, ...data, particleCount: estimatedParticleCount }));
   }, [estimatedParticleCount]);
 
+  // Share Logic
+  const generateShareUrl = useCallback(() => {
+    const shareCode = encodeState(photos, useStore.getState().treeColor, config); // Read directly from store
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?s=${shareCode}`;
+  }, [photos, config]); // treeColor is read from store getter
+
+  // startup restoration
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareCode = params.get('s');
+
+    if (shareCode) {
+      const data = decodeState(shareCode);
+      if (data) {
+        // Restore Photos
+        if (data.p && Array.isArray(data.p)) {
+          // 验证URL格式
+          const validUrls = data.p.filter(url =>
+            typeof url === 'string' &&
+            (url.startsWith('https://') || url.startsWith('http://'))
+          );
+          const restoredPhotos = validUrls.map(url => ({
+            id: Math.random().toString(36).substring(2, 9),
+            url: url
+          }));
+          setPhotos(restoredPhotos);
+        }
+
+        // Restore Config
+        if (data.cfg) {
+          // 只恢复已知的配置项，并验证数值范围
+          const safeConfig: Partial<AppConfig> = {};
+          if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
+            safeConfig.snowDensity = data.cfg.snowDensity;
+          }
+          if (typeof data.cfg.rotationSpeed === 'number' && data.cfg.rotationSpeed >= 0 && data.cfg.rotationSpeed <= 5) {
+            safeConfig.rotationSpeed = data.cfg.rotationSpeed;
+          }
+          if (typeof data.cfg.photoSize === 'number' && data.cfg.photoSize >= 0.5 && data.cfg.photoSize <= 5) {
+            safeConfig.photoSize = data.cfg.photoSize;
+          }
+          if (typeof data.cfg.explosionRadius === 'number' && data.cfg.explosionRadius >= 0 && data.cfg.explosionRadius <= 100) {
+            safeConfig.explosionRadius = data.cfg.explosionRadius;
+          }
+          if (typeof data.cfg.snowSpeed === 'number' && data.cfg.snowSpeed >= 0 && data.cfg.snowSpeed <= 10) {
+            safeConfig.snowSpeed = data.cfg.snowSpeed;
+          }
+          if (typeof data.cfg.windStrength === 'number' && data.cfg.windStrength >= 0 && data.cfg.windStrength <= 5) {
+            safeConfig.windStrength = data.cfg.windStrength;
+          }
+          setConfig(prev => ({ ...prev, ...safeConfig }));
+        }
+
+        // Restore Color
+        if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
+          useStore.getState().setTreeColor(data.c);
+        }
+
+        // Optional: clear URL to keep it clean? 
+        // window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
   // UI Context
   const uiState: UIState = {
     isExploded,
@@ -217,6 +294,7 @@ function App() {
     updateConfig,
     isMuted,
     toggleMute,
+    generateShareUrl,
   };
 
   return (
@@ -235,12 +313,14 @@ function App() {
       <div className="absolute inset-0 z-0">
         <Canvas
           camera={{ position: [0, 5, 28], fov: 42 }}
-          dpr={[1, 2]}
+          dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
           gl={{
-            antialias: true,
-            toneMappingExposure: 1.08, // Optimized exposure to reduce overexposure
+            antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
+            toneMappingExposure: 1.08,
             alpha: false,
             powerPreference: 'high-performance',
+            stencil: false,
+            depth: true
           }}
           onCreated={({ scene }) => {
             scene.background = new THREE.Color('#030002');
@@ -293,55 +373,11 @@ function App() {
       {/* Performance Monitor Overlay */}
       <PerformanceOverlay visible={showPerformance} data={performanceData} />
 
-      {/* Intro Text */}
-      {!isExploded && photos.length === 0 && (
-        <div
-          className="absolute pointer-events-none z-10 text-white/80"
-          style={{
-            top: 'clamp(1rem, 4vh, 2rem)',
-            left: 'clamp(1rem, 3vw, 2.5rem)',
-            maxWidth: isHeroTextCompact ? 'min(60vw, 18rem)' : '22rem',
-          }}
-        >
-          <div className="flex flex-col text-left leading-tight">
-            <span
-              style={{
-                fontFamily: '"Great Vibes", "Great_Vibes", cursive',
-                letterSpacing: '0.18em',
-                fontSize: isHeroTextCompact ? 'clamp(2.4rem, 8vw, 3.2rem)' : 'clamp(3.2rem, 4vw, 4rem)',
-                background: 'linear-gradient(180deg, #fff7fb 0%, #ffd6e3 45%, #f7a0c0 100%)',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                textShadow: '0 0 25px rgba(255,183,197,0.9), 0 8px 45px rgba(62,4,20,0.7)',
-              }}
-            >
-              Merry
-            </span>
-            <span
-              style={{
-                fontFamily: '"Great Vibes", "Great_Vibes", cursive',
-                letterSpacing: '0.18em',
-                fontSize: isHeroTextCompact ? 'clamp(2.4rem, 8vw, 3.2rem)' : 'clamp(3.2rem, 4vw, 4rem)',
-                paddingLeft: isHeroTextCompact ? '0.75rem' : '1.5rem',
-                background: 'linear-gradient(180deg, #fff7fb 0%, #ffd6e3 45%, #f7a0c0 100%)',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                textShadow: '0 0 25px rgba(255,183,197,0.9), 0 8px 45px rgba(62,4,20,0.7)',
-              }}
-            >
-              Christmas
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Particle Title (TREE-03) */}
+      <ParticleTitle isExploded={isExploded} isCompact={isHeroTextCompact} />
 
       {/* Decorative corner gradient */}
-      <div
-        className="absolute bottom-0 left-0 w-96 h-96 pointer-events-none z-0"
-        style={{
-          background: 'radial-gradient(ellipse at bottom left, rgba(255,182,193,0.08) 0%, transparent 70%)',
-        }}
-      />
+
     </div>
   );
 }

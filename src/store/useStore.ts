@@ -13,7 +13,7 @@ export interface AppState {
     treeColor: string;
     particleCount: number;
     isExploded: boolean;
-    activePhotoId: string | null;
+    activePhoto: { id: string; instanceId: number; position: [number, number, number]; rotation: [number, number, number] } | null;
     hoveredPhotoId: string | null; // For global hover effects (stop rotation)
 
     // Actions
@@ -21,7 +21,7 @@ export interface AppState {
     setParticleCount: (count: number) => void;
     triggerExplosion: () => void;
     resetExplosion: () => void;
-    setActivePhoto: (id: string | null) => void;
+    setActivePhoto: (photo: { id: string; instanceId: number; position: [number, number, number]; rotation: [number, number, number] } | null) => void;
     setHoveredPhoto: (id: string | null) => void;
 }
 
@@ -46,15 +46,15 @@ export const useStore = create<AppState>()(
             treeColor: DEFAULT_TREE_COLOR,
             particleCount: 18000, // Default particle count
             isExploded: false,
-            activePhotoId: null,
+            activePhoto: null,
             hoveredPhotoId: null,
 
             // Actions
             setTreeColor: (color) => set({ treeColor: color }),
             setParticleCount: (count) => set({ particleCount: count }),
-            triggerExplosion: () => set({ isExploded: true }),
-            resetExplosion: () => set({ isExploded: false }),
-            setActivePhoto: (id) => set({ activePhotoId: id }),
+            triggerExplosion: () => set({ isExploded: true, activePhoto: null }),
+            resetExplosion: () => set({ isExploded: false, activePhoto: null }),
+            setActivePhoto: (photo) => set({ activePhoto: photo }),
             setHoveredPhoto: (id) => set({ hoveredPhotoId: id }),
         }),
         {

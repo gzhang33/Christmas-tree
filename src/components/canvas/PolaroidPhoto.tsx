@@ -11,20 +11,41 @@
  * - Magnetic Hover: Scale 1.5x, slow rotation on hover
  * - 3D Tilt: Dynamic tilt based on mouse position
  */
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
+import { useVideoTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
 import { MORPH_TIMING } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
+import { MEMORIES } from '../../config/assets';
+import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
 const qOrbit = new THREE.Quaternion();
 const qTarget = new THREE.Quaternion();
 const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
+const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
 const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
+
+// Helper to handle Video Texture swapping
+const VideoHandler = ({ videoUrl, material }: { videoUrl: string, material: THREE.ShaderMaterial | null }) => {
+    const texture = useVideoTexture(videoUrl, { start: true, muted: true, loop: true });
+    useEffect(() => {
+        if (material) {
+            const oldMap = material.uniforms.map.value;
+            material.uniforms.map.value = texture;
+
+            return () => {
+                // Revert to original texture (image) on unmount
+                material.uniforms.map.value = oldMap;
+            };
+        }
+    }, [material, texture]); return null;
+};
 
 interface PolaroidPhotoProps {
     url: string;
@@ -35,6 +56,26 @@ interface PolaroidPhotoProps {
     particleStartPosition: [number, number, number]; // Origin particle position (Gift Center)
     morphIndex: number;
     totalPhotos: number;
+    textureReady?: boolean; // New prop
+    instanceId: number; // Unique instance ID for this particle
+
+    // NEW: External animation support (optional)
+    useExternalAnimation?: boolean; // If true, disable internal useFrame
+    onRegisterAnimation?: (data: {
+        groupRef: React.RefObject<THREE.Group>;
+        frameMaterial: THREE.MeshStandardMaterial | null;
+        photoMaterial: THREE.ShaderMaterial | null;
+        animState: any;
+        hoverState: any;
+        position: [number, number, number];
+        rotation: [number, number, number];
+        scale: number;
+        particleStartPosition: [number, number, number];
+        morphIndex: number;
+        totalPhotos: number;
+        instanceId: number;
+        isThisActive: boolean;
+    }) => void;
 }
 
 // Polaroid frame dimensions
@@ -48,19 +89,95 @@ const FRAME = {
 
 // Shared geometries (created once, reused by all instances)
 let sharedFrameGeometry: THREE.BoxGeometry | null = null;
-let sharedPhotoGeometry: THREE.PlaneGeometry | null = null;
+let sharedPhotoGeometry: THREE.BufferGeometry | null = null; // Changed to BufferGeometry for merged mesh
 
 const getSharedGeometries = () => {
     if (!sharedFrameGeometry) {
         sharedFrameGeometry = new THREE.BoxGeometry(FRAME.width, FRAME.height, FRAME.depth);
     }
     if (!sharedPhotoGeometry) {
-        sharedPhotoGeometry = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
-    }
-    return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
+        // Merge Front and Back planes into one geometry to save draw calls
+        const frontGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+        const backGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+
+        // Front: Shift foward
+        frontGeo.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001);
+
+        // Back: Shift backward and rotate
+        backGeo.rotateY(Math.PI);
+        backGeo.translate(0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001);
+
+        // Merge
+        const merged = mergeBufferGeometries([frontGeo, backGeo]);
+        if (!merged) {
+            console.error('Failed to merge photo geometries');
+            // Fallback to front geometry only
+            sharedPhotoGeometry = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
+            sharedPhotoGeometry.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001);
+        } else {
+            sharedPhotoGeometry = merged;
+        }
+
+        // Cleanup intermediates
+        frontGeo.dispose();
+        backGeo.dispose();
+    } return { frameGeometry: sharedFrameGeometry, photoGeometry: sharedPhotoGeometry };
 };
 
-export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
+// Shared Material (Created once to reuse WebGLProgram)
+// EXPORTED: Used by material pool for initialization
+export const masterPhotoMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        map: { value: null },
+        uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
+        opacity: { value: 0.0 },
+        uTime: { value: 0.0 },
+        uBend: { value: 0.0 } // Bending effect
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        uniform float uBend;
+        void main() {
+            vUv = uv;
+            vec3 pos = position;
+            // Bend effect: Curve based on X distance from center
+            // Simulates card flexibility during motion
+            // Curve = pow(dist, 2) * bendFactor
+            float curve = pow(abs(uv.x - 0.5), 2.0) * uBend;
+            pos.z += curve;
+            
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform sampler2D map;
+        uniform float uDevelop;
+        uniform float opacity;
+        varying vec2 vUv;
+        
+        void main() {
+            vec4 tex = texture2D(map, vUv);
+            
+            // Energy Card State: Warm White Glow
+            vec3 energyColor = vec3(1.0, 0.98, 0.9);
+            
+            // Develop: Mix energy color with texture color
+            vec3 finalColor = mix(energyColor, tex.rgb, uDevelop);
+            
+            // Add extra glow when in Energy state
+            if (uDevelop < 0.99) {
+                float glow = (1.0 - uDevelop) * 0.2;
+                finalColor += vec3(glow);
+            }
+            
+            gl_FragColor = vec4(finalColor, opacity);
+        }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+});
+
+export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     url,
     position,
     rotation,
@@ -69,14 +186,27 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     particleStartPosition,
     morphIndex,
     totalPhotos,
+    textureReady = false, // Default to false
+    instanceId,
+    useExternalAnimation = false, // NEW: Default to false (backward compatible)
+    onRegisterAnimation, // NEW: Optional callback
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const frameMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
     const photoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
-    const backPhotoMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
+    const setActivePhoto = useStore(state => state.setActivePhoto);
+    const activePhoto = useStore(state => state.activePhoto);
+
+    // Identify memory ID from URL
+    const memoryId = useMemo(() => {
+        return MEMORIES.find(m => m.image === url)?.id || url;
+    }, [url]);
+
+    // Check exact instance ID for uniqueness
+    const isThisActive = activePhoto?.instanceId === instanceId;
 
     // Animation state (using refs to avoid re-renders)
     const animRef = useRef({
@@ -89,6 +219,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
         currentRotation: new THREE.Euler(0, 0, 0),
         textureLoaded: false,
         orbitAngle: null as number | null, // Track accumulated orbit angle
+        simulatedTime: 0, // Track time adjusted for slowdown
     });
 
     // Hover state (using refs to avoid re-renders - critical for 60fps)
@@ -108,9 +239,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     const { frameGeometry, photoGeometry } = useMemo(() => getSharedGeometries(), []);
 
     // Create materials once (using texture from cache)
-    useEffect(() => {
+    // OPTIMIZED: Use material pool to reduce creation overhead
+    const materials = useMemo(() => {
         // Frame material - Standard material for light interaction
-        frameMaterialRef.current = new THREE.MeshStandardMaterial({
+        const frameMat = new THREE.MeshStandardMaterial({
             color: '#ffffff',
             roughness: 0.4,
             metalness: 0.1,
@@ -121,61 +253,35 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             opacity: 0,
         });
 
-        // Custom Shader for Photo Development Effect
-        // Transition from Energy Card (Glowing White) -> Full Photo
-        const createPhotoShader = () => new THREE.ShaderMaterial({
-            uniforms: {
-                map: { value: null },
-                uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
-                opacity: { value: 0.0 },
-                uTime: { value: 0.0 }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D map;
-                uniform float uDevelop;
-                uniform float opacity;
-                varying vec2 vUv;
-                
-                void main() {
-                    vec4 tex = texture2D(map, vUv);
-                    
-                    // Energy Card State: Warm White Glow
-                    vec3 energyColor = vec3(1.0, 0.98, 0.9);
-                    
-                    // Develop: Mix energy color with texture color
-                    // Add a slight "burn in" effect where high contrast areas appear first? 
-                    // For now, smooth transition keeps it elegant.
-                    vec3 finalColor = mix(energyColor, tex.rgb, uDevelop);
-                    
-                    // Add extra glow when in Energy state
-                    if (uDevelop < 0.99) {
-                        float glow = (1.0 - uDevelop) * 0.2;
-                        finalColor += vec3(glow);
-                    }
-                    
-                    gl_FragColor = vec4(finalColor, opacity);
-                }
-            `,
-            transparent: true,
-            side: THREE.FrontSide,
-        });
+        // OPTIMIZED: Acquire photo material from pool instead of cloning
+        // This reuses ShaderMaterial instances and reduces initialization overhead
+        const cachedTexture = getCachedTexture(url);
+        const photoMat = cachedTexture
+            ? getPhotoMaterialPool().acquire(cachedTexture)
+            : masterPhotoMaterial.clone(); // Fallback if pool not ready
 
-        photoMaterialRef.current = createPhotoShader();
-        backPhotoMaterialRef.current = createPhotoShader();
+        return { frameMat, photoMat };
+    }, [url]); // Add url dependency for texture updates
+
+    // Sync refs for useFrame and Cleanup
+    // OPTIMIZED: Release material back to pool on unmount
+    useEffect(() => {
+        frameMaterialRef.current = materials.frameMat;
+        photoMaterialRef.current = materials.photoMat;
 
         return () => {
-            frameMaterialRef.current?.dispose();
-            photoMaterialRef.current?.dispose();
-            backPhotoMaterialRef.current?.dispose();
+            // Dispose frame material
+            materials.frameMat.dispose();
+
+            // OPTIMIZED: Release photo material back to pool instead of disposing
+            try {
+                getPhotoMaterialPool().release(materials.photoMat);
+            } catch (e) {
+                // Fallback: dispose if pool not available
+                materials.photoMat.dispose();
+            }
         };
-    }, []);
+    }, [materials]);
 
     // Handle explosion state change
     useEffect(() => {
@@ -186,11 +292,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             const cachedTexture = getCachedTexture(url);
             if (cachedTexture) {
                 // For ShaderMaterial, we update uniforms.map
-                if (photoMaterialRef.current) {
-                    photoMaterialRef.current.uniforms.map.value = cachedTexture;
-                }
-                if (backPhotoMaterialRef.current) {
-                    backPhotoMaterialRef.current.uniforms.map.value = cachedTexture;
+                if (materials.photoMat) {
+                    materials.photoMat.uniforms.map.value = cachedTexture;
                 }
                 anim.textureLoaded = true;
             }
@@ -200,6 +303,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             anim.startTime = -1;
             anim.currentPosition.set(...particleStartPosition);
             anim.orbitAngle = null; // Reset orbit
+
+            // CRITICAL OPTIMIZATION:
+            // Start invisible to prevent 100 textures uploading in the same frame.
+            // Visibility will be toggled true in useFrame when delay is reached.
+            if (groupRef.current) groupRef.current.visible = false;
+
         } else {
             anim.isVisible = false;
             anim.isAnimating = false;
@@ -216,11 +325,34 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
             hover.tiltY = 0;
 
             // Reset material opacity
-            if (frameMaterialRef.current) frameMaterialRef.current.opacity = 0;
-            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.opacity.value = 0;
-            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.opacity.value = 0;
+            if (materials.frameMat) materials.frameMat.opacity = 0;
+            if (materials.photoMat) materials.photoMat.uniforms.opacity.value = 0;
+
+            // Hide immediately on collapse
+            if (groupRef.current) groupRef.current.visible = false;
         }
-    }, [isExploded, url, particleStartPosition]);
+    }, [isExploded, url, particleStartPosition, materials, textureReady]);
+
+    // === NEW: Register animation data with PhotoManager (if using external animation) ===
+    useEffect(() => {
+        if (useExternalAnimation && onRegisterAnimation) {
+            onRegisterAnimation({
+                groupRef,
+                frameMaterial: frameMaterialRef.current,
+                photoMaterial: photoMaterialRef.current,
+                animState: animRef.current,
+                hoverState: hoverRef.current,
+                position,
+                rotation,
+                scale,
+                particleStartPosition,
+                morphIndex,
+                totalPhotos,
+                instanceId,
+                isThisActive,
+            });
+        }
+    }, [useExternalAnimation, onRegisterAnimation, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
 
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 
@@ -257,14 +389,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 
         if (!hover.isHovered || !groupRef.current) return;
 
-        // Get intersection point in local coordinates
-        const point = e.point.clone();
-        groupRef.current.worldToLocal(point);
+        // Get intersection point in local coordinates using scratch vector (No Sync/Clone)
+        tempMouseVec.copy(e.point);
+        groupRef.current.worldToLocal(tempMouseVec);
 
         // Calculate normalized offset from center (-1 to 1)
         // Frame dimensions: width=1.0, height=1.2
-        const normalizedX = (point.x / (FRAME.width / 2));
-        const normalizedY = (point.y / (FRAME.height / 2));
+        const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
+        const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
 
         // Clamp values to avoid extreme tilts
         const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
@@ -277,7 +409,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
     }, []);
 
     // Animation frame - optimized to minimize allocations
+    // NEW: Skip if using external animation (PhotoManager handles it)
     useFrame((state, delta) => {
+        // Early exit if using external animation
+        if (useExternalAnimation) return;
+
         const group = groupRef.current;
         const anim = animRef.current;
         const hover = hoverRef.current;
@@ -301,9 +437,21 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 anim.startTime = time;
             }
             // Calculate morph progress with stagger
+            // Stagger logic: each photo waits delay = morphIndex * 0.05
             const delay = morphIndex * 0.05;
             const startTime = anim.startTime + delay;
             const elapsed = time - startTime;
+
+            // === STAGGERED VISIBILITY ===
+            // Only make visible when its turn comes + small buffer
+            // This spreads texture uploads over 5 seconds instead of 1 frame
+            if (elapsed >= 0) {
+                if (!group.visible) group.visible = true;
+            } else {
+                // Keep invisible if waiting
+                if (group.visible) group.visible = false;
+                return; // Skip calculation
+            }
 
             // === SYNCHRONIZED ARRIVAL LOGIC ===
             const minTransitTime = 0.8;
@@ -375,16 +523,12 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
 
                 // Opacity runs over total duration (Fade in during Ejection mainly)
                 const opacityProgress = Math.min(elapsed / 0.5, 1);
-                if (frameMaterialRef.current) frameMaterialRef.current.opacity = opacityProgress;
+                if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
 
                 // Update Shader Uniforms
-                if (photoMaterialRef.current && anim.textureLoaded) {
-                    photoMaterialRef.current.uniforms.opacity.value = opacityProgress;
-                    photoMaterialRef.current.uniforms.uDevelop.value = developProgress;
-                }
-                if (backPhotoMaterialRef.current && anim.textureLoaded) {
-                    backPhotoMaterialRef.current.uniforms.opacity.value = opacityProgress;
-                    backPhotoMaterialRef.current.uniforms.uDevelop.value = developProgress;
+                if (materials.photoMat && anim.textureLoaded) {
+                    materials.photoMat.uniforms.opacity.value = opacityProgress;
+                    materials.photoMat.uniforms.uDevelop.value = developProgress;
                 }
 
                 // Apply updates
@@ -400,8 +544,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
         } else if (isExploded) {
             // === PHASE 2: ORBIT & FLOAT ===
             // Ensure fully developed
-            if (photoMaterialRef.current) photoMaterialRef.current.uniforms.uDevelop.value = 1.0;
-            if (backPhotoMaterialRef.current) backPhotoMaterialRef.current.uniforms.uDevelop.value = 1.0;
+            if (materials.photoMat) materials.photoMat.uniforms.uDevelop.value = 1.0;
 
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
@@ -414,9 +557,13 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 // Initialize accumulated angle if needed
                 if (anim.orbitAngle === null) {
                     anim.orbitAngle = Math.atan2(position[2], position[0]);
+                    anim.simulatedTime = 0; // Start simulated time
                 }
 
-                const hoverTime = time - absoluteArrivalTime;
+                // Advance simulated time based on rotation multiplier (handling slowdown)
+                anim.simulatedTime += delta * hover.rotationMultiplier;
+                const hoverTime = anim.simulatedTime;
+
                 const idx = morphIndex * 0.5;
 
                 // Orbit
@@ -439,9 +586,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 group.position.set(baseX, position[1] + yBob, baseZ);
 
                 // 2. Calculate Base Rotation (Spinning) & Convert to Quaternion
-                const spinY = rotation[1] + hoverTime * 0.15;
-                const spinX = rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05;
-                const spinZ = rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05;
+                // Stop spinning if Active
+                const spinY = isThisActive ? rotation[1] : (rotation[1] + hoverTime * 0.15);
+                const spinX = isThisActive ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
+                const spinZ = isThisActive ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
 
                 // Reset rotation to ensure FromEuler works cleanly on base state
                 group.rotation.set(0, 0, 0);
@@ -449,8 +597,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 qOrbit.setFromEuler(reusableEuler);
 
                 // 3. Auto-Face Calibration (Slerp to Camera Check)
-                if (hover.currentScale > 1.01) {
-                    const popProgress = (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
+                // FORCE face camera if Active
+                if (hover.currentScale > 1.01 || isThisActive) {
+                    const popProgress = isThisActive
+                        ? 1.0
+                        : (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
 
                     // Compute Face Camera Quaternion
                     // Move dummy to current position so lookAt works correctly
@@ -472,6 +623,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                 }
 
                 // 5. Apply Scale
+                // If Active, override scale to 2.5x (ZOOM_SCALE)
+                if (isThisActive) {
+                    hover.targetScale = 2.5;
+                }
+
                 const finalScale = scale * hover.currentScale;
                 group.scale.setScalar(finalScale);
 
@@ -480,68 +636,122 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = ({
                     const popProgress = (hover.currentScale - 1.0) / (HOVER_CONFIG.scaleTarget - 1.0);
 
                     // Adaptive Pop: Move to Ideal Distance
-                    // Goal: Bring photo to HOVER_CONFIG.idealDistance from camera
-                    const currentDist = group.position.distanceTo(state.camera.position);
-                    const idealDist = HOVER_CONFIG.idealDistance;
+                    // ONLY if NOT active (because CameraController handles position when Active)
+                    if (!isThisActive) {
+                        // Goal: Bring photo to HOVER_CONFIG.idealDistance from camera
+                        const currentDist = group.position.distanceTo(state.camera.position);
+                        const idealDist = HOVER_CONFIG.idealDistance;
+                        const distToTravel = Math.max(HOVER_CONFIG.popDistance, currentDist - idealDist);
 
-                    // The distance we NEED to move to reach ideal
-                    // We want to move towards camera.
-                    // If currentDist (30) > ideal (8), we move 22.
-                    const distToTravel = Math.max(HOVER_CONFIG.popDistance, currentDist - idealDist);
+                        // Reuse tempVec3 to avoid per-frame allocations
+                        tempVec3.subVectors(state.camera.position, group.position).normalize();
+                        tempVec3.multiplyScalar(distToTravel * popProgress);
 
-                    // Reuse tempVec3 to avoid per-frame allocations
-                    tempVec3.subVectors(state.camera.position, group.position).normalize();
-                    tempVec3.multiplyScalar(distToTravel * popProgress);
-
-                    group.position.add(tempVec3);
+                        group.position.add(tempVec3);
+                    }
 
                     // Glow
-                    if (frameMaterialRef.current) {
-                        frameMaterialRef.current.emissiveIntensity = popProgress * HOVER_CONFIG.emissiveIntensity;
+                    if (materials.frameMat) {
+                        materials.frameMat.emissiveIntensity = popProgress * HOVER_CONFIG.emissiveIntensity;
                     }
                 } else {
-                    if (frameMaterialRef.current) frameMaterialRef.current.emissiveIntensity = 0;
+                    if (materials.frameMat) materials.frameMat.emissiveIntensity = 0;
                 }
             }
         }
     });
 
+    // Check for video
+    const videoUrl = useMemo(() => {
+        const memory = MEMORIES.find(m => m.image === url);
+        return memory?.video || null;
+    }, [url]);
+
     // Don't render when not visible
+    // Note: We keep this component mounted to track time, but geometry visibility is toggled
     if (!isExploded && !animRef.current.isVisible) return null;
+
+
 
     return (
         <group
             ref={groupRef}
+            visible={false}
             position={particleStartPosition}
             scale={0}
             onPointerOver={handlePointerOver}
             onPointerOut={handlePointerOut}
             onPointerMove={handlePointerMove}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isExploded || !groupRef.current) return;
+
+                // Toggle Logic:
+                // If this photo is already active, clicking it again de-selects it (Return to Sea).
+                if (isThisActive) {
+                    setActivePhoto(null);
+                } else {
+                    // Activate this photo
+                    const pos = groupRef.current.position;
+                    const rot = groupRef.current.rotation;
+
+                    setActivePhoto({
+                        id: memoryId,
+                        instanceId,
+                        position: [pos.x, pos.y, pos.z],
+                        rotation: [rot.x, rot.y, rot.z]
+                    });
+                }
+            }}
         >
+            {/* Render Video Handler if active and video exists */}
+            {isThisActive && videoUrl && materials.photoMat && (
+                <React.Suspense fallback={null}>
+                    <VideoHandler videoUrl={videoUrl} material={materials.photoMat} />
+                </React.Suspense>
+            )}
+
+            {/* Close Button UI */}
+            {isThisActive && (
+                <Html position={[0.6, 0.6, 0]} center zIndexRange={[100, 0]}>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActivePhoto(null);
+                        }}
+                        aria-label="关闭照片"
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '50%',
+                            width: '40px',
+                            height: '40px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s ease',
+                            pointerEvents: 'auto',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'}
+                    >
+                        ✕
+                    </button>
+                </Html>
+            )}
+
             {/* Polaroid Frame */}
             <mesh geometry={frameGeometry}>
-                {frameMaterialRef.current && (
-                    <primitive object={frameMaterialRef.current} attach="material" />
-                )}
+                <primitive object={materials.frameMat} attach="material" />
             </mesh>
 
-            {/* Photo Image - Front */}
-            <mesh position={[0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001]} geometry={photoGeometry}>
-                {photoMaterialRef.current && (
-                    <primitive object={photoMaterialRef.current} attach="material" />
-                )}
-            </mesh>
-
-            {/* Photo Image - Back (same content) */}
-            <mesh
-                position={[0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001]}
-                rotation={[0, Math.PI, 0]}
-                geometry={photoGeometry}
-            >
-                {backPhotoMaterialRef.current && (
-                    <primitive object={backPhotoMaterialRef.current} attach="material" />
-                )}
+            {/* Photo Image - Merged Front & Back */}
+            <mesh position={[0, 0, 0]} geometry={photoGeometry}>
+                <primitive object={materials.photoMat} attach="material" />
             </mesh>
         </group>
     );
-};
+}); // Close React.memo

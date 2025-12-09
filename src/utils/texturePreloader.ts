@@ -6,43 +6,42 @@
  */
 import * as THREE from 'three';
 
-// Global texture cache
 const textureCache = new Map<string, THREE.Texture>();
 const loadingPromises = new Map<string, Promise<THREE.Texture>>();
-
-// Shared texture loader instance
-const textureLoader = new THREE.TextureLoader();
 
 /**
  * Load a single texture with caching
  */
 export const loadTexture = (url: string): Promise<THREE.Texture> => {
-    // Return cached texture
     if (textureCache.has(url)) {
         return Promise.resolve(textureCache.get(url)!);
     }
 
-    // Return existing loading promise
     if (loadingPromises.has(url)) {
         return loadingPromises.get(url)!;
     }
 
-    // Start new load
+    const loader = new THREE.TextureLoader();
     const promise = new Promise<THREE.Texture>((resolve, reject) => {
-        textureLoader.load(
+        loader.load(
             url,
             (texture) => {
+                loadingPromises.delete(url);
+
+                // Configure texture properties for consistency
                 texture.colorSpace = THREE.SRGBColorSpace;
                 texture.minFilter = THREE.LinearFilter;
                 texture.magFilter = THREE.LinearFilter;
-                texture.generateMipmaps = false; // Save memory
+                texture.generateMipmaps = false;
+                texture.needsUpdate = true;
+
                 textureCache.set(url, texture);
-                loadingPromises.delete(url);
                 resolve(texture);
             },
             undefined,
             (error) => {
                 loadingPromises.delete(url);
+                console.error(`Failed to load texture: ${url}`, error);
                 reject(error);
             }
         );

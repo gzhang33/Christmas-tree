@@ -7,7 +7,9 @@
   <title>Cosmic Christmas Tree</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Mountains+of+Christmas:wght@400;700&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
   <script>
     // Suppress Tailwind CDN production warning
@@ -18,6 +20,23 @@
     }
   </script>
   <style>
+    /* Custom Christmas Fonts */
+    @font-face {
+      font-family: 'Merry Christmas Flake';
+      src: local('Merry Christmas Flake'), url('/front/MerryChristmasFlake-mJY9.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'Merry Christmas Star';
+      src: local('Merry Christmas Star'), url('/front/MerryChristmasStar-dJnR.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
     body {
       margin: 0;
       padding: 0;

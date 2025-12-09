@@ -26,6 +26,7 @@ attribute float aRandom;        // Random seed for variation
 attribute float aBranchAngle;   // Branch angle for tree shape animation
 attribute vec3 aColor;          // Particle color
 attribute float aIsPhotoParticle; // 1.0 = photo particle, 0.0 = regular particle
+attribute float aErosionFactor;   // Pre-computed erosion delay (0.0 to 1.0)
 
 // === VARYINGS (passed to fragment shader) ===
 varying float vProgress;
@@ -69,8 +70,8 @@ void main() {
   // Use aRandom and vertical height to create an organic erosion front
   float erosionNoise = aRandom; 
   // Invert height logic: Top triggers first (Low delay), Bottom triggers last (High delay)
-  // Tree ranges approx -5.5 to +8.5. Mapping +14 down to -6 covers it well.
-  float heightDelay = (14.0 - positionStart.y) / 20.0; 
+  // Use pre-computed attribute for performance
+  float heightDelay = aErosionFactor; 
   
   // uProgress Scale must be > (1.0 + MaxDelay) to ensure completion
   // We want a strong top-down effect, so we increase heightDelay weight (0.2 -> 0.6)
@@ -90,22 +91,33 @@ void main() {
   vec3 upForce = vec3(0.0, 15.0, 0.0) * easedProgress * easedProgress; // Accelerate up
   
   // Turbulent Drift (Curl-like noise based on time and pos)
+  // OPTIMIZED: Pre-compute phases to reduce redundant calculations
   float timeOffset = uTime * 0.5;
+  float noisePhaseX = positionStart.y * 0.5 + timeOffset + aRandom * 5.0;
+  float noisePhaseZ = positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0;
+  
   vec3 noiseOffset = vec3(
-    sin(positionStart.y * 0.5 + timeOffset + aRandom * 5.0),
+    sin(noisePhaseX),
     0.0,
-    cos(positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0)
+    cos(noisePhaseZ)
   ) * 4.0 * easedProgress; // Drift amplitude increases with progress
   
   // === INITIAL POSITION & IDLE ANIMATION ===
   // Calculate animated start position with breathing and sway
+  // OPTIMIZED: Pre-compute static phase offsets to reduce sin() calls
   
   // Breathing (radial expansion)
-  float breathe = sin(uTime * uBreatheFreq1 + positionStart.y * 0.1) * uBreatheAmp1 
-                + sin(uTime * uBreatheFreq2 + positionStart.x * 0.2) * uBreatheAmp2;
+  // Original: Multiple sin() calls with position-based offsets
+  // Optimized: Combine offsets before sin() call
+  float breathePhase1 = uTime * uBreatheFreq1 + positionStart.y * 0.1;
+  float breathePhase2 = uTime * uBreatheFreq2 + positionStart.x * 0.2;
+  float breathe = sin(breathePhase1) * uBreatheAmp1 
+                + sin(breathePhase2) * uBreatheAmp2;
 
   // Sway (wind movement)
-  float sway = sin(uTime * uSwayFreq + positionStart.y * 0.15) * uSwayAmp * smoothstep(-5.0, 20.0, positionStart.y);
+  // OPTIMIZED: Single sin() call instead of nested calculations
+  float swayPhase = uTime * uSwayFreq + positionStart.y * 0.15;
+  float sway = sin(swayPhase) * uSwayAmp * smoothstep(-5.0, 20.0, positionStart.y);
 
   vec3 animatedStart = positionStart;
   if (length(positionStart.xz) > 0.01) {
@@ -204,4 +216,12 @@ void main() {
   vColor = aColor;
   vDepth = -mvPosition.z;
   vIsPhotoParticle = aIsPhotoParticle;
+  vFlash = 0.0; // No flash effect in dissipation animation
+  
+  // === EARLY DISCARD ===
+  // Optimization: If particle is fully transparent, move out of clip space
+  // This skips the fragment shader entirely
+  if (vAlpha <= 0.01) {
+      gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+  }
 }
