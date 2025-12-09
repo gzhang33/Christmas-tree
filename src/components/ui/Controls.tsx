@@ -93,10 +93,18 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
             } catch (error) {
                 console.error("Upload error", error);
 
-                // Fallback: Just pass the files directly if something completely crashed before processing
-                // Note: FileList is iterable, but safe to just pass e.target.files if needed
+                // Fallback: 使用 Data URL 而非 createObjectURL 以避免内存泄漏并保持格式一致
                 if (e.target.files) {
-                    addPhotos(Array.from(e.target.files).map(f => URL.createObjectURL(f)));
+                    const fallbackUrls = await Promise.all(
+                        Array.from(e.target.files).map(file =>
+                            new Promise<string>((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target?.result as string);
+                                reader.readAsDataURL(file);
+                            })
+                        )
+                    );
+                    addPhotos(fallbackUrls);
                 }
             } finally {
                 setIsUploading(false);
@@ -197,9 +205,15 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                             }
 
                                             const url = uiState.generateShareUrl();
-                                            navigator.clipboard.writeText(url);
-                                            setIsCopied(true);
-                                            setTimeout(() => setIsCopied(false), 2000);
+                                            navigator.clipboard.writeText(url)
+                                                .then(() => {
+                                                    setIsCopied(true);
+                                                    setTimeout(() => setIsCopied(false), 2000);
+                                                })
+                                                .catch((err) => {
+                                                    console.error('复制失败:', err);
+                                                    alert('复制链接失败，请手动复制');
+                                                });
                                         }}
                                         className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isCopied
                                             ? 'border-green-500 text-green-500 bg-green-500/10'
@@ -379,7 +393,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                         </div>
                     </motion.div>
                 </motion.div>
-            )}
-        </AnimatePresence>
+            )
+            }
+        </AnimatePresence >
     );
 };

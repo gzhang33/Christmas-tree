@@ -12,13 +12,12 @@ self.onmessage = (e: MessageEvent) => {
         const { count, aspectRatio } = e.data;
 
         // Input validation
-        if (typeof count !== 'number' || !isFinite(count) || count <= 0) {
-            throw new Error('Invalid count: must be a positive number');
+        if (typeof count !== 'number' || !isFinite(count) || count <= 0 || !Number.isInteger(count)) {
+            throw new Error('Invalid count: must be a positive integer');
         }
         if (typeof aspectRatio !== 'number' || !isFinite(aspectRatio) || aspectRatio <= 0) {
             throw new Error('Invalid aspectRatio: must be a positive number');
         }
-
         // Perform the heavy calculation
         const positions = generatePhotoPositions(count, aspectRatio);
 

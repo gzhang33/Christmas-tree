@@ -2,14 +2,15 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Experience } from './components/canvas/Experience.tsx';
 import { Controls } from './components/ui/Controls.tsx';
-import { ParticleTitle } from './components/ui/ParticleTitle.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
+import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
+import { LandingTitle } from './components/ui/LandingTitle.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { AUDIO } from './config/assets.ts';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
-import { useStore } from './store/useStore.ts';
+import { useStore, LandingPhase } from './store/useStore.ts';
 import * as THREE from 'three';
 import { encodeState, decodeState } from './utils/shareUtils';
 import './index.css';
@@ -41,6 +42,8 @@ function App() {
   const isExploded = useStore((state) => state.isExploded);
   const triggerExplosion = useStore((state) => state.triggerExplosion);
   const resetExplosion = useStore((state) => state.resetExplosion);
+  const landingPhase = useStore((state) => state.landingPhase);
+  const setLandingPhase = useStore((state) => state.setLandingPhase);
 
   // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);
@@ -327,7 +330,8 @@ function App() {
           }}
         >
 
-          <Experience uiState={uiState} />
+          {/* Tree Experience - shown once morphing starts or in tree phase */}
+          {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
 
           {/* Performance Tracker */}
           <PerformanceMonitorWrapper
@@ -370,11 +374,27 @@ function App() {
       {/* Debug Store Panel (F4 to toggle) */}
       <DebugStore performanceData={performanceData} />
 
+      {/* Landing Flow Controller - handles name input, click prompts */}
+      <LandingFlowController
+        onPhaseChange={(phase) => console.log('[LandingFlow] Phase:', phase)}
+        onAudioResume={() => {
+          if (audioRef.current && audioRef.current.paused) {
+            audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+            setIsMuted(false);
+          }
+        }}
+      />
+
+      {/* Landing Title - shown during entrance/text/morphing phases (2D canvas particles) */}
+      <LandingTitle
+        onEntranceComplete={() => setLandingPhase('text')}
+        onFadeOutComplete={() => setLandingPhase('tree')}
+      />
+
       {/* Performance Monitor Overlay */}
       <PerformanceOverlay visible={showPerformance} data={performanceData} />
 
-      {/* Particle Title (TREE-03) */}
-      <ParticleTitle isExploded={isExploded} isCompact={isHeroTextCompact} />
+      {/* Particle Title removed from tree phase per user request */}
 
       {/* Decorative corner gradient */}
 

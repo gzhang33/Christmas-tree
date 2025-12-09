@@ -18,10 +18,9 @@ export const getOptimizedCloudinaryUrl = (
     }
 
     // Check if distinct upload param already exists to avoid double optimization
-    if (url.includes('/q_') || url.includes('/f_')) {
+    if (url.includes('/w_') || url.includes('/q_') || url.includes('/f_')) {
         return url;
     }
-
     // Typical Cloudinary URL format: 
     // https://res.cloudinary.com/<cloud_name>/image/upload/<version>/<public_id>
     // We want to insert transformations after "/upload/"
@@ -67,32 +66,35 @@ export const uploadToCloudinary = async (
         xhr.open('POST', url, true);
         xhr.timeout = 15000; // 15秒超时
 
+        // 顶层注册事件处理程序（只注册一次）
         xhr.ontimeout = () => {
             reject(new Error('上传超时，请检查网络连接后重试'));
         };
-        // Track progress
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable && onProgress) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            resolve(response.secure_url);
-                        } catch (error) {
-                            reject(new Error('Failed to parse server response'));
-                        }
-                    } else {
-                        reject(new Error(`Upload failed: ${xhr.statusText}`));
-                    }
-                };
+
+        xhr.onerror = () => {
+            reject(new Error('Network error occurred during upload'));
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    resolve(response.secure_url);
+                } catch (error) {
+                    reject(new Error('Failed to parse server response'));
+                }
             } else {
                 reject(new Error(`Upload failed: ${xhr.statusText}`));
             }
         };
 
-        xhr.onerror = () => {
-            reject(new Error('Network error occurred during upload'));
+        // 仅用于进度跟踪，不处理成功/失败
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                onProgress(percentComplete);
+            }
+            // lengthComputable 为 false 时不做任何处理，等待 onload/onerror
         };
 
         xhr.send(formData);

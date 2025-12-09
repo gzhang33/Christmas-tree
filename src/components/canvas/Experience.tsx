@@ -194,20 +194,6 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         // === 3. POST-PROCESSING UPDATES (only if effects are enabled) ===
         if (!enableEffects) return;
 
-        // DOF Logic - FIXED: Disable DOF when hovering to keep focused photo sharp
-        // DOF should only blur background when NOT hovering
-        if (dofRef.current) {
-            // When hovering, we want the hovered photo to be SHARP
-            // So we disable DOF entirely (focalLength = 0 means no blur)
-            let targetFocalLength = 0.0; // Default: no blur
-
-            // Note: We've removed the hover blur logic
-            // The hovered photo should always be sharp
-
-            dofRef.current.focalLength = THREE.MathUtils.lerp(
-                dofRef.current.focalLength, targetFocalLength, delta * 2
-            );
-        }
 
         // Chromatic Aberration
         if (chromaticRef.current) {

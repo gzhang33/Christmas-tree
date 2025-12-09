@@ -79,10 +79,10 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                 <button
                     onClick={() => setIsVisible(false)}
                     className="text-white/60 hover:text-white text-xs w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                    aria-label="关闭调试面板"
                 >
                     ✕
-                </button>
-            </div>
+                </button>            </div>
 
             {/* Current Scene Badge */}
             <div className="mb-3">

@@ -3,6 +3,12 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_TREE_COLOR } from '../config/colors';
 
 /**
+ * Landing Flow Phase Type
+ * Represents the current stage of the landing page animation flow
+ */
+export type LandingPhase = 'input' | 'entrance' | 'text' | 'morphing' | 'tree';
+
+/**
  * Global Application State Interface
  * 
  * This store manages shared state between 3D canvas components and UI components,
@@ -16,6 +22,10 @@ export interface AppState {
     activePhoto: { id: string; instanceId: number; position: [number, number, number]; rotation: [number, number, number] } | null;
     hoveredPhotoId: string | null; // For global hover effects (stop rotation)
 
+    // Landing Flow State
+    userName: string | null;
+    landingPhase: LandingPhase;
+
     // Actions
     setTreeColor: (color: string) => void;
     setParticleCount: (count: number) => void;
@@ -23,6 +33,10 @@ export interface AppState {
     resetExplosion: () => void;
     setActivePhoto: (photo: { id: string; instanceId: number; position: [number, number, number]; rotation: [number, number, number] } | null) => void;
     setHoveredPhoto: (id: string | null) => void;
+
+    // Landing Flow Actions
+    setUserName: (name: string) => void;
+    setLandingPhase: (phase: LandingPhase) => void;
 }
 
 /**
@@ -49,6 +63,10 @@ export const useStore = create<AppState>()(
             activePhoto: null,
             hoveredPhotoId: null,
 
+            // Landing Flow Initial State
+            userName: null,
+            landingPhase: 'input' as LandingPhase,
+
             // Actions
             setTreeColor: (color) => set({ treeColor: color }),
             setParticleCount: (count) => set({ particleCount: count }),
@@ -56,14 +74,19 @@ export const useStore = create<AppState>()(
             resetExplosion: () => set({ isExploded: false, activePhoto: null }),
             setActivePhoto: (photo) => set({ activePhoto: photo }),
             setHoveredPhoto: (id) => set({ hoveredPhotoId: id }),
+
+            // Landing Flow Actions
+            setUserName: (name) => set({ userName: name }),
+            setLandingPhase: (phase) => set({ landingPhase: phase }),
         }),
         {
             name: 'christmas-tree-storage', // LocalStorage key
             storage: createJSONStorage(() => localStorage),
-            // Only persist user preferences, not transient state
+            // Persist user preferences and userName
             partialize: (state) => ({
                 treeColor: state.treeColor,
                 particleCount: state.particleCount,
+                userName: state.userName, // Persist userName for returning visitors
             }),
         }
     )

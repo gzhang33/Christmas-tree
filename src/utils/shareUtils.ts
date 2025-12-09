@@ -27,7 +27,7 @@ export const encodeState = (
 
     try {
         const json = JSON.stringify(state);
-        const base64 = btoa(encodeURIComponent(json));
+        const base64 = btoa(unescape(encodeURIComponent(json)));
         // 转换为 URL 安全格式：+ 换成 -，/ 换成 _，删除 =
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     } catch (e) {
@@ -53,7 +53,7 @@ export const decodeState = (encoded: string): ShareableState | null => {
 
         // Decode Base64 to percent-encoded string (to handle UTF-8 correctly)
         const binaryString = atob(base64);
-        const json = decodeURIComponent(binaryString);
+        const json = decodeURIComponent(escape(binaryString));
 
         const data = JSON.parse(json);
 
@@ -70,7 +70,7 @@ export const decodeState = (encoded: string): ShareableState | null => {
         }
 
         // Validate 'c' (color) is REQUIRED and must be a string
-        if (!data.c || typeof data.c !== 'string') {
+        if (data.c === undefined || data.c === null || typeof data.c !== 'string') {
             console.warn("Invalid share state: 'c' is missing or invalid (must be string)");
             return null;
         }

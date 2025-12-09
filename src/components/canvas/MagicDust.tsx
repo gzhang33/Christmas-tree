@@ -73,9 +73,19 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   const targetProgressRef = useRef(0.0);
 
   // NEW: Pre-compute color objects from config to avoid recreation
-  const colors = useMemo(() =>
-    configColors.map(c => new THREE.Color(c)),
-    [configColors]);
+  // Ensure at least 3 colors are available, pad with default gold if necessary
+  const colors = useMemo(() => {
+    const parsedColors = configColors.map(c => new THREE.Color(c));
+    const defaultColor = new THREE.Color(0xffd700); // 金色作为默认回退颜色
+
+    // 补充至少 3 种颜色以防止索引越界
+    while (parsedColors.length < 3) {
+      console.warn(`[MagicDust] 配置颜色不足 3 种（当前 ${parsedColors.length}），使用默认金色填充`);
+      parsedColors.push(defaultColor.clone());
+    }
+
+    return parsedColors;
+  }, [configColors]);
 
   // Increase particle count to account for trails which are now just more particles
   const totalParticles = count * 6; // *6 for trail density
@@ -119,13 +129,13 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
       flickerPhase[i] = Math.random() * Math.PI * 2;
       randoms[i] = Math.random();
 
-      // Color Logic
+      // Color Logic - 使用安全的索引访问，防止数组越界
       const colorChoice = Math.random();
       let c: THREE.Color;
-      // Simple weighted choice based on index
-      if (colorChoice < 0.3) c = colors[0];
-      else if (colorChoice < 0.7) c = colors[1];
-      else c = colors[2];
+      // Simple weighted choice based on index with bounds checking
+      if (colorChoice < 0.3) c = colors[0] ?? colors[colors.length - 1];
+      else if (colorChoice < 0.7) c = colors[1] ?? colors[colors.length - 1];
+      else c = colors[2] ?? colors[colors.length - 1];
 
       colorsArray[i * 3] = c.r;
       colorsArray[i * 3 + 1] = c.g;
