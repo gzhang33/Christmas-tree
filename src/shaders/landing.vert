@@ -118,8 +118,7 @@ void main() {
     }
     
     // Transform to clip space
-    // Transform to clip space
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
     // Calculate point size with depth attenuation
@@ -130,4 +129,4 @@ void main() {
     // Pass to fragment shader
     vAlpha = alpha;
     vColor = uColor; // Use uniform color
-}
+}}

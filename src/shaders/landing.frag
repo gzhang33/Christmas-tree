@@ -21,7 +21,7 @@ void main() {
     }
     
     // Apply color with HDR boost for glow effect
-    vec3 finalColor = vColor * 1.2;
+    vec3 finalColor = vColor * 1.0;
     
     gl_FragColor = vec4(finalColor, softEdge * vAlpha);
 }

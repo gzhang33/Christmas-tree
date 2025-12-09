@@ -36,17 +36,16 @@ export interface TextParticleResult {
         maxX: number;
         minY: number;
         maxY: number;
-    };
-}
+    }
 
-const DEFAULT_OPTIONS: Partial<TextParticleOptions> = {
+    const DEFAULT_OPTIONS: Partial<TextParticleOptions> = {
     fontFamily: "'Merry Christmas Flake', 'Great Vibes', serif",
     fontSize: 120,
     density: 3,
     worldWidth: 20,
     zOffset: 5,
     yOffset: 0,
-};
+    };
 
 /**
  * Generates 3D particle positions from text
@@ -154,7 +153,6 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
         bounds: { minX, maxX, minY, maxY },
     };
 };
-}
 
 /**
  * Generates particles for multi-line text (e.g., "Merry\nChristmas\n[UserName]")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette, Share2, Check } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette, Share2, Check, AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
@@ -47,11 +47,13 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     // Upload state
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [failedUploads, setFailedUploads] = useState<string[]>([]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             setIsUploading(true);
             setUploadProgress(0);
+            setFailedUploads([]); // Reset previous errors
 
             try {
                 // Dynamically import utility to avoid bundling if not used
@@ -59,41 +61,51 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 const files = Array.from(e.target.files);
                 const uploadedUrls: string[] = [];
+                const currentFailedFiles: string[] = [];
                 const totalFiles = files.length;
 
                 const progressMap = new Map<number, number>();
                 // Process files sequentially or parallel (parallel for speed)
                 // We'll map file objects to simple { id, url } format expected by addPhotos
-                await Promise.all(files.map(async (file, index) => {
-                    try {
-                        const url = await uploadToCloudinary(file, (percent) => {
-                            progressMap.set(index, percent);
-                            const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
-                            setUploadProgress(Math.round(total / totalFiles));
-                        });
-                        uploadedUrls.push(url);
-                    } catch (err) {
-                        console.error(`Failed to upload ${file.name}:`, err);
-                        // Fallback to local Data URL if cloud upload fails
-                        const dataUrl = await new Promise<string>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = (e) => resolve(e.target?.result as string);
-                            reader.readAsDataURL(file);
-                        });
-                        uploadedUrls.push(dataUrl);
-                    }
-                }));
+                // Batch upload, max 8 files per batch
+                const batchSize = 8;
+                for (let i = 0; i < files.length; i += batchSize) {
+                    const batch = files.slice(i, i + batchSize);
+                    await Promise.all(batch.map(async (file, batchIndex) => {
+                        const index = i + batchIndex;
+                        try {
+                            const url = await uploadToCloudinary(file, (percent) => {
+                                progressMap.set(index, percent);
+                                const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
+                                setUploadProgress(Math.round(total / totalFiles));
+                            });
+                            uploadedUrls.push(url);
+                        } catch (err) {
+                            console.error(`Failed to upload ${file.name}:`, err);
+                            currentFailedFiles.push(file.name);
+                            // Fallback to local Data URL if cloud upload fails
+                            const dataUrl = await new Promise<string>((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target?.result as string);
+                                reader.readAsDataURL(file);
+                            });
+                            uploadedUrls.push(dataUrl);
+                        }
+                    }));
+                }
+
+                if (currentFailedFiles.length > 0) {
+                    setFailedUploads(currentFailedFiles);
+                }
 
                 // Add all successfully processed URLs (cloud or fallback)
-                // Pass arrays of strings (URLs) to addPhotos
                 if (uploadedUrls.length > 0) {
                     addPhotos(uploadedUrls);
                 }
 
             } catch (error) {
                 console.error("Upload error", error);
-
-                // Fallback: 使用 Data URL 而非 createObjectURL 以避免内存泄漏并保持格式一致
+                // Fallback: Use Data URL
                 if (e.target.files) {
                     const fallbackUrls = await Promise.all(
                         Array.from(e.target.files).map(file =>
@@ -105,10 +117,13 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                         )
                     );
                     addPhotos(fallbackUrls);
+                    setFailedUploads(Array.from(e.target.files).map(f => f.name));
                 }
             } finally {
                 setIsUploading(false);
                 setUploadProgress(0);
+                // Clear file input so same file can be selected again if needed
+                e.target.value = '';
             }
         }
     };
@@ -201,7 +216,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                             const hasLocalPhotos = photos.some(p => p.url.startsWith('data:'));
 
                                             if (hasLocalPhotos) {
-                                                alert("NOTICE: Some photos are stored locally (Data URL) because cloud upload failed or is not configured.\n\nSharing might not work for others as the link will be too long or invalid.\n\nPlease configure Cloudinary for permanent, shareable links.");
+                                                alert("提示：部分照片保存在本地，分享链接可能无法被其他人打开。\n\n建议重新上传照片以获得永久分享链接。");
                                             }
 
                                             const url = uiState.generateShareUrl();
@@ -211,11 +226,11 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                     setTimeout(() => setIsCopied(false), 2000);
                                                 })
                                                 .catch((err) => {
-                                                    console.error('复制失败:', err);
-                                                    alert('复制链接失败，请手动复制');
+                                                    console.error('Failed to copy:', err);
+                                                    alert('链接复制失败，请手动复制');
                                                 });
                                         }}
-                                        className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isCopied
+                                        className={`p-2 rounded-full border transition-all duration-300 ${isCopied
                                             ? 'border-green-500 text-green-500 bg-green-500/10'
                                             : 'border-white/20 text-white hover:bg-electric-purple/20 hover:border-electric-purple'}`}
                                         title={isCopied ? "Copied!" : "Share Memory"}
@@ -371,14 +386,62 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                                     {/* Loading Overlay */}
                                     {isUploading && (
-                                        <div className="absolute inset-0 bg-deep-gray-blue/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
-                                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-neon-pink animate-spin mb-2" />
-                                            <span className="text-[0.6rem] font-mono text-neon-pink animate-pulse">
+                                        <div
+                                            className="absolute inset-0 bg-deep-gray-blue/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300"
+                                            role="status"
+                                            aria-live="polite"
+                                            aria-label={`正在上传，${uploadProgress}%`}
+                                        >
+                                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-neon-pink animate-spin mb-2" aria-hidden="true" />
+                                            <span className="text-[0.6rem] font-mono text-neon-pink animate-pulse" aria-hidden="true">
                                                 UPLOADING {uploadProgress}%
                                             </span>
                                         </div>
                                     )}
                                 </label>
+
+
+
+                                {/* Error Notification */}
+                                <AnimatePresence>
+                                    {failedUploads.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10, height: 0 }}
+                                            animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                            exit={{ opacity: 0, y: -10, height: 0 }}
+                                            className="bg-red-500/10 border border-red-500/50 rounded-xl p-3 relative overflow-hidden"
+                                            role="alert"
+                                            aria-live="assertive"
+                                        >
+                                            <div className="flex gap-3">
+                                                <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={16} />
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-xs font-bold text-red-200 uppercase tracking-wider mb-1">
+                                                        Upload Warning
+                                                    </h4>
+                                                    <p className="text-[0.65rem] text-red-100/80 mb-2 leading-relaxed">
+                                                        {failedUploads.length} file{failedUploads.length > 1 ? 's' : ''} failed to upload to cloud (saved locally). Sharing via URL may not work for these images.
+                                                    </p>
+                                                    <div className="max-h-20 overflow-y-auto custom-scrollbar-thin bg-black/20 rounded p-2 mb-2">
+                                                        <ul className="list-disc list-inside space-y-1">
+                                                            {failedUploads.map((name, i) => (
+                                                                <li key={i} className="text-[0.6rem] text-red-200/70 truncate" title={name}>
+                                                                    {name}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setFailedUploads([])}
+                                                        className="text-[0.65rem] bg-red-500/20 hover:bg-red-500/30 text-red-200 px-3 py-1 rounded transition-colors w-full uppercase tracking-wider font-semibold"
+                                                    >
+                                                        Dismiss
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 {photos.length > 0 && (
                                     <div className="grid grid-cols-4 gap-2 mt-2 max-h-32 overflow-y-auto custom-scrollbar">
@@ -392,7 +455,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             </div>
                         </div>
                     </motion.div>
-                </motion.div>
+                </motion.div >
             )
             }
         </AnimatePresence >

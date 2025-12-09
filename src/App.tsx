@@ -12,6 +12,7 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
 import { useStore, LandingPhase } from './store/useStore.ts';
+import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
 import * as THREE from 'three';
 import { encodeState, decodeState } from './utils/shareUtils';
 import './index.css';
@@ -302,107 +303,106 @@ function App() {
   };
 
   return (
-    <div className="w-full h-screen relative bg-black overflow-hidden">
-      {/* Background Music */}
-      <audio
-        ref={audioRef}
-        src={AUDIO.jingleBells}
-        crossOrigin="anonymous"
-        loop
-        muted={isMuted}
-        preload="auto"
-      />
+    <LandingFlowProvider>
+      <div className="w-full h-screen relative bg-black overflow-hidden">
+        {/* Background Music */}
+        <audio
+          ref={audioRef}
+          src={AUDIO.jingleBells}
+          crossOrigin="anonymous"
+          loop
+          muted={isMuted}
+          preload="auto"
+        />
 
-      {/* 3D Canvas */}
-      <div className="absolute inset-0 z-0">
-        <Canvas
-          camera={{ position: [0, 5, 28], fov: 42 }}
-          dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
-          gl={{
-            antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
-            toneMappingExposure: 1.08,
-            alpha: false,
-            powerPreference: 'high-performance',
-            stencil: false,
-            depth: true
+        {/* 3D Canvas */}
+        <div className="absolute inset-0 z-0">
+          <Canvas
+            camera={{ position: [0, 5, 28], fov: 42 }}
+            dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
+            gl={{
+              antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
+              toneMappingExposure: 1.08,
+              alpha: false,
+              powerPreference: 'high-performance',
+              stencil: false,
+              depth: true
+            }}
+            onCreated={({ scene }) => {
+              scene.background = new THREE.Color('#030002');
+            }}
+          >
+
+            {/* Snow - shown in all phases */}
+            <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
+
+            {/* Tree Experience - shown once morphing starts or in tree phase */}
+            {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
+
+            {/* Performance Tracker */}
+            <PerformanceMonitorWrapper
+              particleCount={estimatedParticleCount}
+              onUpdate={handlePerformanceUpdate}
+            />
+
+            {/* === CINEMATIC POST PROCESSING PIPELINE === */}
+            {/* Optimized for clearer silhouette and reduced overexposure */}
+            <EffectComposer multisampling={0}>
+              {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
+              <Bloom
+                luminanceThreshold={0.6}
+                luminanceSmoothing={0.85}
+                mipmapBlur
+                intensity={0.4}
+                radius={0.5}
+              />
+              {/* Secondary Bloom - Highlights for star/top particles only */}
+              <Bloom
+                luminanceThreshold={0.92}
+                luminanceSmoothing={0.4}
+                mipmapBlur
+                intensity={0.35}
+                radius={0.35}
+              />
+              {/* Cinematic Vignette (per spec) */}
+              <Vignette
+                offset={0.35}
+                darkness={0.65}
+                blendFunction={BlendFunction.NORMAL}
+              />
+            </EffectComposer>
+          </Canvas>
+        </div>
+
+        {/* UI Overlay - only shown in tree phase */}
+        {landingPhase === 'tree' && <Controls uiState={uiState} />}
+
+        {/* Debug Store Panel (F4 to toggle) */}
+        <DebugStore performanceData={performanceData} />
+
+        {/* Landing Flow Controller - handles name input, click prompts */}
+        <LandingFlowController
+          onPhaseChange={(phase) => console.log('[LandingFlow] Phase:', phase)}
+          onAudioResume={() => {
+            if (audioRef.current && audioRef.current.paused) {
+              audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+              setIsMuted(false);
+            }
           }}
-          onCreated={({ scene }) => {
-            scene.background = new THREE.Color('#030002');
-          }}
-        >
+        />
 
-          {/* Snow - shown in all phases */}
-          <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
+        {/* Landing Title - shown during entrance/text/morphing phases (2D canvas particles) */}
+        <LandingTitle />
 
-          {/* Tree Experience - shown once morphing starts or in tree phase */}
-          {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
+        {/* Performance Monitor Overlay */}
+        <PerformanceOverlay visible={showPerformance} data={performanceData} />
 
-          {/* Performance Tracker */}
-          <PerformanceMonitorWrapper
-            particleCount={estimatedParticleCount}
-            onUpdate={handlePerformanceUpdate}
-          />
+        {/* Particle Title removed from tree phase per user request */}
 
-          {/* === CINEMATIC POST PROCESSING PIPELINE === */}
-          {/* Optimized for clearer silhouette and reduced overexposure */}
-          <EffectComposer multisampling={0}>
-            {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
-            <Bloom
-              luminanceThreshold={0.6}
-              luminanceSmoothing={0.85}
-              mipmapBlur
-              intensity={0.4}
-              radius={0.5}
-            />
-            {/* Secondary Bloom - Highlights for star/top particles only */}
-            <Bloom
-              luminanceThreshold={0.92}
-              luminanceSmoothing={0.4}
-              mipmapBlur
-              intensity={0.35}
-              radius={0.35}
-            />
-            {/* Cinematic Vignette (per spec) */}
-            <Vignette
-              offset={0.35}
-              darkness={0.65}
-              blendFunction={BlendFunction.NORMAL}
-            />
-          </EffectComposer>
-        </Canvas>
+        {/* Decorative corner gradient */}
+
       </div>
-
-      {/* UI Overlay - only shown in tree phase */}
-      {landingPhase === 'tree' && <Controls uiState={uiState} />}
-
-      {/* Debug Store Panel (F4 to toggle) */}
-      <DebugStore performanceData={performanceData} />
-
-      {/* Landing Flow Controller - handles name input, click prompts */}
-      <LandingFlowController
-        onPhaseChange={(phase) => console.log('[LandingFlow] Phase:', phase)}
-        onAudioResume={() => {
-          if (audioRef.current && audioRef.current.paused) {
-            audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
-            setIsMuted(false);
-          }
-        }}
-      />
-
-      {/* Landing Title - shown during entrance/text/morphing phases (2D canvas particles) */}
-      <LandingTitle
-        onEntranceComplete={() => setLandingPhase('text')}
-        onFadeOutComplete={() => setLandingPhase('tree')}
-      />
-
-      {/* Performance Monitor Overlay */}
-      <PerformanceOverlay visible={showPerformance} data={performanceData} />
-
-      {/* Particle Title removed from tree phase per user request */}
-
-      {/* Decorative corner gradient */}
-
-    </div>
+    </LandingFlowProvider>
   );
 }
 

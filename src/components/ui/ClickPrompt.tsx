@@ -17,27 +17,25 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) 
         <AnimatePresence>
             {isVisible && (
                 <motion.button
-                    className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 cursor-pointer select-none"
+                    className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 rounded-full"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: 0.5 }}
                     onClick={onClick}
                     aria-label="点击点亮圣诞树"
+                >                    <motion.div
+                    animate={{
+                        opacity: [0.7, 1, 0.7],
+                        scale: [1, 1.02, 1],
+                    }}
+                    transition={{
+                        duration: 2.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                    }}
+                    className="relative flex flex-col items-center gap-2"
                 >
-                    {/* Breathing animation wrapper */}
-                    <motion.div
-                        animate={{
-                            opacity: [0.7, 1, 0.7],
-                            scale: [1, 1.02, 1],
-                        }}
-                        transition={{
-                            duration: 2.5,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                        }}
-                        className="relative flex flex-col items-center gap-2"
-                    >
                         {/* Pulsing ring effect */}
                         <motion.div
                             className="absolute inset-0 -m-4 rounded-full border-2 border-amber-400/30"

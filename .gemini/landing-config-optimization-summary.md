@@ -6,7 +6,7 @@
 - **问题**: `userName.indent` 参数被读取但从未应用到实际渲染
 - **解决方案**:
   - 将 `indent` 重命名为 `xOffset`，语义更清晰（像素值而非百分比）
-  - 在 `LandingTitle.tsx` L602 应用到用户名 canvas 的 `transform` 属性
+  - 在 `LandingTitle.tsx`  L608 应用到用户名 canvas 的 `transform` 属性
   - 现在用户名支持独立的水平偏移：`translate(${responsive.userNameXOffset}px, ...)`
 
 ### 2. ✅ 清理冗余配置

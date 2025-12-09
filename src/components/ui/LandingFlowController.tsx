@@ -1,14 +1,3 @@
-/**
- * LandingFlowController Component
- * 
- * State machine controller for the landing page animation flow.
- * Manages transitions between phases:
- * - input: Name input modal
- * - entrance: Particles falling from top
- * - text: "Merry Christmas" displayed
- * - morphing: Text → Tree transition
- * - tree: Final Christmas tree state
- */
 import React, { useEffect, useCallback } from 'react';
 import { useStore, LandingPhase } from '../../store/useStore';
 import { NameInputModal } from './NameInputModal';
@@ -57,33 +46,6 @@ export const LandingFlowController: React.FC<LandingFlowControllerProps> = ({
             setLandingPhase('morphing');
         }
     }, [landingPhase, setLandingPhase]);
-
-    // Auto-transition from entrance to text (after entrance animation completes)
-    // This will be triggered by TreeParticles once entrance animation is done
-    const handleEntranceComplete = useCallback(() => {
-        if (landingPhase === 'entrance') {
-            setLandingPhase('text');
-        }
-    }, [landingPhase, setLandingPhase]);
-
-    // Auto-transition from morphing to tree (after morphing animation completes)
-    const handleMorphingComplete = useCallback(() => {
-        if (landingPhase === 'morphing') {
-            setLandingPhase('tree');
-        }
-    }, [landingPhase, setLandingPhase]);
-
-    // Expose transition handlers via window for TreeParticles to call
-    useEffect(() => {
-        (window as any).__landingFlow = {
-            onEntranceComplete: handleEntranceComplete,
-            onMorphingComplete: handleMorphingComplete,
-        };
-
-        return () => {
-            delete (window as any).__landingFlow;
-        };
-    }, [handleEntranceComplete, handleMorphingComplete]);
 
     return (
         <>

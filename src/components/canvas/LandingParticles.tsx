@@ -276,30 +276,6 @@ export const LandingParticles: React.FC<LandingParticlesProps> = ({
         const time = state.clock.elapsedTime;
         const elapsed = time - phaseStartTimeRef.current;
 
-        const entranceCompletedRef = useRef(false);
-
-        // 在 useEffect 中重置标记
-        useEffect(() => {
-            phaseStartTimeRef.current = performance.now() / 1000;
-            if (landingPhase === 'entrance') {
-                entranceProgressRef.current = 0;
-                entranceCompletedRef.current = false;
-            } else if (landingPhase === 'morphing') {
-                morphProgressRef.current = 0;
-            }
-        }, [landingPhase]);
-
-        // 在 useFrame 中检查标记
-        useFrame((state) => {
-            // ...
-            if (landingPhase === 'entrance') {
-                // ...
-                if (progress >= 1.0 && onEntranceComplete && !entranceCompletedRef.current) {
-                    entranceCompletedRef.current = true;
-                    onEntranceComplete();
-                }
-            }
-        });
         // Phase-specific logic
         if (landingPhase === 'entrance') {
             materialRef.current.uniforms.uPhase.value = 0;

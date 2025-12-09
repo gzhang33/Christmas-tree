@@ -22,14 +22,12 @@ varying float vAlpha;
 // Function to calculate tree radius at a given normalized height (0 to 1)
 // Tiered shape logic mimicking treeUtils.ts
 float getTreeRadius(float t) {
-  float maxRadius = 12.0; // Base tree radius
-  // Simple cone approximation for shader efficiency, or tiered if needed.
-  // Using a cone shape: radius is largest at bottom (t=0) and smallest at top (t=1).
-  // Note: t here implies 0 at bottom, 1 at top? 
-  // In MagicDust.tsx logic: y = topY - t * treeHeight. So t=0 is TOP, t=1 is BOTTOM.
-  // So radius should be larger when t is larger.
-  
-  return maxRadius * t * 0.9 + 1.0; 
+  float maxRadius = 12.0;    // Base tree radius at bottom
+  float radiusScale = 0.9;   // Scale factor for radius tapering
+  float minRadius = 1.0;     // Minimum radius at the top
+
+  // t=0 is top (small radius), t=1 is bottom (large radius)
+  return maxRadius * t * radiusScale + minRadius; 
 }
 
 void main() {
@@ -69,7 +67,11 @@ void main() {
   float heightDelay = aErosionFactor; 
   
   // Trigger logic matching TreeParticles: (uProgress * 2.6) - offsets
-  float trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0);
+  const float progressMultiplier = 2.6; // Scale uProgress to cover the full height + offsets
+  const float noiseInfluence = 0.3;     // How much randomness affects the trigger time
+  const float heightInfluence = 1.0;    // How strictly it likely follows height (top-down)
+
+  float trigger = (uProgress * progressMultiplier) - (erosionNoise * noiseInfluence + heightDelay * heightInfluence);
   float localProgress = clamp(trigger, 0.0, 1.0);
   float easedProgress = smoothstep(0.0, 1.0, localProgress);
   
@@ -126,6 +128,6 @@ void main() {
   
   // Early discard optimization
   if (vAlpha <= 0.01) {
-    gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+    gl_PointSize = 0.0;
   }
 }

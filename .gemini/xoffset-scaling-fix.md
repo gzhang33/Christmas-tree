@@ -25,6 +25,9 @@ transform: `translate(..., ${responsive.fontSize * lineSpacing * yOffset / inner
 现在 `xOffset` 和 `yOffset` 都使用相同的响应式缩放公式：
 
 ```typescript
+// verticalOffset: 基础垂直定位值（通常为 0，或根据布局需求设定的基准百分比）
+const verticalOffset = 0;
+
 transform: `translate(
   ${fontSize * lineSpacing * xOffset / innerWidth * 100}%,
   ${verticalOffset + (fontSize * lineSpacing * yOffset / innerHeight * 100)}%

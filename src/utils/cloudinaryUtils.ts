@@ -46,6 +46,18 @@ export const uploadToCloudinary = async (
     file: File,
     onProgress?: (progress: number) => void
 ): Promise<string> => {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        throw new Error(`File type ${file.type} is not supported. Please upload an image file.`);
+    }
+
+    // Validate file size (e.g., max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+        throw new Error(`File size exceeds the maximum limit of ${maxSize / (1024 * 1024)}MB`);
+    }
+
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
@@ -64,11 +76,11 @@ export const uploadToCloudinary = async (
         const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
         xhr.open('POST', url, true);
-        xhr.timeout = 15000; // 15秒超时
+        xhr.timeout = 15000; // 15 seconds timeout
 
-        // 顶层注册事件处理程序（只注册一次）
+        // Register event handlers at the top level (only once)
         xhr.ontimeout = () => {
-            reject(new Error('上传超时，请检查网络连接后重试'));
+            reject(new Error('Upload timeout, please check your network connection and try again'));
         };
 
         xhr.onerror = () => {
@@ -88,13 +100,13 @@ export const uploadToCloudinary = async (
             }
         };
 
-        // 仅用于进度跟踪，不处理成功/失败
+        // Only used for progress tracking, does not handle success/failure
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable && onProgress) {
                 const percentComplete = Math.round((e.loaded / e.total) * 100);
                 onProgress(percentComplete);
             }
-            // lengthComputable 为 false 时不做任何处理，等待 onload/onerror
+            // lengthComputable is false when it cannot be computed, wait for onload/onerror
         };
 
         xhr.send(formData);

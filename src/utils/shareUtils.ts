@@ -64,15 +64,16 @@ export const decodeState = (encoded: string): ShareableState | null => {
         }
 
         // Validate 'p' (photos) is REQUIRED and must be an array of strings
-        if (!data.p || !Array.isArray(data.p) || data.p.some((item: any) => typeof item !== 'string')) {
+        if (!data.p || !Array.isArray(data.p) || data.p.some((item: any) => {
+            return typeof item !== 'string' ||
+                !(item.startsWith('https://') || item.startsWith('http://'));
+        })) {
             console.warn("Invalid share state: 'p' is missing or invalid (must be string[])");
-            return null;
-        }
-
-        // Validate 'c' (color) is REQUIRED and must be a string
-        if (data.c === undefined || data.c === null || typeof data.c !== 'string') {
-            console.warn("Invalid share state: 'c' is missing or invalid (must be string)");
-            return null;
+            // Validate 'c' (color) is REQUIRED and must be a string
+            if (data.c === undefined || data.c === null || typeof data.c !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(data.c)) {
+                console.warn("Invalid share state: 'c' is missing or invalid (must be string)");
+                return null;
+            } return null;
         }
 
         // Validate 'cfg' (config) is OPTIONAL but if present must be an object

@@ -42,15 +42,15 @@ export class MaterialPool {
             // Reuse from pool
             material = this.pool.pop()!;
             this.pooledMaterials.delete(material); // 从池中 Set 移除
-            if (material.uniforms.map) material.uniforms.map.value = texture;
-            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+            if (material.uniforms?.map) material.uniforms.map.value = texture;
+            if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
         } else {
             // Create new material
             material = this.masterMaterial.clone();
-            if (material.uniforms.map) material.uniforms.map.value = texture;
-            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+            if (material.uniforms?.map) material.uniforms.map.value = texture;
+            if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
             this.totalCreated++;
             // 新创建的材质加入所有权追踪
             this.ownedMaterials.add(material);
@@ -58,7 +58,6 @@ export class MaterialPool {
         this.activeCount++;
         return material;
     }
-
     /**
      * Release a material back to the pool
      */
@@ -78,9 +77,9 @@ export class MaterialPool {
         }
 
         // Reset material state
-        if (material.uniforms.map) material.uniforms.map.value = null;
-        if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-        if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+        if (material.uniforms?.map) material.uniforms.map.value = null;
+        if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+        if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
 
         // Add back to pool
         this.pool.push(material);
@@ -95,17 +94,17 @@ export class MaterialPool {
         // Warning if active materials exist
         if (this.activeCount > 0) {
             console.warn(`Disposing pool with ${this.activeCount} active materials. This may cause memory leaks.`);
-            // Do not reset activeCount to reflect actual state
         }
 
-        for (const material of this.pool) {
+        // Dispose all materials owned by this pool, not just pooled ones
+        for (const material of this.ownedMaterials) {
             material.dispose();
         }
         this.pool = [];
-        this.pooledMaterials.clear(); // 清理池中 Set
-        this.ownedMaterials.clear(); // 清理所有权追踪
+        this.pooledMaterials.clear();
+        this.ownedMaterials.clear();
+        this.activeCount = 0;
     }
-
     /**
      * Get pool statistics for debugging
      */

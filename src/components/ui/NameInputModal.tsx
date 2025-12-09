@@ -40,9 +40,8 @@ function validateUserName(input: string): { valid: boolean; error?: string } {
     }
 
     if (!NAME_VALIDATION.pattern.test(trimmed)) {
-        return { valid: false, error: '名称只能包含中英文、数字、下划线和连字符' };
+        return { valid: false, error: '名称只能包含中英文、数字、下划线、连字符和空格' };
     }
-
     return { valid: true };
 }
 
@@ -68,7 +67,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
         if (error) setError(null);
     }, [error]);
 
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback(async () => {
         const validation = validateUserName(inputValue);
 
         if (!validation.valid) {
@@ -80,20 +79,23 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
         const trimmedName = inputValue.trim();
 
         try {
-            // Trigger submit callback
-            onSubmit(trimmedName);
-            // Note: If onSubmit is async, you should await it and handle accordingly
+            await onSubmit(trimmedName);
+            // Don't reset submitting here as component will likely unmount or transition
         } catch (err) {
             setError('提交失败，请重试');
             setIsSubmitting(false);
         }
     }, [inputValue, onSubmit]);
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSubmit();
-        }
-    }, [handleSubmit]);
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+            }
+        },
+        [handleSubmit]
+    );
 
     return (
         <AnimatePresence>

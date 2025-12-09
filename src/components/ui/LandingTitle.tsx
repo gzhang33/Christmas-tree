@@ -9,8 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { TITLE_CONFIG, TITLE_COLORS, USERNAME_COLORS, LANDING_CONFIG } from '../../config/landing';
 import { useStore } from '../../store/useStore';
+import { useLandingFlow } from '../../contexts/LandingFlowContext';
 
 interface LandingTitleProps {
+    // Callbacks now come from context, but keeping props as optional overrides
     onEntranceComplete?: () => void;
     onFadeOutComplete?: () => void;
 }
@@ -91,9 +93,16 @@ const sampleTextToParticles = (
 };
 
 export const LandingTitle: React.FC<LandingTitleProps> = ({
-    onEntranceComplete,
-    onFadeOutComplete,
+    onEntranceComplete: propOnEntranceComplete,
+    onFadeOutComplete: propOnFadeOutComplete,
 }) => {
+    // Hooks must be unconditional
+    const context = useLandingFlow(); // Will throw if no provider!
+
+    // Merge props with context
+    const onEntranceComplete = propOnEntranceComplete || context.onEntranceComplete;
+    const onFadeOutComplete = propOnFadeOutComplete || context.onMorphingComplete; // Mapping morphing to fadeOut behavior
+
     // Separate canvas refs for title and username to prevent truncation
     const titleCanvasRef = useRef<HTMLCanvasElement>(null);
     const userNameCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -201,8 +210,13 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
         // 最小字体限制，确保可读性
         const minFontSize = isMobile ? 30 : 50;
         if (fontSize < minFontSize) {
+            const prevFontSize = fontSize;
             fontSize = minFontSize;
             canvasHeight = Math.round(fontSize * heightMultiplier);
+            // 确保宽度也随之按比例放大，防止文字截断
+            if (prevFontSize > 0) {
+                canvasWidth = Math.round(canvasWidth * (fontSize / prevFontSize));
+            }
         }
 
         const density = LANDING_CONFIG.title.densityOverride ?? TITLE_CONFIG.sampling.density;

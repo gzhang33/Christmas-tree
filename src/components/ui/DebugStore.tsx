@@ -74,7 +74,7 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
             <div className="flex items-center justify-between mb-3">
                 <div>
                     <h3 className="text-sm font-bold uppercase tracking-wider">Performance Monitor</h3>
-                    <div className="text-[10px] text-white/50 mt-0.5">Press F4 to toggle</div>
+                    <div className="text-[10px] text-white/50 mt-0.5">按 F4 切换显示</div>
                 </div>
                 <button
                     onClick={() => setIsVisible(false)}
@@ -83,7 +83,6 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                 >
                     ✕
                 </button>            </div>
-
             {/* Current Scene Badge */}
             <div className="mb-3">
                 <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${currentScene === 'Tree State' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
@@ -235,19 +234,26 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
 
                     {/* Overall Performance Grade */}
                     <div className="mt-2 pt-2 border-t border-white/10">
-                        <div className="flex justify-between items-center">
-                            <span className="text-white/60 text-[10px]">Overall Grade</span>
-                            <span className={`font-bold text-sm ${performanceData.fps >= 55 && performanceData.frameTime <= 18 ? 'text-green-400' :
-                                performanceData.fps >= 40 && performanceData.frameTime <= 25 ? 'text-yellow-400' :
-                                    'text-red-400'
-                                }`}>
-                                {performanceData.fps >= 55 && performanceData.frameTime <= 18 ? 'A - Excellent' :
-                                    performanceData.fps >= 50 && performanceData.frameTime <= 20 ? 'B - Very Good' :
-                                        performanceData.fps >= 40 && performanceData.frameTime <= 25 ? 'C - Good' :
-                                            performanceData.fps >= 30 ? 'D - Fair' :
-                                                'F - Poor'}
-                            </span>
-                        </div>
+                        {(() => {
+                            const getPerformanceGrade = (fps: number, frameTime: number) => {
+                                if (fps >= 55 && frameTime <= 18) return { text: 'A - Excellent', color: 'text-green-400' };
+                                if (fps >= 50 && frameTime <= 20) return { text: 'B - Very Good', color: 'text-green-400' };
+                                if (fps >= 40 && frameTime <= 25) return { text: 'C - Good', color: 'text-yellow-400' };
+                                if (fps >= 30) return { text: 'D - Fair', color: 'text-orange-400' };
+                                return { text: 'F - Poor', color: 'text-red-400' };
+                            };
+
+                            const grade = getPerformanceGrade(performanceData.fps, performanceData.frameTime);
+
+                            return (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-white/60 text-[10px]">Overall Grade</span>
+                                    <span className={`font-bold text-sm ${grade.color}`}>
+                                        {grade.text}
+                                    </span>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
