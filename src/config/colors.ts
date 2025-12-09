@@ -1,19 +1,23 @@
 /**
- * Tree Color Presets
+ * Color Configuration
+ * 颜色配置文件
  * 
- * Predefined color options for the Christmas tree particles.
- * This is a color selection feature, not a full theme system.
+ * 管理圣诞树颜色预设和静态颜色常量
  */
 
 import * as THREE from 'three';
 
+/**
+ * 颜色预设接口
+ */
 export interface ColorPreset {
   hex: string;
   name: string;
 }
 
 /**
- * Available color presets for tree particles
+ * 圣诞树可选颜色方案
+ * 用于 UI 颜色选择器
  */
 export const TREE_COLOR_PRESETS: readonly ColorPreset[] = [
   { hex: '#D53F8C', name: 'Neon Pink' },
@@ -25,12 +29,26 @@ export const TREE_COLOR_PRESETS: readonly ColorPreset[] = [
 ] as const;
 
 /**
- * Default tree color (Midnight Pink)
+ * 默认圣诞树颜色 (Midnight Pink)
  */
 export const DEFAULT_TREE_COLOR = '#D53F8C';
 
 /**
- * Static colors used for ornaments and other elements
+ * 颜色数组 (用于向后兼容)
+ */
+export const TREE_COLORS = TREE_COLOR_PRESETS.map(preset => preset.hex);
+
+/**
+ * 颜色名称映射 (用于向后兼容)
+ */
+export const TREE_COLOR_NAMES = TREE_COLOR_PRESETS.reduce((acc, preset) => {
+  acc[preset.hex] = preset.name;
+  return acc;
+}, {} as Record<string, string>);
+
+/**
+ * 静态颜色常量
+ * 用于装饰物、光晕等固定颜色元素
  */
 export const STATIC_COLORS = {
   white: new THREE.Color('#FFFFFF'),
@@ -45,4 +63,5 @@ export const STATIC_COLORS = {
   // Enhanced festive colors for visual depth (TREE-04)
   warmGold: new THREE.Color('#FFB347'),
   deepRed: new THREE.Color('#8B0000'),
-};
+} as const;
+

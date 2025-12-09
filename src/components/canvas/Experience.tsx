@@ -9,6 +9,7 @@ import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { PERFORMANCE_CONFIG } from '../../config/performance';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -19,12 +20,7 @@ interface ExperienceProps {
     uiState: UIState;
 }
 
-// Camera drift configuration
-const CAMERA_DRIFT = {
-    speed: 0.15,           // units per second (subtle movement)
-    idleThreshold: 2000,   // ms before drift starts
-    minDistance: 12,       // don't get closer than this
-};
+
 
 
 
@@ -144,7 +140,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             // Check if user became idle
             if (!idle.isInteracting) {
                 const timeSinceInteraction = Date.now() - idle.lastInteractionTime;
-                idle.isIdle = timeSinceInteraction > CAMERA_DRIFT.idleThreshold;
+                idle.isIdle = timeSinceInteraction > PERFORMANCE_CONFIG.camera.idleThreshold;
             }
 
             // Apply drift when idle (and NOT hovering)
@@ -152,10 +148,10 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 const currentDistance = camera.position.length();
 
                 // Only drift if not too close
-                if (currentDistance > CAMERA_DRIFT.minDistance) {
+                if (currentDistance > PERFORMANCE_CONFIG.camera.minDistance) {
                     // Reuse scratch vector to avoid GC
                     tempDriftVec.copy(camera.position).normalize().negate();
-                    tempDriftVec.multiplyScalar(CAMERA_DRIFT.speed * delta);
+                    tempDriftVec.multiplyScalar(PERFORMANCE_CONFIG.camera.driftSpeed * delta);
                     camera.position.add(tempDriftVec);
 
                     // Update OrbitControls to match new camera position

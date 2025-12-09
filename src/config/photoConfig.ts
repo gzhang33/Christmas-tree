@@ -1,49 +1,63 @@
 /**
- * Photo Distribution Configuration
+ * Photo Configuration
+ * 照片配置文件
  *
- * Centralized configuration for photo display during explosion effect.
- * Implements: spherical distribution, center-biased probability, overlap avoidance.
+ * 管理照片墙的分布、动画和布局参数
+ * 用于爆炸效果时的照片展示
  */
 
-// Number of photos to generate from exploded particles
+/**
+ * 照片数量配置
+ * 从爆炸粒子中生成的照片数量
+ */
 export const PHOTO_COUNT = 99;
 
-// Spherical distribution parameters for 3D space
+/**
+ * 照片球形分布参数
+ * 控制照片在 3D 空间中的分布范围
+ */
 export const PHOTO_DISTRIBUTION = {
-    // Radius range for spherical distribution
-    radiusMin: 8,
-    radiusMax: 22,
+    // 球形分布的半径范围
+    radiusMin: 8,   // 最小半径
+    radiusMax: 22,  // 最大半径
 
-    // Vertical angle range (radians) - limits how high/low photos can go
-    // 0 = equator, PI/2 = north pole, -PI/2 = south pole
-    polarAngleMin: -0.6, // Below horizon slightly
-    polarAngleMax: 0.7, // Above horizon
+    // 垂直角度范围 (弧度) - 限制照片的高低位置
+    // 0 = 赤道, PI/2 = 北极, -PI/2 = 南极
+    polarAngleMin: -0.6, // 略低于地平线
+    polarAngleMax: 0.7,  // 高于地平线
 
-    // Center bias - photos more likely to be in front of camera
-    // Higher value = more spread out, lower = more concentrated in front
-    frontBias: 0.6, // 0.5 = uniform, 1.0 = all in front hemisphere
-} as const;
-
-// Photo card dimensions for overlap detection
-export const PHOTO_DIMENSIONS = {
-    width: 1.0,
-    height: 1.2,
-    scaleMin: 0.6,
-    scaleMax: 1.0,
-    // Minimum angular gap between photos (radians)
-    angularPadding: 0.15,
-} as const;
-
-// Morphing animation timing
-export const MORPH_TIMING = {
-    startDelay: 0.3,
-    morphDuration: 1.5,
-    staggerDelay: 0.02,
-    fadeOutDuration: 1.0,
+    // 中心偏向 - 照片更可能出现在相机前方
+    // 值越高分布越分散，值越低越集中在前方
+    frontBias: 0.6, // 0.5 = 均匀分布, 1.0 = 全部在前半球
 } as const;
 
 /**
- * Generate a center-biased random value using Box-Muller transform
+ * 照片卡片尺寸配置
+ * 用于重叠检测和渲染
+ */
+export const PHOTO_DIMENSIONS = {
+    width: 1.0,              // 照片宽度
+    height: 1.2,             // 照片高度
+    scaleMin: 0.6,           // 最小缩放比例
+    scaleMax: 1.0,           // 最大缩放比例
+    angularPadding: 0.15,    // 照片之间的最小角度间隔 (弧度)
+} as const;
+
+/**
+ * 变形动画时序配置
+ * 控制照片出现的动画时间
+ */
+export const MORPH_TIMING = {
+    startDelay: 0.3,        // 动画开始延迟 (秒)
+    morphDuration: 1.5,     // 变形动画持续时间 (秒)
+    staggerDelay: 0.02,     // 照片之间的交错延迟 (秒)
+    fadeOutDuration: 1.0,   // 淡出动画持续时间 (秒)
+} as const;
+
+/**
+ * 生成中心偏向的随机值 (使用 Box-Muller 变换)
+ * @param sigma 标准差 (默认 0.35)
+ * @returns 0-1 之间的随机值，集中在 0.5 附近
  */
 export const gaussianRandom = (sigma: number = 0.35): number => {
     const u1 = Math.random() || Number.MIN_VALUE; // 避免 log(0)
@@ -53,20 +67,25 @@ export const gaussianRandom = (sigma: number = 0.35): number => {
     return Math.max(0, Math.min(1, value));
 };
 /**
- * Photo position interface
+ * 照片位置接口
  */
 export interface PhotoPosition {
-    x: number;
-    y: number;
-    z: number;
-    scale: number;
-    rotation: [number, number, number];
+    x: number;       // X 坐标
+    y: number;       // Y 坐标
+    z: number;       // Z 坐标
+    scale: number;   // 缩放比例
+    rotation: [number, number, number]; // 旋转角度 [x, y, z]
 }
 
 /**
- * Generate photo positions in a 3D spherical distribution
- * Photos are distributed around the scene, with more concentration
- * in the front hemisphere and at eye level for better visibility.
+ * 生成照片在 3D 球形空间中的位置
+ * 
+ * 照片分布在场景周围，前半球和视线水平处有更高的集中度，
+ * 以确保更好的可见性。
+ * 
+ * @param count 照片数量
+ * @param _aspectRatio 宽高比 (当前未使用)
+ * @returns 照片位置数组
  */
 export const generatePhotoPositions = (
     count: number,

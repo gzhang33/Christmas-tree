@@ -48,7 +48,8 @@ const sampleTextToParticles = (
     maxWidth: number,
     density: number,
     startVisible: boolean,
-    isUserName: boolean = false
+    isUserName: boolean = false,
+    isMobile: boolean = false // 新增参数
 ): Particle[] => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -66,6 +67,11 @@ const sampleTextToParticles = (
     const particles: Particle[] = [];
     const colorPalette = isUserName ? USERNAME_COLORS : TITLE_COLORS;
 
+    // 获取响应式粒子尺寸配置
+    const sizeConfig = isMobile
+        ? TITLE_CONFIG.particle.size.compact
+        : TITLE_CONFIG.particle.size.normal;
+
     for (let y = 0; y < canvas.height; y += density) {
         for (let x = 0; x < canvas.width; x += density) {
             const index = (y * canvas.width + x) * 4;
@@ -78,7 +84,7 @@ const sampleTextToParticles = (
                     originX: x,
                     originY: y,
                     startY: -50 - Math.random() * LANDING_CONFIG.entrance.spreadHeight,
-                    size: TITLE_CONFIG.particle.sizeMin + Math.random() * (TITLE_CONFIG.particle.sizeMax - TITLE_CONFIG.particle.sizeMin),
+                    size: sizeConfig.min + Math.random() * (sizeConfig.max - sizeConfig.min),
                     color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
                     delay: Math.random() * LANDING_CONFIG.entrance.delayVariation,
                     random: Math.random(),
@@ -219,7 +225,11 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
             }
         }
 
-        const density = LANDING_CONFIG.title.densityOverride ?? TITLE_CONFIG.sampling.density;
+        const density = LANDING_CONFIG.title.densityOverride ?? (
+            isMobile
+                ? TITLE_CONFIG.sampling.density.compact
+                : TITLE_CONFIG.sampling.density.normal
+        );
 
         // Resolve responsive userName config
         const userNameXOffset = isMobile ? userNameConfig.xOffset.compact : userNameConfig.xOffset.normal;
@@ -285,7 +295,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     line1MeasuredWidth,
                     density,
                     true,
-                    false
+                    false,
+                    responsive.isMobile
                 );
 
                 // Line 2: "Christmas"
@@ -296,7 +307,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     line2MeasuredWidth,
                     density,
                     true,
-                    false
+                    false,
+                    responsive.isMobile
                 );
 
                 const line2YOffset = fontSize * lineSpacing;
@@ -329,7 +341,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                         userNameMeasuredWidth,
                         density + 1,
                         false,
-                        true
+                        true,
+                        responsive.isMobile
                     );
 
                     // Sort by X position for true left-to-right typewriter reveal
@@ -492,13 +505,18 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
                 if (alpha <= 0.02 || size <= 0.3) return;
 
+                // 获取响应式粒子最小渲染半径
+                const sizeConfig = responsive.isMobile
+                    ? TITLE_CONFIG.particle.size.compact
+                    : TITLE_CONFIG.particle.size.normal;
+
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.shadowBlur = TITLE_CONFIG.effects.shadowBlur;
                 ctx.shadowColor = particle.color;
 
                 ctx.beginPath();
-                ctx.arc(x, y, Math.max(size, TITLE_CONFIG.particle.sizeMinDraw), 0, Math.PI * 2);
+                ctx.arc(x, y, Math.max(size, sizeConfig.minDraw), 0, Math.PI * 2);
                 ctx.fillStyle = particle.color;
                 ctx.fill();
 
@@ -557,13 +575,18 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
                 if (alpha <= 0.02 || size <= 0.3) return;
 
+                // 获取响应式粒子最小渲染半径
+                const sizeConfig = responsive.isMobile
+                    ? TITLE_CONFIG.particle.size.compact
+                    : TITLE_CONFIG.particle.size.normal;
+
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.shadowBlur = TITLE_CONFIG.effects.shadowBlur * 0.8;
                 ctx.shadowColor = particle.color;
 
                 ctx.beginPath();
-                ctx.arc(x, y, Math.max(size, TITLE_CONFIG.particle.sizeMinDraw), 0, Math.PI * 2);
+                ctx.arc(x, y, Math.max(size, sizeConfig.minDraw), 0, Math.PI * 2);
                 ctx.fillStyle = particle.color;
                 ctx.fill();
 

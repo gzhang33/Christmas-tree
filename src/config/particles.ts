@@ -1,68 +1,87 @@
 /**
  * Particle System Configuration
+ * 粒子系统配置文件
  * 
- * Centralized configuration for particle counts, ratios, and dimensions.
- * Ratios must sum to 1.0 to ensure proper distribution of the total particle count.
+ * 管理圣诞树粒子的分布、动画和视觉效果
+ * 注意：此文件仅包含圣诞树场景的粒子配置，不包含 Landing Page 配置
  */
 
+/**
+ * 圣诞树粒子系统配置
+ */
 export const PARTICLE_CONFIG = {
-    // Tree Dimensions
-    treeHeight: 14,
-    treeBottomY: -5.5,
+    // ------------------------------------------------------------------------
+    // 树形尺寸 (Tree Dimensions)
+    // ------------------------------------------------------------------------
+    treeHeight: 14,      // 树的高度
+    treeBottomY: -5.5,   // 树底部的 Y 坐标
 
-    // Particle Distribution Ratios (Must sum to 1.0)
+    // ------------------------------------------------------------------------
+    // 粒子分布比例 (Particle Distribution Ratios)
+    // 所有比例之和必须为 1.0
+    // ------------------------------------------------------------------------
     ratios: {
-        entity: 0.50,    // 50% - Main tree body
-        glow: 0.10,      // 10% - Glowing aura
-        ornament: 0.15,  // 15% - Decorations
-        gift: 0.24,      // 24% - Gift boxes
-        magicDust: 0.01, // 1% - Magic spiral halo
+        entity: 0.50,    // 50% - 树主体
+        glow: 0.10,      // 10% - 光晕效果
+        ornament: 0.15,  // 15% - 装饰球
+        gift: 0.24,      // 24% - 礼物盒
+        magicDust: 0.01, // 1% - 魔法尘埃螺旋光环
     },
 
-    // Minimum counts to ensure visibility at low total counts
+    // ------------------------------------------------------------------------
+    // 最小粒子数量 (Minimum Counts)
+    // 确保在低粒子总数时各元素仍可见
+    // ------------------------------------------------------------------------
     minCounts: {
-        tree: 1000,
-        ornament: 500,
-        gift: 500,
-        magicDust: 100,
+        tree: 1000,      // 树主体最小粒子数
+        ornament: 500,   // 装饰球最小粒子数
+        gift: 500,       // 礼物盒最小粒子数
+        magicDust: 100,  // 魔法尘埃最小粒子数
     },
 
-    // Magic Dust Specific Configuration
+    // ------------------------------------------------------------------------
+    // 魔法尘埃特效配置 (Magic Dust Configuration)
+    // ------------------------------------------------------------------------
     magicDust: {
-        spiralTurns: 3.5,      // Low number of turns = Steep slope (>20 degrees)
-        radiusOffset: 0.1,     // Distance from tree surface (KEY PARAMETER FOR DISTANCE)
-        ascentSpeed: 0.05,     // Vertical speed
-        rotationSpeed: 0.1,    // Orbit speed
-        countRatio: 0.01,      // 1% of total particles
+        // 运动参数
+        spiralTurns: 3.5,      // 螺旋圈数 (值越小坡度越陡, >20度)
+        radiusOffset: 0.1,     // 距离树表面的距离 (关键参数)
+        ascentSpeed: 0.05,     // 垂直上升速度
+        rotationSpeed: 0.1,    // 轨道旋转速度
+        countRatio: 0.01,      // 粒子数量比例 (1%)
 
-        // Visuals
-        colors: ['#FFD700', '#FFBF00', '#FFFAF0'],
-        minSize: 0.2,
-        maxSize: 0.5,
-        radiusVariation: 0.3,
-        angleVariation: 0.8,
+        // 视觉效果
+        colors: ['#FFD700', '#FFBF00', '#FFFAF0'], // 金色系
+        minSize: 0.2,          // 最小粒子尺寸
+        maxSize: 0.5,          // 最大粒子尺寸
+        radiusVariation: 0.3,  // 半径随机变化
+        angleVariation: 0.8,   // 角度随机变化
     },
 
-    // Tree Animation Constants (for shader breathing/sway effects)
+    // ------------------------------------------------------------------------
+    // 树动画配置 (Tree Animation)
+    // 用于 Shader 呼吸/摇摆效果
+    // ------------------------------------------------------------------------
     animation: {
-        // Global toggle for breathing animations
+        // 呼吸动画全局开关
         enableBreathing: false,
 
-        // Breathing animation frequencies (multi-layer organic movement)
-        breatheFrequency1: 0.6,    // Primary breathing layer
-        breatheFrequency2: 1.2,    // Secondary breathing layer
-        breatheFrequency3: 0.4,    // Tertiary breathing layer
-        breatheAmplitude1: 0.15,   // Primary breathing amplitude (increased for visibility)
-        breatheAmplitude2: 0.10,   // Secondary breathing amplitude (increased for visibility)
-        breatheAmplitude3: 0.08,   // Tertiary breathing amplitude (increased for visibility)
+        // 呼吸动画频率 (多层有机运动)
+        breatheFrequency1: 0.6,    // 主呼吸层
+        breatheFrequency2: 1.2,    // 次呼吸层
+        breatheFrequency3: 0.4,    // 第三呼吸层
+        breatheAmplitude1: 0.15,   // 主呼吸幅度
+        breatheAmplitude2: 0.10,   // 次呼吸幅度
+        breatheAmplitude3: 0.08,   // 第三呼吸幅度
 
-        // Sway animation (tree movement)
-        swayFrequency: 0.5,        // Sway oscillation frequency
-        swayAmplitude: 0.15,       // Maximum sway distance (increased for visibility)
+        // 摇摆动画 (树体摆动)
+        swayFrequency: 0.5,        // 摇摆频率
+        swayAmplitude: 0.15,       // 最大摇摆距离
 
-        // Explosion physics damping speeds
-        // Matches AC6 "Midnight Magic" aesthetic: high velocity on explosion, faster return
-        dampingSpeedExplosion: 0.02,
-        dampingSpeedReset: 0.05,
+        // 爆炸物理阻尼速度
+        // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
+        dampingSpeedExplosion: 0.02, // 爆炸时阻尼速度
+        dampingSpeedReset: 0.05,     // 回归时阻尼速度
     },
 } as const;
+

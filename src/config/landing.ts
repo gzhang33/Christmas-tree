@@ -5,6 +5,8 @@
  * 用于: LandingTitle.tsx, LandingParticles.tsx
  */
 
+import { PERFORMANCE_CONFIG } from './performance';
+
 // ============================================================================
 // 1. 颜色配置 (Color Palettes)
 // ============================================================================
@@ -63,7 +65,9 @@ export const TITLE_CONFIG = {
     // 粒子采样 (Particle Sampling)
     // ------------------------------------------------------------------------
     sampling: {
-        density: 4, // 采样间距(px)，值越小粒子越密，性能消耗越大
+        // 采样密度 - 响应式配置 (从 performance.ts 引用)
+        // 桌面端: 6px, 移动端: 5px (更高密度确保文字清晰)
+        density: PERFORMANCE_CONFIG.landing.titleSamplingDensity,
         canvasWidth: {
             normal: 600,  // 桌面端画布基准宽度
             compact: 600, // 移动端画布基准宽度
@@ -79,9 +83,9 @@ export const TITLE_CONFIG = {
     // 粒子渲染 (Particle Rendering)
     // ------------------------------------------------------------------------
     particle: {
-        sizeMin: 1.5,              // 逻辑最小尺寸
-        sizeMax: 2.0,              // 逻辑最大尺寸
-        sizeMinDraw: 0.8,          // 实际渲染最小半径
+        // 粒子尺寸 - 响应式配置 (从 performance.ts 引用)
+        // 桌面端: 1.8-2.4, 移动端: 2.0-2.6 (更大尺寸确保可见性)
+        size: PERFORMANCE_CONFIG.landing.particleSize,
     },
 
     effects: {
@@ -201,7 +205,7 @@ export const LANDING_CONFIG = {
                 normal: 120,   // 桌面端字体大小
                 compact: 100,  // 移动端字体大小
             },
-            density: 4, // 采样密度（值越小粒子越密）
+            density: PERFORMANCE_CONFIG.landing.particleGenerationDensity, // 采样密度（值越小粒子越密）
             worldWidth: {
                 normal: 24,  // 桌面端世界宽度（增大以防止截断）
                 compact: 20, // 移动端世界宽度
