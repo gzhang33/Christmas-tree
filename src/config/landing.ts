@@ -1,12 +1,12 @@
 /**
- * 落地页配置
- *
- * 落地页粒子标题系统的集中配置。
- * 被 LandingTitle.tsx 和 LandingParticles.tsx 使用。
+ * Landing Page Configuration
+ * 落地页粒子标题系统的集中配置文件
+ * 
+ * 用于: LandingTitle.tsx, LandingParticles.tsx
  */
 
 // ============================================================================
-// 1. 颜色配置 (Color Palette)
+// 1. 颜色配置 (Color Palettes)
 // ============================================================================
 
 /** 标题粒子的圣诞色彩方案 */
@@ -28,7 +28,7 @@ export const USERNAME_COLORS = [
 ];
 
 // ============================================================================
-// 2. 标题粒子系统配置 (Title System)
+// 2. 标题粒子系统配置 (Title Particle System)
 // ============================================================================
 
 /**
@@ -60,7 +60,7 @@ export const TITLE_CONFIG = {
     },
 
     // ------------------------------------------------------------------------
-    // 粒子采样 (Sampling)
+    // 粒子采样 (Particle Sampling)
     // ------------------------------------------------------------------------
     sampling: {
         density: 4, // 采样间距(px)，值越小粒子越密，性能消耗越大
@@ -68,7 +68,7 @@ export const TITLE_CONFIG = {
             normal: 600,  // 桌面端画布基准宽度
             compact: 400, // 移动端画布基准宽度
         },
-        canvasPadding: 1.5,           // 画布高度倍率（留出动画空间）
+        canvasPadding: 1.5, // 画布高度倍率（留出动画空间）
         canvasHeightMultiplier: {
             normal: 2.8,  // 桌面端高度倍率
             compact: 3.2, // 移动端高度倍率
@@ -76,18 +76,18 @@ export const TITLE_CONFIG = {
     },
 
     // ------------------------------------------------------------------------
-    // 粒子渲染 (Rendering)
+    // 粒子渲染 (Particle Rendering)
     // ------------------------------------------------------------------------
     particle: {
-        sizeMin: 1.2,              // 逻辑最小尺寸
-        sizeMax: 2.8,              // 逻辑最大尺寸
+        sizeMin: 1.5,              // 逻辑最小尺寸
+        sizeMax: 2.0,              // 逻辑最大尺寸
         sizeMinDraw: 0.8,          // 实际渲染最小半径
         glowLayerSizeMultiplier: 1.8, // 光晕层大小倍率
         glowLayerAlpha: 0.3,       // 光晕层透明度
     },
 
     effects: {
-        shadowBlur: 12, // 全局阴影模糊度
+        shadowBlur: 10, // 全局阴影模糊度
         dropShadow: {
             red: { blur: 20, color: 'rgba(196, 30, 58, 0.6)' },
             green: { blur: 15, color: 'rgba(34, 139, 34, 0.4)' },
@@ -106,7 +106,7 @@ export const TITLE_CONFIG = {
         swayAmpScale: 0.4,     // 摇摆幅度
 
         // [待机] 闪烁效果 (Twinkling)
-        twinkleFreq: 3.5,  // 频率
+        twinkleFreq: 3.0,  // 频率
         twinkleAmp: 0.15,  // 幅度 +/-
         twinkleBase: 0.85, // 基础透明度
 
@@ -133,16 +133,15 @@ export const TITLE_CONFIG = {
         noiseXTimeScale: 0.7,
         noiseDriftYScale: 0.5,
 
-        // [消散] 生命周期与变形        fadeStart: 0.3,           // 开始淡出
+        // [消散] 生命周期与变形
+        fadeStart: 0.3,           // 开始淡出
         fadeEnd: 0.85,            // 完全消失
         growPhaseEnd: 0.3,        // 膨胀阶段结束
         growAmount: 0.3,          // 最大膨胀比例
         shrinkAmount: 0.6,        // 最终收缩比例
     },
 
-    // ------------------------------------------------------------------------
-    // 过渡时长 (Transitions)
-    // ------------------------------------------------------------------------
+    // 过渡时长
     transition: {
         normalDuration: 0.8,   // 普通状态切换时长
         explodedDuration: 2.5, // 爆炸特效时长
@@ -150,78 +149,131 @@ export const TITLE_CONFIG = {
 } as const;
 
 // ============================================================================
-// 3. 落地页交互流程配置 (Interaction Flow)
+// 3. 落地页交互流程配置 (Landing Page Flow)
 // ============================================================================
 
-/** 落地页整体流程、布局与时间线配置 */
 export const LANDING_CONFIG = {
     // ------------------------------------------------------------------------
-    // 标题布局与响应式 (Layout)
+    // 标题布局与响应式 (Title Layout & Responsive)
     // ------------------------------------------------------------------------
     title: {
+        // 全局缩放与密度
         scale: 1.0,                            // 全局缩放修正
         densityOverride: null as number | null, // 调试用：覆盖采样密度
 
-        // 视口响应式规则 (Linear Interpolation)
+        // 响应式断点 (Breakpoints)
+        breakpoints: {
+            mobile: 768,     // 宽度 < 768px = 移动端
+            tablet: 1200,    // 768px <= 宽度 < 1200px = 平板
+        },
+
+        // 视口缩放规则 (Viewport Scaling)
         viewportScale: {
-            minWidth: 320,   // 手机
-            maxWidth: 1920,  // 大屏
+            minWidth: 320,   // 最小屏幕宽度（手机）
+            maxWidth: 1920,  // 最大屏幕宽度（大屏）
             minScale: 0.5,   // 手机端缩放基数
             maxScale: 1.2,   // 大屏端缩放基数
         },
 
-        // 对齐方式
+        // 安全边距 (Padding)
+        padding: {
+            horizontal: {
+                mobile: 20,   // 移动端横向边距
+                desktop: 40,  // 桌面端横向边距
+            },
+            vertical: {
+                mobile: 100,  // 移动端纵向边距（为 ClickPrompt 留出空间）
+                desktop: 150, // 桌面端纵向边距
+            },
+            leftPadding: 'clamp(40px, 5vw, 80px)', // 左对齐时的 CSS 边距
+        },
+
+        // 对齐方式 (Alignment)
         alignment: {
             normal: 'left' as const,   // 桌面：左对齐
             compact: 'center' as const, // 移动：居中
         },
 
-        // 垂直位置 (ViewHeight %)
+        // 垂直偏移量 (Vertical Offset)
+        // 百分比相对于视口高度
         verticalOffset: {
             normal: -10,  // 桌面：略偏上
-            compact: -33, // 移动：上三分之一
+            compact: -25, // 移动：上移（较高位置）
         },
 
-        // 用户名子标题配置
-        userName: {
-            fontSizeRatio: 0.45, // 相对主标题的大小
-            yOffset: {
-                normal: 2.2,  // 行距倍率
-                compact: 2.4,
+        // 粒子生成参数（用于3D场景，防止文本截断）
+        particleGeneration: {
+            fontSize: {
+                normal: 120,   // 桌面端字体大小
+                compact: 100,  // 移动端字体大小
             },
-            indent: {
-                normal: 0.15,  // 左侧缩进 (Canvas Width %)
-                compact: 0.1,
+            density: 3, // 采样密度（值越小粒子越密）
+            worldWidth: {
+                normal: 24,  // 桌面端世界宽度（增大以防止截断）
+                compact: 20, // 移动端世界宽度
             },
+            zOffset: 0, // Z轴偏移
+            yOffset: 2, // Y轴偏移
+        },
+
+        // 动画与过渡 (Animation & Transition)
+        animation: {
+            fadeTransitionDuration: 0.3, // Motion.div 淡入淡出时长 (秒)
+            defaultScreenHeight: 1080,   // 默认屏幕高度（用于计算回退值）
         },
     },
 
     // ------------------------------------------------------------------------
-    // 阶段1: 入场 (Entrance)
+    // 用户名配置 (Username)
+    // ------------------------------------------------------------------------
+    userName: {
+        // 字体与尺寸
+        fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+        fontSizeRatio: 0.45, // 相对主标题的大小比例
+
+        // Canvas 尺寸倍数
+        canvasWidthMultiplier: {
+            min: 0.6,     // 最小宽度（相对主 canvas）
+            padding: 1.2, // 测量宽度的填充倍数
+        },
+        canvasHeightMultiplier: 1.5, // 高度 = 字体大小 * 此值
+
+        // 位置偏移
+        yOffset: {
+            normal: 2.2,  // 桌面端行距倍率
+            compact: 2.8, // 移动端行距倍率
+        },
+        indent: {
+            normal: 0.15, // 桌面端左缩进（canvas 宽度百分比）
+            compact: 0.1, // 移动端左缩进（canvas 宽度百分比）
+        },
+    },
+
+    // ------------------------------------------------------------------------
+    // 阶段1: 入场动画 (Entrance Animation)
     // ------------------------------------------------------------------------
     entrance: {
-        duration: 2.0,       // 下落动画总时长
-        spreadHeight: 200,   // 初始随机高度范围
-        delayVariation: 0.4, // 粒子下落延迟随机性
+        duration: 1.5,       // 下落动画总时长 (秒)
+        spreadHeight: 400,   // 初始随机高度范围 (px)
+        delayVariation: 0.4, // 粒子下落延迟随机性 (0-1)
     },
 
     // ------------------------------------------------------------------------
     // 阶段2: 文本展示 (Text Display)
     // ------------------------------------------------------------------------
     typewriter: {
-        charDelay: 80, // 用户名打字机速度 (ms/char)
+        charDelay: 80, // 用户名打字机速度 (ms/字符)
     },
 
-    // 待机状态下的动态参数
     text: {
         breatheAmplitude: 1.0, // 呼吸幅度全局倍率
         twinkleSpeed: 3.5,     // 闪烁速度
     },
 
     // ------------------------------------------------------------------------
-    // 阶段3: 变形 (Morphing -> Tree)
+    // 阶段3: 变形动画 (Morphing Animation -> Tree)
     // ------------------------------------------------------------------------
     morphing: {
-        duration: 2.5, // 粒子飞向树的动画时长
+        duration: 2.5, // 粒子飞向树的动画时长 (秒)
     },
 } as const;

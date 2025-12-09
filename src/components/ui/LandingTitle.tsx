@@ -94,8 +94,11 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
     onEntranceComplete,
     onFadeOutComplete,
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationRef = useRef<number>(0);
+    // Separate canvas refs for title and username to prevent truncation
+    const titleCanvasRef = useRef<HTMLCanvasElement>(null);
+    const userNameCanvasRef = useRef<HTMLCanvasElement>(null);
+    const titleAnimationRef = useRef<number>(0);
+    const userNameAnimationRef = useRef<number>(0);
     const entranceStartRef = useRef<number | null>(null);
     const fadeOutStartRef = useRef<number | null>(null);
     const entranceCompletedRef = useRef(false);
@@ -104,11 +107,17 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
     const userName = useStore((state) => state.userName);
     const landingPhase = useStore((state) => state.landingPhase);
 
-    const [particles, setParticles] = useState<{
+    // Separate particle state for title and username
+    const [titleParticles, setTitleParticles] = useState<{
         line1: Particle[];
         line2: Particle[];
-        line3: Particle[];
-    }>({ line1: [], line2: [], line3: [] });
+    }>({ line1: [], line2: [] });
+
+    const [userNameParticles, setUserNameParticles] = useState<Particle[]>([]);
+
+    // Track canvas dimensions separately
+    const [titleCanvasWidth, setTitleCanvasWidth] = useState(0);
+    const [userNameCanvasWidth, setUserNameCanvasWidth] = useState(0);
 
     const [dimensions, setDimensions] = useState({
         width: typeof window !== 'undefined' ? window.innerWidth : 1920,
@@ -126,8 +135,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
     // Viewport-based responsive sizing - 确保内容完整显示不被截断
     const responsive = useMemo(() => {
         const { width, height } = dimensions;
-        const isMobile = width < 768;
-        const isTablet = width >= 768 && width < 1200;
+        const isMobile = width < LANDING_CONFIG.title.breakpoints.mobile;
+        const isTablet = width >= LANDING_CONFIG.title.breakpoints.mobile && width < LANDING_CONFIG.title.breakpoints.tablet;
         const vp = LANDING_CONFIG.title.viewportScale;
 
         // Linear interpolation for viewport scale
@@ -143,9 +152,13 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
         let fontSize = Math.round(baseFontSize * viewportScale * LANDING_CONFIG.title.scale);
         let canvasWidth = Math.round(baseCanvasWidth * viewportScale * LANDING_CONFIG.title.scale);
 
-        // 安全边距
-        const horizontalPadding = isMobile ? 20 : 40;
-        const verticalPadding = isMobile ? 100 : 150; // 为 ClickPrompt 留出空间
+        // Safe area padding from config
+        const horizontalPadding = isMobile
+            ? LANDING_CONFIG.title.padding.horizontal.mobile
+            : LANDING_CONFIG.title.padding.horizontal.desktop;
+        const verticalPadding = isMobile
+            ? LANDING_CONFIG.title.padding.vertical.mobile
+            : LANDING_CONFIG.title.padding.vertical.desktop;
 
         // 确保画布宽度不超出视口
         const maxAllowedWidth = width - horizontalPadding * 2;
@@ -162,7 +175,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
         // 动态计算所需高度：确保画布能容纳用户名
         // 用户名 Y 位置 = fontSize * lineSpacing * yOffset + 用户名字体高度
-        const userNameConfig = LANDING_CONFIG.title.userName;
+        const userNameConfig = LANDING_CONFIG.userName;
         const userNameYOffset = isMobile ? userNameConfig.yOffset.compact : userNameConfig.yOffset.normal;
         const userNameFontRatio = userNameConfig.fontSizeRatio;
         // 所需高度倍数 = lineSpacing * yOffset + 用户名占用高度 (约 1.2 倍用户名字体)
@@ -232,21 +245,19 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
                 const { fontSize, userNameFontSize, canvasWidth, density, line2Indent, lineSpacing } = responsive;
 
-                // Measure actual text widths to prevent truncation
+                // ========= Title Particles (Merry Christmas) =========
                 const line1MeasuredWidth = measureTextWidth(TITLE_CONFIG.text.line1, fontSize, fontFamily);
                 const line2MeasuredWidth = measureTextWidth(TITLE_CONFIG.text.line2, fontSize, fontFamily);
-                const userNameFont = "'Inter', 'Helvetica Neue', Arial, sans-serif";
-                const userNameMeasuredWidth = userName ? measureTextWidth(userName, userNameFontSize, userNameFont) : 0;
 
-                // Calculate required canvas width (max of all lines with indents)
-                const requiredWidth = Math.max(
+                // Calculate title canvas width (max of two lines with indent)
+                const titleRequiredWidth = Math.max(
                     line1MeasuredWidth,
-                    line2MeasuredWidth + line2Indent,
-                    userNameMeasuredWidth + (canvasWidth * responsive.userNameIndent)
+                    line2MeasuredWidth + line2Indent
                 );
-                const actualCanvasWidth = Math.max(canvasWidth, requiredWidth);
+                const titleCanvasWidth = Math.max(canvasWidth, titleRequiredWidth);
+                setTitleCanvasWidth(titleCanvasWidth);
 
-                // Line 1: "Merry" - use measured width
+                // Line 1: "Merry"
                 const line1Particles = sampleTextToParticles(
                     TITLE_CONFIG.text.line1,
                     fontSize,
@@ -257,7 +268,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     false
                 );
 
-                // Line 2: "Christmas" - use measured width
+                // Line 2: "Christmas"
                 const line2Particles = sampleTextToParticles(
                     TITLE_CONFIG.text.line2,
                     fontSize,
@@ -277,10 +288,21 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     p.delay = 0.1 + p.delay * 0.2;
                 });
 
-                // Line 3: userName - sort by X for true typewriter effect
-                let line3Particles: Particle[] = [];
+                setTitleParticles({ line1: line1Particles, line2: line2Particles });
+
+                // ========= Username Particles =========
                 if (userName) {
-                    line3Particles = sampleTextToParticles(
+                    const userNameFont = LANDING_CONFIG.userName.fontFamily;
+                    const userNameMeasuredWidth = measureTextWidth(userName, userNameFontSize, userNameFont);
+
+                    // Calculate username canvas width (independent)
+                    const userNameCanvasWidth = Math.max(
+                        canvasWidth * LANDING_CONFIG.userName.canvasWidthMultiplier.min,
+                        userNameMeasuredWidth * LANDING_CONFIG.userName.canvasWidthMultiplier.padding
+                    );
+                    setUserNameCanvasWidth(userNameCanvasWidth);
+
+                    let userNamePartArray = sampleTextToParticles(
                         userName,
                         userNameFontSize,
                         userNameFont,
@@ -290,21 +312,13 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                         true
                     );
 
-                    const line3YOffset = fontSize * lineSpacing * responsive.userNameYOffset;
-                    const line3Indent = actualCanvasWidth * responsive.userNameIndent;
-                    line3Particles.forEach((p) => {
-                        p.originY += line3YOffset;
-                        p.y += line3YOffset;
-                        p.originX += line3Indent;
-                        p.x += line3Indent;
-                        p.delay = 0.3 + p.delay * 0.15;
-                    });
-
                     // Sort by X position for true left-to-right typewriter reveal
-                    line3Particles.sort((a, b) => a.originX - b.originX);
+                    userNamePartArray.sort((a, b) => a.originX - b.originX);
+                    setUserNameParticles(userNamePartArray);
+                } else {
+                    setUserNameParticles([]);
+                    setUserNameCanvasWidth(0);
                 }
-
-                setParticles({ line1: line1Particles, line2: line2Particles, line3: line3Particles });
             }, TITLE_CONFIG.font.loadDelay);
         });
 
@@ -329,14 +343,14 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
     // Typewriter effect - true character-by-character using X position
     useEffect(() => {
-        if (landingPhase === 'text' && userName && particles.line3.length > 0) {
+        if (landingPhase === 'text' && userName && userNameParticles.length > 0 && userNameCanvasWidth > 0) {
             const charCount = userName.length;
             let currentChar = 0;
 
             // Calculate character boundaries by measuring each character's width
-            const userNameFont = "'Inter', 'Helvetica Neue', Arial, sans-serif";
+            const userNameFont = LANDING_CONFIG.userName.fontFamily;
             const charBoundaries: number[] = [];
-            let xPos = responsive.canvasWidth * responsive.userNameIndent;
+            let xPos = 0; // Start from 0 since username has its own canvas
             for (const char of userName) {
                 xPos += measureTextWidth(char, responsive.userNameFontSize, userNameFont);
                 charBoundaries.push(xPos);
@@ -346,47 +360,50 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                 currentChar++;
                 const boundaryX = charBoundaries[Math.min(currentChar - 1, charBoundaries.length - 1)];
 
-                setParticles((prev) => ({
-                    ...prev,
-                    line3: prev.line3.map((p) => ({
+                setUserNameParticles((prev) =>
+                    prev.map((p) => ({
                         ...p,
                         visible: p.originX <= boundaryX
-                    })),
-                }));
+                    }))
+                );
 
                 if (currentChar >= charCount) clearInterval(interval);
             }, LANDING_CONFIG.typewriter.charDelay);
 
             return () => clearInterval(interval);
         }
-    }, [landingPhase, userName, particles.line3.length, responsive]);
+    }, [landingPhase, userName, userNameParticles.length, responsive, userNameCanvasWidth]);
 
-    const allParticles = useMemo(() => {
-        return [...particles.line1, ...particles.line2, ...particles.line3];
-    }, [particles]);
+    // Combine title particles for shared animation logic
+    const allTitleParticles = useMemo(() => {
+        return [...titleParticles.line1, ...titleParticles.line2];
+    }, [titleParticles]);
 
-    // Animation loop
+    // Title Animation loop
     useEffect(() => {
-        const canvas = canvasRef.current;
+        const canvas = titleCanvasRef.current;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Use actual titleCanvasWidth or fallback to responsive.canvasWidth
+        const actualWidth = titleCanvasWidth || responsive.canvasWidth;
+
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = responsive.canvasWidth * dpr;
+        canvas.width = actualWidth * dpr;
         canvas.height = responsive.canvasHeight * dpr;
-        canvas.style.width = `${responsive.canvasWidth}px`;
+        canvas.style.width = `${actualWidth}px`;
         canvas.style.height = `${responsive.canvasHeight}px`;
         ctx.scale(dpr, dpr);
 
         const startTime = performance.now();
-        const treeCenterX = responsive.canvasWidth / 2;
+        const treeCenterX = actualWidth / 2;
         const treeCenterY = responsive.canvasHeight + 60;
 
         const animate = (currentTime: number) => {
             const elapsed = (currentTime - startTime) / 1000;
-            ctx.clearRect(0, 0, responsive.canvasWidth, responsive.canvasHeight);
+            ctx.clearRect(0, 0, actualWidth, responsive.canvasHeight);
 
             let entranceProgress = 1;
             if (landingPhase === 'entrance' && entranceStartRef.current !== null) {
@@ -410,7 +427,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                 }
             }
 
-            allParticles.forEach((particle) => {
+            allTitleParticles.forEach((particle) => {
                 if (!particle.visible) return;
 
                 let x = particle.originX;
@@ -435,13 +452,12 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     x += breathe * 0.3;
                     y += breathe * 0.15;
 
-                    // Skip twinkle for username particles to ensure sharp typewriter effect
+                    // Title particles get twinkle effect
                     if (!particle.isUserName) {
                         const twinkle = Math.sin(elapsed * LANDING_CONFIG.text.twinkleSpeed + particle.random * 6) *
                             TITLE_CONFIG.animation.twinkleAmp + TITLE_CONFIG.animation.twinkleBase;
                         alpha = twinkle;
                     }
-                    // Username particles stay at full alpha = 1 for instant appearance
                 } else if (landingPhase === 'morphing') {
                     const trigger = fadeOutProgress * 1.6 - particle.delay * 0.5;
                     const localProgress = Math.max(0, Math.min(trigger, 1));
@@ -469,15 +485,80 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                 ctx.restore();
             });
 
-            animationRef.current = requestAnimationFrame(animate);
+            titleAnimationRef.current = requestAnimationFrame(animate);
         };
 
-        animationRef.current = requestAnimationFrame(animate);
+        titleAnimationRef.current = requestAnimationFrame(animate);
 
         return () => {
-            if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            if (titleAnimationRef.current) cancelAnimationFrame(titleAnimationRef.current);
         };
-    }, [allParticles, landingPhase, responsive, onEntranceComplete, onFadeOutComplete]);
+    }, [allTitleParticles, landingPhase, responsive, titleCanvasWidth, onEntranceComplete, onFadeOutComplete]);
+
+    // Username Animation loop (separate canvas)
+    useEffect(() => {
+        const canvas = userNameCanvasRef.current;
+        if (!canvas || !userName || userNameParticles.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const canvasHeight = responsive.userNameFontSize * LANDING_CONFIG.userName.canvasHeightMultiplier;
+        canvas.width = userNameCanvasWidth * dpr;
+        canvas.height = canvasHeight * dpr;
+        canvas.style.width = `${userNameCanvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+        ctx.scale(dpr, dpr);
+
+        const startTime = performance.now();
+
+        const animate = (currentTime: number) => {
+            const elapsed = (currentTime - startTime) / 1000;
+            ctx.clearRect(0, 0, userNameCanvasWidth, canvasHeight);
+
+            userNameParticles.forEach((particle) => {
+                if (!particle.visible) return;
+
+                let x = particle.originX;
+                let y = particle.originY;
+                let alpha = 1; // Username always full alpha for sharp typewriter effect
+                const size = particle.size;
+
+                // Simple breathe animation for username
+                if (landingPhase === 'text') {
+                    const breathe =
+                        Math.sin(elapsed * PARTICLE_CONFIG.animation.breatheFrequency1 + particle.originY * 0.03) *
+                        TITLE_CONFIG.animation.breatheAmp1Scale * LANDING_CONFIG.text.breatheAmplitude * 0.5;
+
+                    x += breathe * 0.2;
+                    y += breathe * 0.1;
+                }
+
+                if (alpha <= 0.02 || size <= 0.3) return;
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.shadowBlur = TITLE_CONFIG.effects.shadowBlur * 0.8;
+                ctx.shadowColor = particle.color;
+
+                ctx.beginPath();
+                ctx.arc(x, y, Math.max(size, TITLE_CONFIG.particle.sizeMinDraw), 0, Math.PI * 2);
+                ctx.fillStyle = particle.color;
+                ctx.fill();
+
+                ctx.restore();
+            });
+
+            userNameAnimationRef.current = requestAnimationFrame(animate);
+        };
+
+        userNameAnimationRef.current = requestAnimationFrame(animate);
+
+        return () => {
+            if (userNameAnimationRef.current) cancelAnimationFrame(userNameAnimationRef.current);
+        };
+    }, [userNameParticles, landingPhase, responsive, userName, userNameCanvasWidth]);
 
     if (landingPhase === 'input' || landingPhase === 'tree') {
         return null;
@@ -485,27 +566,55 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
     return (
         <AnimatePresence>
+            {/* Title Canvas - Merry Christmas */}
             <motion.div
+                key="landing-title-canvas"
                 className="fixed inset-0 flex pointer-events-none z-20"
                 style={{
                     justifyContent: responsive.alignment === 'left' ? 'flex-start' : 'center',
                     alignItems: 'center',
-                    paddingLeft: responsive.alignment === 'left' ? 'clamp(40px, 5vw, 80px)' : undefined,
+                    paddingLeft: responsive.alignment === 'left' ? LANDING_CONFIG.title.padding.leftPadding : undefined,
                     transform: `translateY(${responsive.verticalOffset}%)`,
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: LANDING_CONFIG.title.animation.fadeTransitionDuration }}
             >
                 <canvas
-                    ref={canvasRef}
+                    ref={titleCanvasRef}
                     style={{
-                        width: responsive.canvasWidth,
+                        width: titleCanvasWidth || responsive.canvasWidth,
                         height: responsive.canvasHeight,
                     }}
                 />
             </motion.div>
+
+            {/* Username Canvas - positioned below title */}
+            {userName && userNameParticles.length > 0 && (
+                <motion.div
+                    key="landing-username-canvas"
+                    className="fixed inset-0 flex pointer-events-none z-20"
+                    style={{
+                        justifyContent: responsive.alignment === 'left' ? 'flex-start' : 'center',
+                        alignItems: 'center',
+                        paddingLeft: responsive.alignment === 'left' ? LANDING_CONFIG.title.padding.leftPadding : undefined,
+                        transform: `translateY(${responsive.verticalOffset + (responsive.fontSize * TITLE_CONFIG.text.lineSpacing * responsive.userNameYOffset / (typeof window !== 'undefined' ? window.innerHeight : LANDING_CONFIG.title.animation.defaultScreenHeight) * 100)}%)`,
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: LANDING_CONFIG.title.animation.fadeTransitionDuration }}
+                >
+                    <canvas
+                        ref={userNameCanvasRef}
+                        style={{
+                            width: userNameCanvasWidth,
+                            height: responsive.userNameFontSize * LANDING_CONFIG.userName.canvasHeightMultiplier,
+                        }}
+                    />
+                </motion.div>
+            )}
         </AnimatePresence>
     );
 };

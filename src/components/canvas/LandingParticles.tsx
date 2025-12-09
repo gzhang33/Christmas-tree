@@ -122,12 +122,24 @@ export const LandingParticles: React.FC<LandingParticlesProps> = ({
             lines.push(userName);
         }
 
+        // 响应式参数选择：根据视口宽度
+        const isCompact = viewport.width < 768;
+        const particleConfig = LANDING_CONFIG.title.particleGeneration;
+
+        const fontSize = isCompact
+            ? particleConfig.fontSize.compact
+            : particleConfig.fontSize.normal;
+
+        const worldWidth = isCompact
+            ? particleConfig.worldWidth.compact
+            : particleConfig.worldWidth.normal;
+
         const textResult = generateMultiLineTextParticles(lines, {
-            fontSize: 100,
-            density: 3,
-            worldWidth: 18,
-            zOffset: 0,
-            yOffset: 2,
+            fontSize,
+            density: particleConfig.density,
+            worldWidth,
+            zOffset: particleConfig.zOffset,
+            yOffset: particleConfig.yOffset,
         });
 
         // Determine particle count (max of text and tree needs)
@@ -189,7 +201,7 @@ export const LandingParticles: React.FC<LandingParticlesProps> = ({
             count: maxCount,
             textCount: textResult.count,
         };
-    }, [userName]);
+    }, [userName, viewport.width]);
 
     // Create geometry
     const geometry = useMemo(() => {

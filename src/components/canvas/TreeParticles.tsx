@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect, useState } from "react"; // NEW: Added useState
+import React, { useRef, useMemo, useEffect, useState, useCallback } from "react"; // Added useCallback
 
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -271,8 +271,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const preloadStartedRef = useRef<string | null>(null);
   const explosionStartTimeRef = useRef(0);
 
-  // NEW: Photo animation data for PhotoManager
+  // Photo animation optimization: Use Map for O(1) updates, batch setState
   const [photoAnimations, setPhotoAnimations] = useState<PhotoAnimationData[]>([]);
+  const animationMapRef = useRef<Map<number, PhotoAnimationData>>(new Map());
+  const pendingUpdateRef = useRef(false);
 
   // Refs for each layer
   const entityLayerRef = useRef<THREE.Points>(null);
@@ -285,6 +287,23 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const glowMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
   const ornamentMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
   const giftMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+
+  // Stable animation registration callback (avoids recreation every render)
+  const onRegisterAnimation = useCallback((data: PhotoAnimationData) => {
+    // O(1) Map update instead of O(N) findIndex
+    animationMapRef.current.set(data.instanceId, data);
+    pendingUpdateRef.current = true; // Mark for batch update
+  }, []);
+
+  // Batch flush animation updates to avoid N setState calls
+  useEffect(() => {
+    if (!pendingUpdateRef.current) return;
+
+    // Convert Map to array (happens once for all registrations)
+    const animations = Array.from(animationMapRef.current.values());
+    setPhotoAnimations(animations);
+    pendingUpdateRef.current = false;
+  }); // Run after every render if pending
 
   // Animation state
   const progressRef = useRef(0.0);
@@ -1646,19 +1665,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
               textureReady={texturesLoaded}
               instanceId={i}
               useExternalAnimation={true} // NEW: Enable external animation
-              onRegisterAnimation={(data) => { // NEW: Register callback
-                setPhotoAnimations(prev => {
-                  // Update or add animation data
-                  const newData = [...prev];
-                  const existingIndex = newData.findIndex(d => d.instanceId === i);
-                  if (existingIndex >= 0) {
-                    newData[existingIndex] = data;
-                  } else {
-                    newData.push(data);
-                  }
-                  return newData;
-                });
-              }}
+              onRegisterAnimation={onRegisterAnimation} // NEW: Stable callback
             />
           );
         })}
