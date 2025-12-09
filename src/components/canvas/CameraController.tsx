@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
+import { CAMERA_CONFIG } from '../../config';
 
 export const CameraController: React.FC = () => {
     const activePhoto = useStore(state => state.activePhoto);
@@ -18,34 +19,53 @@ export const CameraController: React.FC = () => {
     const currentQRef = useRef(new THREE.Quaternion());
     const targetQRef = useRef(new THREE.Quaternion());
     // Default camera pose (reusable to avoid per-frame allocation)
-    const defaultPosRef = useRef(new THREE.Vector3(0, 5, 28));
-    const defaultLookAtRef = useRef(new THREE.Vector3(0, 0, 0));
+    const defaultPosRef = useRef(new THREE.Vector3(...CAMERA_CONFIG.default.position));
+    const defaultLookAtRef = useRef(new THREE.Vector3(...CAMERA_CONFIG.default.lookAt));
+
+    // Track when photo was closed to allow brief return animation
+    const photoClosedTime = useRef<number | null>(null);
 
     useFrame((state, delta) => {
         if (!activePhoto) {
             // Only smooth return if we previously had an active photo
             // This prevents camera movement on initial load
             if (hadActivePhoto.current) {
-                // Smooth return to default pose when activePhoto becomes null
-                // Compute damp factor from delta
-                const damp = Math.min(2 * delta, 1.0);
+                // Initialize close time if not set
+                if (photoClosedTime.current === null) {
+                    photoClosedTime.current = state.clock.getElapsedTime();
+                }
 
-                // Lerp camera position toward default
-                state.camera.position.lerp(defaultPosRef.current, damp);
+                // Calculate elapsed time since photo was closed
+                const elapsedSinceClose = state.clock.getElapsedTime() - photoClosedTime.current;
 
-                // Smoothly lerp camera rotation toward default lookAt
-                currentQRef.current.copy(state.camera.quaternion);
-                state.camera.lookAt(defaultLookAtRef.current);
-                targetQRef.current.copy(state.camera.quaternion);
-                state.camera.quaternion.copy(currentQRef.current);
-                state.camera.quaternion.slerp(targetQRef.current, damp);
+                // Only animate return for a brief period after closing photo
+                if (elapsedSinceClose < CAMERA_CONFIG.transition.returnAnimationDuration) {
+                    // Smooth return to default pose when activePhoto becomes null
+                    // Compute damp factor from delta
+                    const damp = Math.min(CAMERA_CONFIG.transition.returnDampingSpeed * delta, 1.0);
+
+                    // Lerp camera position toward default
+                    state.camera.position.lerp(defaultPosRef.current, damp);
+
+                    // Smoothly lerp camera rotation toward default lookAt
+                    currentQRef.current.copy(state.camera.quaternion);
+                    state.camera.lookAt(defaultLookAtRef.current);
+                    targetQRef.current.copy(state.camera.quaternion);
+                    state.camera.quaternion.copy(currentQRef.current);
+                    state.camera.quaternion.slerp(targetQRef.current, damp);
+                } else {
+                    // After animation completes, reset flag to allow user control
+                    hadActivePhoto.current = false;
+                    photoClosedTime.current = null;
+                }
             }
 
             return;
         }
 
-        // Mark that we have an active photo
+        // Mark that we have an active photo and reset close time
         hadActivePhoto.current = true;
+        photoClosedTime.current = null;
 
         // Calculate target based on Active Photo snapshot
         // We position the camera "In Front" of the photo
@@ -65,14 +85,14 @@ export const CameraController: React.FC = () => {
         // 2.5 (Height) / 0.6 = 4.16 (Visible Height)
         // Distance = 4.16 / (2 * tan(25deg)) ~= 5.5 units (using 5.5 for better framing)
 
-        offset.current.set(0, 0, 5.5); // Fixed distance for consistent framing
+        offset.current.set(0, 0, CAMERA_CONFIG.photoView.distance); // Fixed distance for consistent framing
         offset.current.applyQuaternion(dummyQ.current);
 
         // Target Camera Position
         targetPos.current.copy(targetLook.current).add(offset.current);
 
         // Smoothly Interpolate Camera Position
-        const damp = Math.min(4 * delta, 1.0);
+        const damp = Math.min(CAMERA_CONFIG.photoView.dampingSpeed * delta, 1.0);
         state.camera.position.lerp(targetPos.current, damp);
 
         // Smoothly Interpolate Camera Rotation (Orbit around target)

@@ -260,7 +260,7 @@ export const LANDING_CONFIG = {
     // 阶段2: 文本展示 (Text Display)
     // ------------------------------------------------------------------------
     typewriter: {
-        charDelay: 80, // 用户名打字机速度 (ms/字符)
+        charDelay: 120, // 用户名打字机速度 (ms/字符)
     },
 
     text: {

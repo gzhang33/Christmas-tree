@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { TREE_COLOR_PRESETS } from '../../config/colors';
+import { INTERACTION_CONFIG } from '../../config';
 
 interface ControlsProps {
     uiState: UIState; // Keeping for backward compatibility during migration, but will prefer store
@@ -37,7 +38,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                 // Perform update only after user stops sliding
                 setParticleCount(localParticleCount);
             }
-        }, 500); // Increased debounce for heavy operations
+        }, INTERACTION_CONFIG.controls.debounce.particleCountDelay); // Debounce delay from config
         return () => clearTimeout(timer);
     }, [localParticleCount, setParticleCount, particleCount]);
 
@@ -68,7 +69,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                 // Process files sequentially or parallel (parallel for speed)
                 // We'll map file objects to simple { id, url } format expected by addPhotos
                 // Batch upload, max 8 files per batch
-                const batchSize = 8;
+                const batchSize = INTERACTION_CONFIG.controls.upload.batchSize;
                 for (let i = 0; i < files.length; i += batchSize) {
                     const batch = files.slice(i, i + batchSize);
                     await Promise.all(batch.map(async (file, batchIndex) => {
@@ -158,7 +159,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 '0 0 15px rgba(128,90,213,0.4)'
                             ]
                         } : {}}
-                        transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+                        transition={{ repeat: Infinity, duration: INTERACTION_CONFIG.controls.animation.buttonPulseDuration, ease: 'easeInOut' }}
                     >
                         {isOpen ? <X size={24} /> : <Settings size={24} />}
                     </motion.button>
@@ -172,7 +173,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             y: isOpen ? 0 : 10,
                             pointerEvents: isOpen ? 'auto' : 'none',
                         }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        transition={{ duration: INTERACTION_CONFIG.controls.animation.panelTransitionDuration, ease: 'easeOut' }}
                         className="relative rounded-3xl border border-electric-purple/30 bg-deep-gray-blue/90 backdrop-blur-2xl p-6 w-[min(320px,85vw)] text-white shadow-[0_25px_70px_rgba(0,0,0,0.65)] overflow-y-auto max-h-[90vh]"
                     >
                         {/* Decorative Elements */}
@@ -223,7 +224,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                             navigator.clipboard.writeText(url)
                                                 .then(() => {
                                                     setIsCopied(true);
-                                                    setTimeout(() => setIsCopied(false), 2000);
+                                                    setTimeout(() => setIsCopied(false), INTERACTION_CONFIG.controls.toast.copySuccessDuration);
                                                 })
                                                 .catch((err) => {
                                                     console.error('Failed to copy:', err);
@@ -308,9 +309,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="5000"
-                                        max="50000"
-                                        step="2500"
+                                        min={INTERACTION_CONFIG.controls.ranges.particleCount.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.particleCount.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.particleCount.step.toString()}
                                         value={localParticleCount}
                                         onChange={(e) => {
                                             const val = parseInt(e.target.value);
@@ -329,9 +330,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="0"
-                                        max="5"
-                                        step="0.1"
+                                        min={INTERACTION_CONFIG.controls.ranges.rotationSpeed.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.rotationSpeed.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.rotationSpeed.step.toString()}
                                         value={uiState.config.rotationSpeed}
                                         onChange={(e) => updateConfig('rotationSpeed', parseFloat(e.target.value))}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
@@ -347,9 +348,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="0.5"
-                                        max="3"
-                                        step="0.1"
+                                        min={INTERACTION_CONFIG.controls.ranges.photoSize.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.photoSize.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.photoSize.step.toString()}
                                         value={uiState.config.photoSize}
                                         onChange={(e) => updateConfig('photoSize', parseFloat(e.target.value))}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"

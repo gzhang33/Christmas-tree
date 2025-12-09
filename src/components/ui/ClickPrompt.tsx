@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { INTERACTION_CONFIG } from '../../config';
 
 interface ClickPromptProps {
     onClick: () => void;
@@ -13,6 +14,8 @@ interface ClickPromptProps {
 }
 
 export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) => {
+    const { animation, breathe, pulse, arrow } = INTERACTION_CONFIG.clickPrompt;
+
     return (
         <AnimatePresence>
             {isVisible && (
@@ -21,16 +24,16 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) 
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: animation.fadeDuration }}
                     onClick={onClick}
                     aria-label="点击点亮圣诞树"
                 >                    <motion.div
                     animate={{
-                        opacity: [0.7, 1, 0.7],
-                        scale: [1, 1.02, 1],
+                        opacity: breathe.opacity,
+                        scale: breathe.scale,
                     }}
                     transition={{
-                        duration: 2.5,
+                        duration: animation.breatheDuration,
                         repeat: Infinity,
                         ease: 'easeInOut',
                     }}
@@ -40,11 +43,11 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) 
                         <motion.div
                             className="absolute inset-0 -m-4 rounded-full border-2 border-amber-400/30"
                             animate={{
-                                scale: [1, 1.3, 1],
-                                opacity: [0.5, 0, 0.5],
+                                scale: pulse.scale,
+                                opacity: pulse.opacity,
                             }}
                             transition={{
-                                duration: 2,
+                                duration: animation.pulseDuration,
                                 repeat: Infinity,
                                 ease: 'easeOut',
                             }}
@@ -61,8 +64,8 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) 
 
                         {/* Decorative arrow */}
                         <motion.div
-                            animate={{ y: [0, 5, 0] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
+                            animate={{ y: arrow.bounce }}
+                            transition={{ duration: animation.arrowBounceDuration, repeat: Infinity }}
                             className="text-amber-400 text-2xl"
                         >
                             ↓

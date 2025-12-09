@@ -4,6 +4,7 @@ import { EffectComposer, Bloom, Vignette, ChromaticAberration } from '@react-thr
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
+import { POST_PROCESSING_CONFIG } from '../../config';
 
 export const CinematicEffects: React.FC = () => {
     const isExploded = useStore((state) => state.isExploded);
@@ -15,8 +16,10 @@ export const CinematicEffects: React.FC = () => {
     useFrame((state, delta) => {
         if (chromaticRef.current) {
             const isHovered = !!hoveredPhotoId;
-            // Target offset: 0.002 when exploded and not hovering, tiny otherwise
-            const targetOffset = isExploded && !isHovered ? 0.002 : 0.0002;
+            // Target offset: exploded value when exploded and not hovering, normal otherwise
+            const targetOffset = isExploded && !isHovered
+                ? POST_PROCESSING_CONFIG.chromaticAberration.exploded
+                : POST_PROCESSING_CONFIG.chromaticAberration.normal;
 
             chromaticRef.current.offset.x = THREE.MathUtils.lerp(
                 chromaticRef.current.offset.x, targetOffset, delta
@@ -27,39 +30,44 @@ export const CinematicEffects: React.FC = () => {
         }
     });
 
+    const { bloom, vignette, chromaticAberration, composer } = POST_PROCESSING_CONFIG;
+
     return (
-        <EffectComposer multisampling={0}>
+        <EffectComposer multisampling={composer.multisampling}>
             {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
             <Bloom
-                luminanceThreshold={0.6}
-                luminanceSmoothing={0.85}
-                mipmapBlur
-                intensity={0.4}
-                radius={0.5}
+                luminanceThreshold={bloom.primary.luminanceThreshold}
+                luminanceSmoothing={bloom.primary.luminanceSmoothing}
+                mipmapBlur={bloom.primary.mipmapBlur}
+                intensity={bloom.primary.intensity}
+                radius={bloom.primary.radius}
             />
 
             {/* Secondary Bloom - Highlights for star/top particles only */}
             <Bloom
-                luminanceThreshold={0.92}
-                luminanceSmoothing={0.4}
-                mipmapBlur
-                intensity={0.35}
-                radius={0.35}
+                luminanceThreshold={bloom.secondary.luminanceThreshold}
+                luminanceSmoothing={bloom.secondary.luminanceSmoothing}
+                mipmapBlur={bloom.secondary.mipmapBlur}
+                intensity={bloom.secondary.intensity}
+                radius={bloom.secondary.radius}
             />
 
             {/* Cinematic Vignette */}
             <Vignette
-                offset={0.35}
-                darkness={0.65}
+                offset={vignette.offset}
+                darkness={vignette.darkness}
                 blendFunction={BlendFunction.NORMAL}
             />
 
             {/* Dynamic Chromatic Aberration */}
             <ChromaticAberration
                 ref={chromaticRef}
-                offset={new THREE.Vector2(0.0002, 0.0002)}
-                radialModulation={false}
-                modulationOffset={0}
+                offset={new THREE.Vector2(
+                    chromaticAberration.offset.x,
+                    chromaticAberration.offset.y
+                )}
+                radialModulation={chromaticAberration.radialModulation}
+                modulationOffset={chromaticAberration.modulationOffset}
             />
         </EffectComposer>
     );

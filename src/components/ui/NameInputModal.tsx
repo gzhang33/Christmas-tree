@@ -10,19 +10,15 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { INTERACTION_CONFIG } from '../../config';
 
 interface NameInputModalProps {
     onSubmit: (name: string) => void;
     isVisible: boolean;
 }
 
-// Validation rules
-const NAME_VALIDATION = {
-    minLength: 1,
-    maxLength: 20,
-    // Allow Chinese, English, numbers, underscore, hyphen, space
-    pattern: /^[\u4e00-\u9fa5a-zA-Z0-9_\-\s]+$/,
-};
+// Get validation config
+const { validation, errorMessages } = INTERACTION_CONFIG.nameInput;
 
 /**
  * Validates user name input
@@ -31,16 +27,16 @@ const NAME_VALIDATION = {
 function validateUserName(input: string): { valid: boolean; error?: string } {
     const trimmed = input.trim();
 
-    if (trimmed.length < NAME_VALIDATION.minLength) {
-        return { valid: false, error: '请输入您的名称 / Please enter your name' };
+    if (trimmed.length < validation.minLength) {
+        return { valid: false, error: errorMessages.empty };
     }
 
-    if (trimmed.length > NAME_VALIDATION.maxLength) {
-        return { valid: false, error: `名称不能超过 ${NAME_VALIDATION.maxLength} 个字符` };
+    if (trimmed.length > validation.maxLength) {
+        return { valid: false, error: errorMessages.tooLong(validation.maxLength) };
     }
 
-    if (!NAME_VALIDATION.pattern.test(trimmed)) {
-        return { valid: false, error: '名称只能包含中英文、数字、下划线、连字符和空格' };
+    if (!validation.pattern.test(trimmed)) {
+        return { valid: false, error: errorMessages.invalidChars };
     }
     return { valid: true };
 }
@@ -82,7 +78,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
             await onSubmit(trimmedName);
             // Don't reset submitting here as component will likely unmount or transition
         } catch (err) {
-            setError('提交失败，请重试');
+            setError(errorMessages.submitFailed);
             setIsSubmitting(false);
         }
     }, [inputValue, onSubmit]);
@@ -108,7 +104,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: INTERACTION_CONFIG.nameInput.animation.modalFadeDuration }}
                 >
                     {/* Backdrop with blur */}
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
@@ -119,7 +115,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                         initial={{ y: 30, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -30, opacity: 0 }}
-                        transition={{ delay: 0.2, duration: 0.5, ease: 'easeOut' }}
+                        transition={{ delay: INTERACTION_CONFIG.nameInput.animation.contentDelay, duration: INTERACTION_CONFIG.nameInput.animation.contentDuration, ease: 'easeOut' }}
                     >
                         {/* Title */}
                         <div className="text-center">
@@ -141,7 +137,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Your name..."
-                                maxLength={NAME_VALIDATION.maxLength}
+                                maxLength={validation.maxLength}
                                 aria-invalid={!!error}
                                 aria-describedby={error ? "name-error" : undefined}
                                 className="w-full px-6 py-4 text-xl text-center text-white bg-white/10 

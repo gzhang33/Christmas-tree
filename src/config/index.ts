@@ -14,7 +14,9 @@ export {
     PERFORMANCE_THRESHOLDS,
     RESPONSIVE_BREAKPOINTS,
     isMobileDevice,
-    getResponsiveValue
+    getResponsiveValue,
+    CAMERA_CONFIG,              // 相机配置
+    POST_PROCESSING_CONFIG      // 后期处理配置
 } from './performance';
 
 // ============================================================================

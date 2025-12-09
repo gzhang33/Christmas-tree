@@ -247,3 +247,85 @@ export const isMobileDevice = (): boolean => {
 export const getResponsiveValue = <T>(config: { normal: T; compact: T }): T => {
     return isMobileDevice() ? config.compact : config.normal;
 };
+
+// ============================================================================
+// 3. 相机配置 (Camera Configuration)
+// ============================================================================
+
+/**
+ * 相机控制配置
+ * 用于 CameraController 组件
+ */
+export const CAMERA_CONFIG = {
+    /** 默认相机设置 */
+    default: {
+        position: [0, 5, 28] as const,      // 默认位置 [x, y, z]
+        lookAt: [0, 0, 0] as const,         // 默认注视点 [x, y, z]
+        fov: 42,                            // 视野角度 (度)
+    },
+
+    /** 照片查看模式 */
+    photoView: {
+        distance: 5.5,                      // 相机到照片的距离
+        dampingSpeed: 4,                    // 插值速度 (移动到照片时)
+    },
+
+    /** 过渡动画 */
+    transition: {
+        returnDampingSpeed: 2,              // 返回默认位置的插值速度
+        returnAnimationDuration: 1.5,       // 返回动画持续时间（秒）- 之后允许用户自由控制
+    },
+} as const;
+
+// ============================================================================
+// 4. 后期处理配置 (Post-Processing Configuration)
+// ============================================================================
+
+/**
+ * 后期处理效果配置
+ * 用于 CinematicEffects 组件
+ */
+export const POST_PROCESSING_CONFIG = {
+    /** Bloom 辉光效果 */
+    bloom: {
+        /** 主 Bloom 层 - 用于树的整体轮廓 */
+        primary: {
+            luminanceThreshold: 0.6,        // 亮度阈值
+            luminanceSmoothing: 0.85,       // 亮度平滑度
+            intensity: 0.4,                 // 强度
+            radius: 0.5,                    // 半径
+            mipmapBlur: true,               // 启用 mipmap 模糊
+        },
+        /** 次 Bloom 层 - 用于星星和顶部高光 */
+        secondary: {
+            luminanceThreshold: 0.92,       // 亮度阈值 (更高，只影响最亮部分)
+            luminanceSmoothing: 0.4,        // 亮度平滑度
+            intensity: 0.35,                // 强度
+            radius: 0.35,                   // 半径
+            mipmapBlur: true,               // 启用 mipmap 模糊
+        },
+    },
+
+    /** 晕影效果 */
+    vignette: {
+        offset: 0.35,                       // 偏移量 (控制晕影范围)
+        darkness: 0.65,                     // 暗度 (0-1)
+    },
+
+    /** 色差效果 */
+    chromaticAberration: {
+        normal: 0.0002,                     // 正常状态偏移量
+        exploded: 0.002,                    // 爆炸状态偏移量
+        offset: {
+            x: 0.0002,                      // X 轴初始偏移
+            y: 0.0002,                      // Y 轴初始偏移
+        },
+        radialModulation: false,            // 径向调制
+        modulationOffset: 0,                // 调制偏移
+    },
+
+    /** 效果合成器 */
+    composer: {
+        multisampling: 0,                   // 多重采样 (0 = 禁用，提升性能)
+    },
+} as const;
