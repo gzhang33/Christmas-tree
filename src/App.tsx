@@ -1,20 +1,16 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Experience } from './components/canvas/Experience.tsx';
-import { Snow } from './components/canvas/Snow.tsx';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
 import { LandingTitle } from './components/ui/LandingTitle.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { AUDIO } from './config/assets.ts';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
-import { usePerformanceMonitor, PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
-import { useStore, LandingPhase } from './store/useStore.ts';
+import { PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
+import { useStore } from './store/useStore.ts';
 import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
-import * as THREE from 'three';
-import { encodeState, decodeState } from './utils/shareUtils';
+import { SceneContainer } from './components/layout/SceneContainer';
+import { useAudioController } from './hooks/useAudioController';
+import { useShareSystem } from './hooks/useShareSystem';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -24,20 +20,6 @@ import './index.css';
 // 4. Dynamic exposure adjustment (tone mapping exposure)
 // 5. Cinematic vignette
 
-// Performance monitor wrapper component
-const PerformanceMonitorWrapper: React.FC<{
-  particleCount: number;
-  onUpdate: (data: any) => void;
-}> = ({ particleCount, onUpdate }) => {
-  const { TrackerComponent, updateData } = usePerformanceMonitor();
-
-  useEffect(() => {
-    onUpdate({ particleCount });
-  }, [particleCount, onUpdate]);
-
-  return <TrackerComponent onUpdate={(data) => { updateData(data); onUpdate(data); }} />;
-};
-
 function App() {
   // Global State from Zustand Store
   const particleCount = useStore((state) => state.particleCount);
@@ -45,11 +27,10 @@ function App() {
   const triggerExplosion = useStore((state) => state.triggerExplosion);
   const resetExplosion = useStore((state) => state.resetExplosion);
   const landingPhase = useStore((state) => state.landingPhase);
-  const setLandingPhase = useStore((state) => state.setLandingPhase);
+  const hoveredPhotoId = useStore((state) => state.hoveredPhotoId);
 
   // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);
-  const [isMuted, setIsMuted] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
   const [performanceData, setPerformanceData] = useState({
     fps: 60,
@@ -60,7 +41,6 @@ function App() {
     lodLevel: 'High',
     memoryUsage: 0,
   });
-  const audioRef = useRef<HTMLAudioElement>(null);
   const [isHeroTextCompact, setIsHeroTextCompact] = useState(false);
 
   // Local config (non-persisted settings)
@@ -73,56 +53,25 @@ function App() {
     windStrength: 0.4,
   });
 
+  // Audio Controller Hook
+  const { isMuted, toggleMute, unmute, audioRef } = useAudioController(0.35);
+
+  // Share System Hook
+  const { generateShareUrl } = useShareSystem({
+    photos,
+    config,
+    setPhotos,
+    setConfig
+  });
+
   // Estimate total particles
-  const estimatedParticleCount = Math.floor(
+  const estimatedParticleCount = useMemo(() => Math.floor(
     particleCount * 1.5 + // Tree particles (entity + glow)
     3000 + // Ornaments
     5500 + // Gifts
     config.snowDensity + // Snow
     1200 // Magic dust
-  );
-
-  // Audio Handling
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.volume = 0.35;
-
-    // Declare handleInteraction outside attemptPlay to ensure stable reference
-    const handleInteraction = async () => {
-      try {
-        await audio.play();
-        setIsMuted(false);
-      } catch (e) {
-        console.warn('Audio playback failed after interaction:', e);
-      }
-      // Remove listeners after successful interaction
-      document.removeEventListener('click', handleInteraction);
-      document.removeEventListener('keydown', handleInteraction);
-    };
-
-    const attemptPlay = async () => {
-      try {
-        await audio.play();
-        setIsMuted(false);
-      } catch (err) {
-        console.log('Audio autoplay prevented. Waiting for user interaction.');
-        setIsMuted(true);
-
-        document.addEventListener('click', handleInteraction);
-        document.addEventListener('keydown', handleInteraction);
-      }
-    };
-
-    attemptPlay();
-
-    // Cleanup function to remove listeners on unmount
-    return () => {
-      document.removeEventListener('click', handleInteraction);
-      document.removeEventListener('keydown', handleInteraction);
-    };
-  }, []);
+  ), [particleCount, config.snowDensity]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -158,19 +107,6 @@ function App() {
       triggerExplosion();
     }
   }, [isExploded, triggerExplosion, resetExplosion]);
-
-  const toggleMute = useCallback(() => {
-    setIsMuted((prev) => {
-      const newState = !prev;
-      if (audioRef.current) {
-        audioRef.current.muted = newState;
-        if (!newState && audioRef.current.paused) {
-          audioRef.current.play().catch((e) => console.warn('Play failed on unmute:', e));
-        }
-      }
-      return newState;
-    });
-  }, []);
 
   const addPhotos = useCallback((input: FileList | string[]) => {
     let newPhotos: PhotoData[] = [];
@@ -225,72 +161,8 @@ function App() {
     setPerformanceData((prev) => ({ ...prev, ...data, particleCount: estimatedParticleCount }));
   }, [estimatedParticleCount]);
 
-  // Share Logic
-  const generateShareUrl = useCallback(() => {
-    const shareCode = encodeState(photos, useStore.getState().treeColor, config); // Read directly from store
-    const baseUrl = window.location.origin + window.location.pathname;
-    return `${baseUrl}?s=${shareCode}`;
-  }, [photos, config]); // treeColor is read from store getter
-
-  // startup restoration
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shareCode = params.get('s');
-
-    if (shareCode) {
-      const data = decodeState(shareCode);
-      if (data) {
-        // Restore Photos
-        if (data.p && Array.isArray(data.p)) {
-          // 验证URL格式
-          const validUrls = data.p.filter(url =>
-            typeof url === 'string' &&
-            (url.startsWith('https://') || url.startsWith('http://'))
-          );
-          const restoredPhotos = validUrls.map(url => ({
-            id: Math.random().toString(36).substring(2, 9),
-            url: url
-          }));
-          setPhotos(restoredPhotos);
-        }
-
-        // Restore Config
-        if (data.cfg) {
-          // 只恢复已知的配置项，并验证数值范围
-          const safeConfig: Partial<AppConfig> = {};
-          if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
-            safeConfig.snowDensity = data.cfg.snowDensity;
-          }
-          if (typeof data.cfg.rotationSpeed === 'number' && data.cfg.rotationSpeed >= 0 && data.cfg.rotationSpeed <= 5) {
-            safeConfig.rotationSpeed = data.cfg.rotationSpeed;
-          }
-          if (typeof data.cfg.photoSize === 'number' && data.cfg.photoSize >= 0.5 && data.cfg.photoSize <= 5) {
-            safeConfig.photoSize = data.cfg.photoSize;
-          }
-          if (typeof data.cfg.explosionRadius === 'number' && data.cfg.explosionRadius >= 0 && data.cfg.explosionRadius <= 100) {
-            safeConfig.explosionRadius = data.cfg.explosionRadius;
-          }
-          if (typeof data.cfg.snowSpeed === 'number' && data.cfg.snowSpeed >= 0 && data.cfg.snowSpeed <= 10) {
-            safeConfig.snowSpeed = data.cfg.snowSpeed;
-          }
-          if (typeof data.cfg.windStrength === 'number' && data.cfg.windStrength >= 0 && data.cfg.windStrength <= 5) {
-            safeConfig.windStrength = data.cfg.windStrength;
-          }
-          setConfig(prev => ({ ...prev, ...safeConfig }));
-        }
-
-        // Restore Color
-        if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
-          useStore.getState().setTreeColor(data.c);
-        }
-
-        // Optional: clear URL to keep it clean? 
-        // window.history.replaceState({}, '', window.location.pathname);
-      }
-    }
-  }, []);
-  // UI Context
-  const uiState: UIState = {
+  // Optimized UI State
+  const uiState: UIState = useMemo(() => ({
     isExploded,
     toggleExplosion,
     photos,
@@ -300,7 +172,17 @@ function App() {
     isMuted,
     toggleMute,
     generateShareUrl,
-  };
+  }), [
+    isExploded,
+    toggleExplosion,
+    photos,
+    addPhotos,
+    config,
+    updateConfig,
+    isMuted,
+    toggleMute,
+    generateShareUrl
+  ]);
 
   return (
     <LandingFlowProvider>
@@ -310,69 +192,17 @@ function App() {
           ref={audioRef}
           src={AUDIO.jingleBells}
           crossOrigin="anonymous"
-          loop
           muted={isMuted}
           preload="auto"
         />
 
-        {/* 3D Canvas */}
-        <div className="absolute inset-0 z-0">
-          <Canvas
-            camera={{ position: [0, 5, 28], fov: 42 }}
-            dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
-            gl={{
-              antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
-              toneMappingExposure: 1.08,
-              alpha: false,
-              powerPreference: 'high-performance',
-              stencil: false,
-              depth: true
-            }}
-            onCreated={({ scene }) => {
-              scene.background = new THREE.Color('#030002');
-            }}
-          >
-
-            {/* Snow - shown in all phases */}
-            <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
-
-            {/* Tree Experience - shown once morphing starts or in tree phase */}
-            {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
-
-            {/* Performance Tracker */}
-            <PerformanceMonitorWrapper
-              particleCount={estimatedParticleCount}
-              onUpdate={handlePerformanceUpdate}
-            />
-
-            {/* === CINEMATIC POST PROCESSING PIPELINE === */}
-            {/* Optimized for clearer silhouette and reduced overexposure */}
-            <EffectComposer multisampling={0}>
-              {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
-              <Bloom
-                luminanceThreshold={0.6}
-                luminanceSmoothing={0.85}
-                mipmapBlur
-                intensity={0.4}
-                radius={0.5}
-              />
-              {/* Secondary Bloom - Highlights for star/top particles only */}
-              <Bloom
-                luminanceThreshold={0.92}
-                luminanceSmoothing={0.4}
-                mipmapBlur
-                intensity={0.35}
-                radius={0.35}
-              />
-              {/* Cinematic Vignette (per spec) */}
-              <Vignette
-                offset={0.35}
-                darkness={0.65}
-                blendFunction={BlendFunction.NORMAL}
-              />
-            </EffectComposer>
-          </Canvas>
-        </div>
+        {/* 3D Canvas Scene */}
+        <SceneContainer
+          uiState={uiState}
+          config={config}
+          estimatedParticleCount={estimatedParticleCount}
+          onPerformanceUpdate={handlePerformanceUpdate}
+        />
 
         {/* UI Overlay - only shown in tree phase */}
         {landingPhase === 'tree' && <Controls uiState={uiState} />}
@@ -383,11 +213,9 @@ function App() {
         {/* Landing Flow Controller - handles name input, click prompts */}
         <LandingFlowController
           onPhaseChange={(phase) => console.log('[LandingFlow] Phase:', phase)}
-          onAudioResume={() => {
-            if (audioRef.current && audioRef.current.paused) {
-              audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
-              setIsMuted(false);
-            }
+          onAudioResume={async () => {
+            // Use the hook's unmute method to sync state and resume playback
+            await unmute();
           }}
         />
 

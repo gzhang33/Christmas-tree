@@ -9,7 +9,7 @@
  * Audio assets
  */
 export const AUDIO = {
-  jingleBells: '/child-Jingle Bells.mp3',
+  jingleBells: '/audio/All I Want for Christmas Is You.flac',
 } as const;
 
 /**

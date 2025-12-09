@@ -64,7 +64,8 @@
 
 - [ ] **[PHOTO-03] Anti-Clipping Physics (Repulsion)**
   - **Task:** Implement a simple force-directed graph or repulsion algorithm.
-  - **Logic:** If `distance(photoA, photoB) < min_threshold`, apply repulsion vector.
+  - **Logic:** If the distance between two photos is less than **150 pixels**, they should repel each other.
+  - **Testing Method:** Drag a photo to an overlapping position and check if they automatically separate.
   - **Goal:** Prevent photos from overlapping/clipping into each other at the bottom.
 
 - [ ] **[PHOTO-04] Navigation Anchor (Fly-in/Fly-out)**

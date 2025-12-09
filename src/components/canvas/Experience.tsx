@@ -9,7 +9,6 @@ import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
-import { EffectComposer, Bloom, DepthOfField, ChromaticAberration } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -128,13 +127,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         };
     }, [isExploded, camera]);
 
-    // === POST PROCESSING REFS ===
-    const dofRef = useRef<any>(null);
-    const chromaticRef = useRef<any>(null);
-    const bloomRef = useRef<any>(null);
-
     // === PERFORMANCE: Dynamic post-processing toggle ===
-    const enableEffects = isExploded || !!hoveredPhotoId;
+    // Moved to CinematicEffects.tsx
 
     // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + VolumetricRays + Post-Processing ===
     useFrame((state, delta) => {
@@ -189,48 +183,10 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 fillSpotRef.current.intensity, 0.8 * targetFactor, lerpSpeed
             );
         }
-
-        // === 3. POST-PROCESSING UPDATES (only if effects are enabled) ===
-        if (!enableEffects) return;
-
-
-        // Chromatic Aberration
-        if (chromaticRef.current) {
-            const targetOffset = isExploded && !isHovered ? 0.002 : 0.0002;
-            chromaticRef.current.offset.x = THREE.MathUtils.lerp(
-                chromaticRef.current.offset.x, targetOffset, delta
-            );
-            chromaticRef.current.offset.y = THREE.MathUtils.lerp(
-                chromaticRef.current.offset.y, targetOffset, delta
-            );
-        }
     });
 
     return (
         <>
-            {/* PERFORMANCE: Only render effects when needed */}
-            {enableEffects && (
-                <EffectComposer enableNormalPass={false}>
-                    {/* REMOVED: DepthOfField - causes blur on hover/active photos */}
-                    {/* We want hovered and active photos to be SHARP, not blurred */}
-                    <Bloom
-                        ref={bloomRef}
-                        luminanceThreshold={1.1}
-                        levels={5}
-                        intensity={1.0}
-                        radius={0.8}
-                    />
-                    {isExploded && !hoveredPhotoId && (
-                        <ChromaticAberration
-                            ref={chromaticRef}
-                            offset={new THREE.Vector2(0.0002, 0.0002)}
-                            radialModulation={false}
-                            modulationOffset={0}
-                        />
-                    )}
-                </EffectComposer>
-            )}
-
             <DreiOrbitControls
                 ref={controlsRef}
                 enabled={!activePhoto} // Disable controls when looking at a photo

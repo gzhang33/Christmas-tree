@@ -9,7 +9,24 @@ body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    cursor: url('/cursor/christmas.cur'), auto;
+}
+
+html,
+body {
+    cursor: url('/cursor/christmas.cur'), auto !important;
+}
+
+/* Ensure interactive elements also use the festive cursor (replacing the system hand) */
+/* Use !important to override Tailwind .cursor-pointer and other utility classes */
+a,
+button,
+[role="button"],
+input,
+select,
+textarea,
+.cursor-pointer,
+canvas {
+    cursor: url('/cursor/christmas.cur'), pointer !important;
 }
 
 * {
