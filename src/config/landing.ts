@@ -55,7 +55,7 @@ export const TITLE_CONFIG = {
         lineSpacing: 1.1, // 行高倍率
         line2Indent: {
             normal: 280,  // 桌面端第二行缩进(px)
-            compact: 120, // 移动端第二行缩进(px)
+            compact: 100, // 移动端第二行缩进(px)
         },
     },
 
@@ -66,11 +66,11 @@ export const TITLE_CONFIG = {
         density: 4, // 采样间距(px)，值越小粒子越密，性能消耗越大
         canvasWidth: {
             normal: 600,  // 桌面端画布基准宽度
-            compact: 400, // 移动端画布基准宽度
+            compact: 600, // 移动端画布基准宽度
         },
-        canvasPadding: 1.5, // 画布高度倍率（留出动画空间）
+        canvasPadding: 2, // 画布高度倍率（留出动画空间）
         canvasHeightMultiplier: {
-            normal: 2.8,  // 桌面端高度倍率
+            normal: 3.8,  // 桌面端高度倍率
             compact: 3.2, // 移动端高度倍率
         },
     },
@@ -82,17 +82,10 @@ export const TITLE_CONFIG = {
         sizeMin: 1.5,              // 逻辑最小尺寸
         sizeMax: 2.0,              // 逻辑最大尺寸
         sizeMinDraw: 0.8,          // 实际渲染最小半径
-        glowLayerSizeMultiplier: 1.8, // 光晕层大小倍率
-        glowLayerAlpha: 0.3,       // 光晕层透明度
     },
 
     effects: {
         shadowBlur: 10, // 全局阴影模糊度
-        dropShadow: {
-            red: { blur: 20, color: 'rgba(196, 30, 58, 0.6)' },
-            green: { blur: 15, color: 'rgba(34, 139, 34, 0.4)' },
-            gold: { blur: 25, color: 'rgba(255, 215, 0, 0.5)' },
-        },
     },
 
     // ------------------------------------------------------------------------
@@ -103,23 +96,24 @@ export const TITLE_CONFIG = {
         // [待机] 呼吸效果 (Breathing)
         breatheAmp1Scale: 0.5, // 呼吸波1幅度
         breatheAmp2Scale: 0.3, // 呼吸波2幅度
-        swayAmpScale: 0.4,     // 摇摆幅度
+        swayAmpScale: 0.4,     // 摇摆幅度 - TODO: 未实现
 
         // [待机] 闪烁效果 (Twinkling)
-        twinkleFreq: 3.0,  // 频率
+        twinkleFreq: 3.0,  // 频率 - TODO: 未使用，使用 LANDING_CONFIG.text.twinkleSpeed 代替
         twinkleAmp: 0.15,  // 幅度 +/-
         twinkleBase: 0.85, // 基础透明度
 
         // [待机] 尺寸脉动 (Pulse)
-        sizeFreq: 2.0, // 频率
-        sizeAmp: 0.08, // 幅度
+        sizeFreq: 2.0, // 频率 - TODO: 未实现
+        sizeAmp: 0.08, // 幅度 - TODO: 未实现
 
         // [变形] 第二行文字的错落感
-        line2DelayOffset: 0.15, // 启动延迟
-        line2DelayScale: 0.35,  // 过程拉伸
+        line2DelayOffset: 0.15, // 启动延迟 - TODO: 未实现
+        line2DelayScale: 0.35,  // 过程拉伸 - TODO: 未实现
 
         // [消散] 粒子消散参数 (需匹配 Tree Shader)
         // 这些参数控制文字如何炸开并变成树
+        // TODO: 当前未在 LandingTitle.tsx 中使用，预留给未来 shader 实现
         progressScale: 2.6,       // 动画进程缩放
         erosionNoiseWeight: 0.3,  // 噪波侵蚀权重
         heightDelayWeight: 1.0,   // 高度延迟权重（从下往上还是整体）
@@ -140,12 +134,6 @@ export const TITLE_CONFIG = {
         growAmount: 0.3,          // 最大膨胀比例
         shrinkAmount: 0.6,        // 最终收缩比例
     },
-
-    // 过渡时长
-    transition: {
-        normalDuration: 0.8,   // 普通状态切换时长
-        explodedDuration: 2.5, // 爆炸特效时长
-    },
 } as const;
 
 // ============================================================================
@@ -164,7 +152,6 @@ export const LANDING_CONFIG = {
         // 响应式断点 (Breakpoints)
         breakpoints: {
             mobile: 768,     // 宽度 < 768px = 移动端
-            tablet: 1200,    // 768px <= 宽度 < 1200px = 平板
         },
 
         // 视口缩放规则 (Viewport Scaling)
@@ -197,8 +184,15 @@ export const LANDING_CONFIG = {
         // 垂直偏移量 (Vertical Offset)
         // 百分比相对于视口高度
         verticalOffset: {
-            normal: -10,  // 桌面：略偏上
-            compact: -25, // 移动：上移（较高位置）
+            normal: -3,  // 桌面：略偏上
+            compact: -18, // 移动：上移（较高位置）
+        },
+
+        // 水平偏移量 (Horizontal Offset)
+        // 倍率值，基于 fontSize * lineSpacing 进行缩放
+        horizontalOffset: {
+            normal: 1.5,   // 桌面：无水平偏移（左对齐已通过 leftPadding 控制）
+            compact: 0.15,  // 移动：无水平偏移（居中对齐）
         },
 
         // 粒子生成参数（用于3D场景，防止文本截断）
@@ -207,7 +201,7 @@ export const LANDING_CONFIG = {
                 normal: 120,   // 桌面端字体大小
                 compact: 100,  // 移动端字体大小
             },
-            density: 3, // 采样密度（值越小粒子越密）
+            density: 4, // 采样密度（值越小粒子越密）
             worldWidth: {
                 normal: 24,  // 桌面端世界宽度（增大以防止截断）
                 compact: 20, // 移动端世界宽度
@@ -238,14 +232,14 @@ export const LANDING_CONFIG = {
         },
         canvasHeightMultiplier: 1.5, // 高度 = 字体大小 * 此值
 
-        // 位置偏移
+        // 位置偏移（倍率值，基于 fontSize * lineSpacing 进行缩放）
         yOffset: {
-            normal: 2.2,  // 桌面端行距倍率
-            compact: 2.8, // 移动端行距倍率
+            normal: 0.5,  // 桌面端垂直偏移倍率
+            compact: 1.5, // 移动端垂直偏移倍率
         },
-        indent: {
-            normal: 0.15, // 桌面端左缩进（canvas 宽度百分比）
-            compact: 0.1, // 移动端左缩进（canvas 宽度百分比）
+        xOffset: {
+            normal: 5.15,  // 桌面端水平偏移倍率
+            compact: 0.3,    // 移动端水平偏移倍率（居中时通常为0）
         },
     },
 

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Experience } from './components/canvas/Experience.tsx';
+import { Snow } from './components/canvas/Snow.tsx';
 import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
@@ -330,6 +331,9 @@ function App() {
           }}
         >
 
+          {/* Snow - shown in all phases */}
+          <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
+
           {/* Tree Experience - shown once morphing starts or in tree phase */}
           {(landingPhase === 'morphing' || landingPhase === 'tree') && <Experience uiState={uiState} />}
 
@@ -368,8 +372,8 @@ function App() {
         </Canvas>
       </div>
 
-      {/* UI Overlay */}
-      <Controls uiState={uiState} />
+      {/* UI Overlay - only shown in tree phase */}
+      {landingPhase === 'tree' && <Controls uiState={uiState} />}
 
       {/* Debug Store Panel (F4 to toggle) */}
       <DebugStore performanceData={performanceData} />

@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
 import { OrbitControls as DreiOrbitControls, Stars } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Snow } from './Snow.tsx';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
 import { CameraController } from './CameraController.tsx';
@@ -282,8 +281,6 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
             {/* === ENVIRONMENT === */}
             <Stars radius={150} depth={60} count={6000} factor={4} saturation={0.1} fade speed={0.3} />
-
-            <Snow count={Math.floor(config.snowDensity)} />
 
             <MagicDust count={magicDustCount} isExploded={isExploded} />
 

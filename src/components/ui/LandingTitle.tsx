@@ -104,8 +104,13 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
     const entranceCompletedRef = useRef(false);
     const fadeOutCompletedRef = useRef(false);
 
-    const userName = useStore((state) => state.userName);
+    const userNameRaw = useStore((state) => state.userName);
     const landingPhase = useStore((state) => state.landingPhase);
+
+    // Capitalize first letter of username
+    const userName = userNameRaw
+        ? userNameRaw.charAt(0).toUpperCase() + userNameRaw.slice(1)
+        : userNameRaw;
 
     // Separate particle state for title and username
     const [titleParticles, setTitleParticles] = useState<{
@@ -136,7 +141,6 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
     const responsive = useMemo(() => {
         const { width, height } = dimensions;
         const isMobile = width < LANDING_CONFIG.title.breakpoints.mobile;
-        const isTablet = width >= LANDING_CONFIG.title.breakpoints.mobile && width < LANDING_CONFIG.title.breakpoints.tablet;
         const vp = LANDING_CONFIG.title.viewportScale;
 
         // Linear interpolation for viewport scale
@@ -203,12 +207,13 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
         const density = LANDING_CONFIG.title.densityOverride ?? TITLE_CONFIG.sampling.density;
 
-        // Resolve responsive userName config (already resolved above for height calculation)
-        const userNameIndent = isMobile ? userNameConfig.indent.compact : userNameConfig.indent.normal;
+        // Resolve responsive userName config
+        const userNameXOffset = isMobile ? userNameConfig.xOffset.compact : userNameConfig.xOffset.normal;
 
-        // Resolve alignment and vertical offset
+        // Resolve alignment and offsets
         const alignment = isMobile ? LANDING_CONFIG.title.alignment.compact : LANDING_CONFIG.title.alignment.normal;
         const verticalOffset = isMobile ? LANDING_CONFIG.title.verticalOffset.compact : LANDING_CONFIG.title.verticalOffset.normal;
+        const horizontalOffset = isMobile ? LANDING_CONFIG.title.horizontalOffset.compact : LANDING_CONFIG.title.horizontalOffset.normal;
 
         return {
             fontSize,
@@ -219,10 +224,11 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
             line2Indent: Math.round((isMobile ? TITLE_CONFIG.text.line2Indent.compact : TITLE_CONFIG.text.line2Indent.normal) * (fontSize / baseFontSize)),
             lineSpacing: TITLE_CONFIG.text.lineSpacing,
             viewportScale,
-            userNameIndent,
+            userNameXOffset,
             userNameYOffset,
             alignment,
             verticalOffset,
+            horizontalOffset,
             isMobile,
         };
     }, [dimensions]);
@@ -574,7 +580,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     justifyContent: responsive.alignment === 'left' ? 'flex-start' : 'center',
                     alignItems: 'center',
                     paddingLeft: responsive.alignment === 'left' ? LANDING_CONFIG.title.padding.leftPadding : undefined,
-                    transform: `translateY(${responsive.verticalOffset}%)`,
+                    transform: `translate(${responsive.fontSize * TITLE_CONFIG.text.lineSpacing * responsive.horizontalOffset / (typeof window !== 'undefined' ? window.innerWidth : 1920) * 100}%, ${responsive.verticalOffset}%)`,
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -599,7 +605,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                         justifyContent: responsive.alignment === 'left' ? 'flex-start' : 'center',
                         alignItems: 'center',
                         paddingLeft: responsive.alignment === 'left' ? LANDING_CONFIG.title.padding.leftPadding : undefined,
-                        transform: `translateY(${responsive.verticalOffset + (responsive.fontSize * TITLE_CONFIG.text.lineSpacing * responsive.userNameYOffset / (typeof window !== 'undefined' ? window.innerHeight : LANDING_CONFIG.title.animation.defaultScreenHeight) * 100)}%)`,
+                        transform: `translate(${responsive.fontSize * TITLE_CONFIG.text.lineSpacing * responsive.userNameXOffset / (typeof window !== 'undefined' ? window.innerWidth : 1920) * 100}%, ${responsive.verticalOffset + (responsive.fontSize * TITLE_CONFIG.text.lineSpacing * responsive.userNameYOffset / (typeof window !== 'undefined' ? window.innerHeight : LANDING_CONFIG.title.animation.defaultScreenHeight) * 100)}%)`,
                     }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

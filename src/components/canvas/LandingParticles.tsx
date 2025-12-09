@@ -98,9 +98,14 @@ export const LandingParticles: React.FC<LandingParticlesProps> = ({
     onMorphingComplete,
 }) => {
     const { viewport } = useThree();
-    const userName = useStore((state) => state.userName);
+    const userNameRaw = useStore((state) => state.userName);
     const landingPhase = useStore((state) => state.landingPhase);
     const treeColor = useStore((state) => state.treeColor);
+
+    // Capitalize first letter of username
+    const userName = userNameRaw
+        ? userNameRaw.charAt(0).toUpperCase() + userNameRaw.slice(1)
+        : userNameRaw;
 
     const pointsRef = useRef<THREE.Points>(null);
     const materialRef = useRef<THREE.ShaderMaterial | null>(null);
