@@ -10,7 +10,7 @@
  * 照片数量配置
  * 从爆炸粒子中生成的照片数量
  */
-export const PHOTO_COUNT = 99;
+export const PHOTO_COUNT = 120;
 
 /**
  * 照片球形分布参数
@@ -19,7 +19,7 @@ export const PHOTO_COUNT = 99;
 export const PHOTO_DISTRIBUTION = {
     // 球形分布的半径范围
     radiusMin: 8,   // 最小半径
-    radiusMax: 22,  // 最大半径
+    radiusMax: 15,  // 最大半径
 
     // 垂直角度范围 (弧度) - 限制照片的高低位置
     // 0 = 赤道, PI/2 = 北极, -PI/2 = 南极
@@ -28,7 +28,7 @@ export const PHOTO_DISTRIBUTION = {
 
     // 中心偏向 - 照片更可能出现在相机前方
     // 值越高分布越分散，值越低越集中在前方
-    frontBias: 0.6, // 0.5 = 均匀分布, 1.0 = 全部在前半球
+    frontBias: 0.5, // 0.5 = 均匀分布, 1.0 = 全部在前半球
 } as const;
 
 /**
@@ -48,7 +48,7 @@ export const PHOTO_DIMENSIONS = {
  * 控制照片出现的动画时间
  */
 export const MORPH_TIMING = {
-    startDelay: 0.3,        // 动画开始延迟 (秒)
+    startDelay: 0.1,        // 动画开始延迟 (秒)
     morphDuration: 1.5,     // 变形动画持续时间 (秒)
     staggerDelay: 0.02,     // 照片之间的交错延迟 (秒)
     fadeOutDuration: 1.0,   // 淡出动画持续时间 (秒)

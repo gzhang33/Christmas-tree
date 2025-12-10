@@ -418,12 +418,14 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 </div>
 
                                 <label className="cursor-pointer border border-dashed border-electric-purple/40 bg-deep-gray-blue/50 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all group hover:border-neon-pink hover:bg-deep-gray-blue hover:shadow-[0_0_20px_rgba(213,63,140,0.2)] relative overflow-hidden">
-                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[radial-gradient(circle,_rgba(213,63,140,0.4)_0%,_transparent_70%)] transition-opacity" aria-hidden />
-                                    <Upload className="text-electric-purple group-hover:text-neon-pink transition-colors relative z-10" />
-                                    <span className="text-xs text-white/80 group-hover:text-white text-center uppercase tracking-[0.2em] relative z-10 font-semibold">
-                                        Upload Photos
-                                    </span>
-                                    <p className="text-[0.65rem] text-white/50 text-center relative z-10">Support multiple files</p>
+                                    <div className={`flex flex-col items-center justify-center gap-3 w-full transition-all duration-300 ${isUploading ? 'opacity-0' : 'opacity-100'}`}>
+                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[radial-gradient(circle,_rgba(213,63,140,0.4)_0%,_transparent_70%)] transition-opacity" aria-hidden />
+                                        <Upload className="text-electric-purple group-hover:text-neon-pink transition-colors relative z-10" />
+                                        <span className="text-xs text-white/80 group-hover:text-white text-center uppercase tracking-[0.2em] relative z-10 font-semibold">
+                                            Upload Photos
+                                        </span>
+                                        <p className="text-[0.65rem] text-white/50 text-center relative z-10">Support multiple files</p>
+                                    </div>
                                     <input
                                         type="file"
                                         multiple

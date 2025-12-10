@@ -132,7 +132,7 @@ export const CAMERA_CONFIG = {
     default: {
         position: {
             normal: [0, 0, 28] as readonly [number, number, number],
-            compact: [0, 0, 38] as readonly [number, number, number],
+            compact: [0, 0, 42] as readonly [number, number, number],
         },      // 默认位置 [x, y, z]
         lookAt: [0, 0, 0] as const,         // 默认注视点 [x, y, z]
         fov: 42,                            // 视野角度 (度)
