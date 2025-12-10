@@ -48,19 +48,33 @@ const sampleTextToParticles = (
     maxWidth: number,
     density: number,
     startVisible: boolean,
-    isUserName: boolean = false,
-    isMobile: boolean = false // 新增参数
+    isUserName: boolean = false, // removed duplicate
+    isMobile: boolean = false,
+    letterSpacing: number = 0 // 新增参数
 ): Particle[] => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return [];
 
-    canvas.width = maxWidth;
+    // Apply font and letter spacing BEFORE measuring/drawing
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    if (letterSpacing && 'letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = `${letterSpacing}px`;
+    }
+
+    // Measure with letter spacing
+    const measuredWidth = ctx.measureText(text).width;
+    canvas.width = Math.max(maxWidth, Math.ceil(measuredWidth + fontSize)); // Ensure canvas fits expanded text
     canvas.height = fontSize * TITLE_CONFIG.sampling.canvasPadding;
 
+    // Reset context properties after resize
     ctx.font = `${fontSize}px ${fontFamily}`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textBaseline = 'top';
+    if (letterSpacing && 'letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = `${letterSpacing}px`;
+    }
+
     ctx.fillText(text, 0, fontSize * 0.15);
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -256,6 +270,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
             verticalOffset,
             horizontalOffset,
             isMobile,
+            letterSpacing: isMobile ? TITLE_CONFIG.text.letterSpacing.compact : TITLE_CONFIG.text.letterSpacing.normal,
         };
     }, [dimensions]);
 
@@ -298,7 +313,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     density,
                     true,
                     false,
-                    responsive.isMobile
+                    responsive.isMobile,
+                    responsive.letterSpacing
                 );
 
                 // Line 2: "Christmas"
@@ -310,7 +326,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     density,
                     true,
                     false,
-                    responsive.isMobile
+                    responsive.isMobile,
+                    responsive.letterSpacing
                 );
 
                 const line2YOffset = fontSize * lineSpacing;

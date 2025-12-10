@@ -54,8 +54,8 @@ export const PERFORMANCE_CONFIG = {
          * 移动端: 需要保持较高密度以确保文字清晰
          */
         titleSamplingDensity: {
-            normal: 6,  // 桌面端: 6px 间距 (~2500 粒子)
-            compact: 5, // 移动端: 5px 间距 (~3600 粒子) - 确保文字清晰
+            normal: 4,  // 桌面端: 4px 间距 (密度增加，更清晰)
+            compact: 3, // 移动端: 3px 间距 (密度增加，更清晰)
         },
 
         /**
@@ -65,8 +65,8 @@ export const PERFORMANCE_CONFIG = {
          * 移动端需要更高密度以确保 "Merry Christmas" 和用户名清晰显示
          */
         particleGenerationDensity: {
-            normal: 5,  // 桌面端: 5px 间距
-            compact: 4, // 移动端: 4px 间距 - 更高密度，确保文字清晰
+            normal: 4,  // 桌面端: 4px 间距
+            compact: 3, // 移动端: 3px 间距
         },
 
         /**
@@ -75,14 +75,14 @@ export const PERFORMANCE_CONFIG = {
          */
         particleSize: {
             normal: {
-                min: 1.0,
-                max: 1.5,
-                minDraw: 1.0,
+                min: 1.6,
+                max: 2.4,
+                minDraw: 1.6,
             },
             compact: {
-                min: 1.2,
-                max: 1.8,
-                minDraw: 1.2,
+                min: 1.8,
+                max: 2.6,
+                minDraw: 1.8,
             },
         },
     },

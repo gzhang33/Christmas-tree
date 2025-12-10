@@ -55,6 +55,10 @@ export const TITLE_CONFIG = {
         line1: 'Merry',
         line2: 'Christmas',
         lineSpacing: 1.1, // 行高倍率
+        letterSpacing: {  // 字间距 (px) - NEW
+            normal: 3,   // 桌面端宽间距
+            compact: 3,  // 移动端较宽间距
+        },
         line2Indent: {
             normal: 280,  // 桌面端第二行缩进(px)
             compact: 100, // 移动端第二行缩进(px)
@@ -69,7 +73,7 @@ export const TITLE_CONFIG = {
         // 桌面端: 6px, 移动端: 5px (更高密度确保文字清晰)
         density: PERFORMANCE_CONFIG.landing.titleSamplingDensity,
         canvasWidth: {
-            normal: 600,  // 桌面端画布基准宽度
+            normal: 700,  // 桌面端画布基准宽度
             compact: 600, // 移动端画布基准宽度
         },
         canvasPadding: 2, // 画布高度倍率（留出动画空间）

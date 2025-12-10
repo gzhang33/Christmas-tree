@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
 import { useLandingFlow } from '../../contexts/LandingFlowContext';
 import { PARTICLE_CONFIG } from '../../config/particles';
-import { LANDING_CONFIG } from '../../config/landing';
+import { LANDING_CONFIG, TITLE_CONFIG } from '../../config/landing';
 import {
     generateMultiLineTextParticles,
     padParticlePositions,
@@ -116,7 +116,7 @@ function createLandingShaderMaterial(): THREE.ShaderMaterial {
             uMix: { value: 0.0 },          // 0 = dispersed, 1 = converged to tree
             uScatter: { value: 0.0 },      // Scatter intensity
             uTextCount: { value: 0.0 },
-            uBaseSize: { value: 0.55 },
+            uBaseSize: { value: 0.85 },
             uColorStart: { value: new THREE.Color('#FFD700') },  // Gold
             uColorEnd: { value: new THREE.Color('#1a5f2a') },    // Forest green
         },
@@ -178,12 +178,18 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
             ? (isCompact ? particleConfig.density.compact : particleConfig.density.normal)
             : particleConfig.density;
 
+        // Resolve responsive letterSpacing
+        const letterSpacing = isCompact
+            ? TITLE_CONFIG.text.letterSpacing.compact
+            : TITLE_CONFIG.text.letterSpacing.normal;
+
         const textResult = generateMultiLineTextParticles(lines, {
             fontSize,
             density,
             worldWidth,
             zOffset: particleConfig.zOffset,
             yOffset: particleConfig.yOffset,
+            letterSpacing,
         });
 
         // Fixed Buffer Allocation: max(text, tree)

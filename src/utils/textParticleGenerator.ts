@@ -23,6 +23,8 @@ export interface TextParticleOptions {
     zOffset: number;
     /** Y offset in world space (default: 0) */
     yOffset: number;
+    /** Letter spacing in pixels */
+    letterSpacing?: number;
 }
 
 export interface TextParticleResult {
@@ -46,6 +48,7 @@ const DEFAULT_OPTIONS: Partial<TextParticleOptions> = {
     worldWidth: 20,
     zOffset: 5,
     yOffset: 0,
+    letterSpacing: 0,
 };
 
 /**
@@ -79,8 +82,13 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
         return { positions: new Float32Array(0), count: 0, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 } };
     }
 
-    // Calculate canvas size based on text
+    // Apply font and letter spacing BEFORE measuring
     ctx.font = `${config.fontSize}px ${config.fontFamily}`;
+    if (config.letterSpacing && 'letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = `${config.letterSpacing}px`;
+    }
+
+    // Calculate canvas size based on text
     const textMetrics = ctx.measureText(config.text);
     const textWidth = textMetrics.width;
     const textHeight = config.fontSize * 1.3; // Approximate height with descenders
@@ -90,10 +98,14 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
     canvas.width = Math.ceil(textWidth + padding * 2);
     canvas.height = Math.ceil(textHeight + padding * 2);
 
-    // Render text
+    // Re-apply context settings after resize (canvas resize resets context)
     ctx.font = `${config.fontSize}px ${config.fontFamily}`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textBaseline = 'top';
+    if (config.letterSpacing && 'letterSpacing' in ctx) {
+        (ctx as any).letterSpacing = `${config.letterSpacing}px`;
+    }
+
     ctx.fillText(config.text, padding, padding);
 
     // Sample pixels and collect positions
