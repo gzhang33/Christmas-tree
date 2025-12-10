@@ -3,7 +3,7 @@ import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palet
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
-import { TREE_COLOR_PRESETS } from '../../config/colors';
+import { TREE_COLOR_PRESETS, MAGIC_DUST_COLOR_PRESETS } from '../../config/colors';
 import { INTERACTION_CONFIG } from '../../config';
 
 interface ControlsProps {
@@ -18,8 +18,10 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const treeColor = useStore((state) => state.treeColor);
     const particleCount = useStore((state) => state.particleCount);
     const isExploded = useStore((state) => state.isExploded);
+    const magicDustColor = useStore((state) => state.magicDustColor);
     const setTreeColor = useStore((state) => state.setTreeColor);
     const setParticleCount = useStore((state) => state.setParticleCount);
+    const setMagicDustColor = useStore((state) => state.setMagicDustColor);
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
 
@@ -293,6 +295,41 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 aria-label="Custom color picker"
                                             />
                                             <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => c.hex === treeColor)
+                                                ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
+                                                : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
+                                                <Palette size={20} className="text-white" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Magic Dust Color */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center">
+                                        <span>Magic Dust Color</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{magicDustColor}</span>
+                                    </label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {MAGIC_DUST_COLOR_PRESETS.map(({ hex, name }) => (
+                                            <button
+                                                key={hex}
+                                                onClick={() => setMagicDustColor(hex)}
+                                                aria-label={`Select magic dust color ${name}`}
+                                                className={`w-8 h-8 rounded-full border-2 transition-all ${magicDustColor === hex
+                                                    ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
+                                                    : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`}
+                                                style={{ backgroundColor: hex }}
+                                            />
+                                        ))}
+                                        <div className="relative group">
+                                            <input
+                                                type="color"
+                                                value={magicDustColor}
+                                                onChange={(e) => setMagicDustColor(e.target.value)}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                                aria-label="Custom magic dust color picker"
+                                            />
+                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!MAGIC_DUST_COLOR_PRESETS.some(c => c.hex === magicDustColor)
                                                 ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                 : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
                                                 <Palette size={20} className="text-white" />

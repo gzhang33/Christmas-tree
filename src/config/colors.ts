@@ -34,6 +34,19 @@ export const TREE_COLOR_PRESETS: readonly ColorPreset[] = [
 export const DEFAULT_TREE_COLOR = '#D53F8C';
 
 /**
+ * 魔法尘埃颜色预设
+ * 用于 UI 颜色选择器
+ */
+export const MAGIC_DUST_COLOR_PRESETS: readonly ColorPreset[] = [
+  { hex: '#845696', name: 'Purple' },
+  { hex: '#b150e4', name: 'Bright Purple' },
+  { hex: '#FFD700', name: 'Gold' },
+  { hex: '#FF69B4', name: 'Hot Pink' },
+  { hex: '#00CED1', name: 'Turquoise' },
+  { hex: '#FF6347', name: 'Tomato' },
+] as const;
+
+/**
  * 颜色数组 (用于向后兼容)
  */
 export const TREE_COLORS = TREE_COLOR_PRESETS.map(preset => preset.hex);

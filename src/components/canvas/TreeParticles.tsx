@@ -1154,7 +1154,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
 
     const baseConfig = PARTICLE_CONFIG.treeBase;
-    const count = Math.floor(particleCount * baseConfig.particleRatio);
+    const count = Math.floor(particleCount * PARTICLE_CONFIG.ratios.treeBase);
 
     const pos = new Float32Array(count * 3);
     const positionStart = new Float32Array(count * 3);
@@ -1897,6 +1897,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       </group>
 
       {/* NEW: PhotoManager - Single useFrame for all photos */}
-      <PhotoManager photos={photoAnimations} isExploded={isExploded} />    </group>
+      <PhotoManager photos={photoAnimations} isExploded={isExploded} />
+    </group>
   );
 };

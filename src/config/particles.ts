@@ -21,11 +21,12 @@ export const PARTICLE_CONFIG = {
     // 所有比例之和必须为 1.0
     // ------------------------------------------------------------------------
     ratios: {
-        entity: 0.50,    // 50% - 树主体
-        glow: 0.10,      // 10% - 光晕效果
-        ornament: 0.15,  // 15% - 装饰球
-        gift: 0.24,      // 24% - 礼物盒
-        magicDust: 0.01, // 1% - 魔法尘埃螺旋光环
+        entity: 0.485,    // 48.5% - 树主体
+        glow: 0.10,       // 10.0% - 光晕效果
+        ornament: 0.155,  // 15.5% - 装饰球
+        gift: 0.23,       // 23.0% - 礼物盒
+        magicDust: 0.005, // 0.5% - 魔法尘埃螺旋光环
+        treeBase: 0.025,  // 2.5% - 树底座
     },
 
     // ------------------------------------------------------------------------
@@ -46,16 +47,15 @@ export const PARTICLE_CONFIG = {
         // 运动参数
         spiralTurns: 3.5,      // 螺旋圈数 (值越小坡度越陡, >20度)
         radiusOffset: 0.1,     // 距离树表面的距离 (关键参数)
-        ascentSpeed: 0.05,     // 垂直上升速度
-        rotationSpeed: 0.1,    // 轨道旋转速度
-        countRatio: 0.01,      // 粒子数量比例 (1%)
+        ascentSpeed: 0.15,      // 垂直上升速度
+        rotationSpeed: 0.15,    // 轨道旋转速度
 
         // 视觉效果
-        colors: ['#FFD700', '#FFBF00', '#FFFAF0'], // 金色系
-        minSize: 0.2,          // 最小粒子尺寸
-        maxSize: 0.5,          // 最大粒子尺寸
-        radiusVariation: 0.3,  // 半径随机变化
-        angleVariation: 0.8,   // 角度随机变化
+        colors: ['#845696ff', '#b150e4ff', '#FFFAF0'], // 金色系
+        minSize: 0.1,          // 最小粒子尺寸
+        maxSize: 0.3,          // 最大粒子尺寸
+        radiusVariation: 0.2,  // 半径随机变化
+        angleVariation: 0.5,   // 角度随机变化
     },
 
     // ------------------------------------------------------------------------
@@ -87,13 +87,13 @@ export const PARTICLE_CONFIG = {
     // ------------------------------------------------------------------------
     // 树底座配置 (Tree Base Configuration)
     // 用于解决树悬空视觉问题 (TREE-05)
+    // 粒子数量比例由 ratios.treeBase 统一管理
     // ------------------------------------------------------------------------
     treeBase: {
         enabled: true,           // 是否启用底座粒子
         centerY: -5.8,           // 底座中心Y坐标
         innerRadius: 0.5,        // 内圈半径（树干位置）
         outerRadius: 5.0,        // 外圈半径
-        particleRatio: 0.03,     // 粒子数量比例 (3%)
         heightSpread: 0.8,       // 高度分布范围
         densityFalloff: 0.6,     // 边缘密度衰减 (0-1, 值越大边缘越稀疏)
     },

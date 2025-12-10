@@ -31,6 +31,7 @@ export const useStore = create<AppState>()(
                 treeColor: state.treeColor,
                 particleCount: state.particleCount,
                 userName: state.userName,
+                magicDustColor: state.magicDustColor,
             }),
         }
     )

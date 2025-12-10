@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { useStore } from '../../store/useStore';
 import magicDustVertexShader from '../../shaders/magicDust.vert?raw';
 import magicDustFragmentShader from '../../shaders/magicDust.frag?raw';
 
@@ -54,9 +55,11 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const meteorTexture = useMemo(() => createMeteorTexture(), []);
 
+  // Get dynamic color from store
+  const magicDustColor = useStore((state) => state.magicDustColor);
+
   // Destructure config for precise dependency tracking
   const {
-    colors: configColors,
     ascentSpeed: configAscentSpeed,
     radiusVariation: configRadiusVariation,
     angleVariation: configAngleVariation,
@@ -72,20 +75,19 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   const progressRef = useRef(0.0);
   const targetProgressRef = useRef(0.0);
 
-  // NEW: Pre-compute color objects from config to avoid recreation
-  // Ensure at least 3 colors are available, pad with default gold if necessary
+  // Generate color variations from the selected color
   const colors = useMemo(() => {
-    const parsedColors = configColors.map(c => new THREE.Color(c));
-    const defaultColor = new THREE.Color(0xffd700); // 金色作为默认回退颜色
+    const baseColor = new THREE.Color(magicDustColor);
+    const hsl = { h: 0, s: 0, l: 0 };
+    baseColor.getHSL(hsl);
 
-    // 补充至少 3 种颜色以防止索引越界
-    while (parsedColors.length < 3) {
-      console.warn(`[MagicDust] 配置颜色不足 3 种（当前 ${parsedColors.length}），使用默认金色填充`);
-      parsedColors.push(defaultColor.clone());
-    }
-
-    return parsedColors;
-  }, [configColors]);
+    // Create 3 variations: lighter, base, darker
+    return [
+      new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 0.8, 1), Math.min(hsl.l + 0.2, 0.95)), // Lighter
+      baseColor.clone(), // Base
+      new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)), // Darker
+    ];
+  }, [magicDustColor]);
 
   // Increase particle count to account for trails which are now just more particles
   const totalParticles = count * 6; // *6 for trail density
@@ -217,7 +219,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
 
   // Force remount when colors change
   return (
-    <points key={JSON.stringify(configColors)}>
+    <points key={magicDustColor}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"

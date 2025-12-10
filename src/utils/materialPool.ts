@@ -89,13 +89,25 @@ export class MaterialPool {
     /**
      * Dispose all materials in the pool
      * Call this when cleaning up
+     * 
+     * @param force - If true, force disposal even when active materials exist (use with caution)
+     * @throws Error if activeCount > 0 and force is false
      */
-    dispose(): void {
-        // Warning if active materials exist
-        if (this.activeCount > 0) {
-            throw new Error(
+    dispose(force: boolean = false): void {
+        // Refuse to dispose if active materials exist (unless forced)
+        if (this.activeCount > 0 && !force) {
+            const errorMsg =
                 `Cannot dispose pool with ${this.activeCount} active materials. ` +
-                `Please release all materials first.`
+                `Please release all materials first, or call dispose(true) to force cleanup.`;
+            console.error('[MaterialPool]', errorMsg);
+            throw new Error(errorMsg);
+        }
+
+        // Warning if force-disposing with active materials
+        if (this.activeCount > 0 && force) {
+            console.warn(
+                `[MaterialPool] Force-disposing pool with ${this.activeCount} active materials. ` +
+                `This may cause rendering issues for materials still in use.`
             );
         }
 
