@@ -281,12 +281,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const glowLayerRef = useRef<THREE.Points>(null);
   const ornamentsRef = useRef<THREE.Points>(null);
   const giftsRef = useRef<THREE.Points>(null);
+  const treeBaseRef = useRef<THREE.Points>(null);
 
   // Shader material refs
   const entityMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
   const glowMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
   const ornamentMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
   const giftMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  const treeBaseMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
   // Stable animation registration callback (avoids recreation every render)
   const onRegisterAnimation = useCallback((data: PhotoAnimationData) => {
@@ -1009,7 +1011,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     gifts.forEach((gift) => {
       const cx = Math.cos(gift.ang) * gift.r;
       const cz = Math.sin(gift.ang) * gift.r;
-      const cy = -6.5 + gift.h / 2;
+      const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3;
       const rot = Math.random() * Math.PI;
 
       for (let i = 0; i < perGift; i++) {
@@ -1129,6 +1131,118 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     photoData,
   ]);
 
+  // === TREE BASE LAYER (Ground ring to fix floating tree) ===
+  const treeBaseData = useMemo(() => {
+    if (!PARTICLE_CONFIG.treeBase.enabled) {
+      return {
+        positions: new Float32Array(0),
+        positionStart: new Float32Array(0),
+        positionEnd: new Float32Array(0),
+        controlPoints: new Float32Array(0),
+        colors: new Float32Array(0),
+        sizes: new Float32Array(0),
+        random: new Float32Array(0),
+        branchAngles: new Float32Array(0),
+        isPhotoParticle: new Float32Array(0),
+        erosionFactors: new Float32Array(0),
+        count: 0,
+      };
+    }
+
+    const baseConfig = PARTICLE_CONFIG.treeBase;
+    const count = Math.floor(particleCount * baseConfig.particleRatio);
+
+    const pos = new Float32Array(count * 3);
+    const positionStart = new Float32Array(count * 3);
+    const positionEnd = new Float32Array(count * 3);
+    const controlPoints = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    const siz = new Float32Array(count);
+    const random = new Float32Array(count);
+    const branchAngles = new Float32Array(count);
+    const isPhotoParticle = new Float32Array(count);
+    const erosionFactors = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      // Angle distribution - full circle
+      const angle = Math.random() * Math.PI * 2;
+
+      // Radial distribution with density falloff towards edges
+      const radiusRatio = Math.pow(Math.random(), baseConfig.densityFalloff);
+      const radius = baseConfig.innerRadius + radiusRatio * (baseConfig.outerRadius - baseConfig.innerRadius);
+
+      // Position
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const y = baseConfig.centerY + (Math.random() - 0.5) * baseConfig.heightSpread;
+
+      const startPos: [number, number, number] = [x, y, z];
+      pos[i * 3] = x;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = z;
+
+      positionStart[i * 3] = x;
+      positionStart[i * 3 + 1] = y;
+      positionStart[i * 3 + 2] = z;
+
+      // Explosion target
+      const endPos = getExplosionTarget(config.explosionRadius);
+      positionEnd[i * 3] = endPos[0];
+      positionEnd[i * 3 + 1] = endPos[1];
+      positionEnd[i * 3 + 2] = endPos[2];
+
+      // Control point for Bezier curve
+      const ctrlPt = calculateControlPoint(startPos, endPos);
+      controlPoints[i * 3] = ctrlPt[0];
+      controlPoints[i * 3 + 1] = ctrlPt[1];
+      controlPoints[i * 3 + 2] = ctrlPt[2];
+
+      random[i] = Math.random();
+      branchAngles[i] = angle;
+
+      // Calculate erosion factor based on Y position
+      erosionFactors[i] = calculateErosionFactor(y);
+
+      // Color: snow/frost-like colors for base, mixing with tree colors
+      const colorChoice = Math.random();
+      let c: THREE.Color;
+      if (colorChoice < 0.4) {
+        // White/Silver - snow effect
+        c = STATIC_COLORS.white;
+      } else if (colorChoice < 0.6) {
+        c = STATIC_COLORS.silver;
+      } else if (colorChoice < 0.75) {
+        c = STATIC_COLORS.cream;
+      } else {
+        // Tree color accent to tie into the tree
+        c = colorVariants.light;
+      }
+
+      col[i * 3] = c.r;
+      col[i * 3 + 1] = c.g;
+      col[i * 3 + 2] = c.b;
+
+      // Size - smaller towards edges for fade effect
+      siz[i] = (0.3 + Math.random() * 0.3) * (1 - radiusRatio * 0.5);
+
+      isPhotoParticle[i] = 0.0;
+    }
+
+    return {
+      positions: pos,
+      positionStart,
+      positionEnd,
+      controlPoints,
+      colors: col,
+      sizes: siz,
+      random,
+      branchAngles,
+      isPhotoParticle,
+      erosionFactors,
+      count,
+    };
+  }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
+
   // === SHADER MATERIAL CREATION ===
   useEffect(() => {
     const treeColorThree = new THREE.Color(treeColor);
@@ -1167,6 +1281,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         0.7,
       );
       giftMaterialRef.current.depthWrite = true;
+
+      // Tree Base: size 0.5, additive blending (snow effect)
+      treeBaseMaterialRef.current = createParticleShaderMaterial(
+        treeColorThree,
+        sparkleTexture,
+        0.5,
+      );
+      treeBaseMaterialRef.current.blending = THREE.AdditiveBlending;
     } catch (error) {
       console.error(
         "Shader compilation failed, falling back to safe ShaderMaterial",
@@ -1226,6 +1348,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         featherTexture,
       );
       giftMaterialRef.current.depthWrite = true;
+
+      treeBaseMaterialRef.current = createFallbackShaderMaterial(
+        0.5,
+        sparkleTexture,
+      );
+      treeBaseMaterialRef.current.blending = THREE.AdditiveBlending;
     }
 
     // Cleanup
@@ -1234,6 +1362,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       glowMaterialRef.current?.dispose();
       ornamentMaterialRef.current?.dispose();
       giftMaterialRef.current?.dispose();
+      treeBaseMaterialRef.current?.dispose();
     };
   }, [treeColor, featherTexture, sparkleTexture]);
 
@@ -1509,6 +1638,75 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         </bufferGeometry>
         {glowMaterialRef.current && (
           <primitive object={glowMaterialRef.current} attach="material" />
+        )}
+      </points>
+
+      {/* Tree Base Layer */}
+      <points ref={treeBaseRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={treeBaseData.count}
+            array={treeBaseData.positions}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionStart"
+            count={treeBaseData.count}
+            array={treeBaseData.positionStart}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-positionEnd"
+            count={treeBaseData.count}
+            array={treeBaseData.positionEnd}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-controlPoint"
+            count={treeBaseData.count}
+            array={treeBaseData.controlPoints}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aColor"
+            count={treeBaseData.count}
+            array={treeBaseData.colors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-aScale"
+            count={treeBaseData.count}
+            array={treeBaseData.sizes}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aRandom"
+            count={treeBaseData.count}
+            array={treeBaseData.random}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aBranchAngle"
+            count={treeBaseData.count}
+            array={treeBaseData.branchAngles}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aIsPhotoParticle"
+            count={treeBaseData.count}
+            array={treeBaseData.isPhotoParticle}
+            itemSize={1}
+          />
+          <bufferAttribute
+            attach="attributes-aErosionFactor"
+            count={treeBaseData.count}
+            array={treeBaseData.erosionFactors}
+            itemSize={1}
+          />
+        </bufferGeometry>
+        {treeBaseMaterialRef.current && (
+          <primitive object={treeBaseMaterialRef.current} attach="material" />
         )}
       </points>
 

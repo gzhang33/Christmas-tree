@@ -83,5 +83,19 @@ export const PARTICLE_CONFIG = {
         dampingSpeedExplosion: 0.02, // 爆炸时阻尼速度
         dampingSpeedReset: 0.05,     // 回归时阻尼速度
     },
+
+    // ------------------------------------------------------------------------
+    // 树底座配置 (Tree Base Configuration)
+    // 用于解决树悬空视觉问题 (TREE-05)
+    // ------------------------------------------------------------------------
+    treeBase: {
+        enabled: true,           // 是否启用底座粒子
+        centerY: -5.8,           // 底座中心Y坐标
+        innerRadius: 0.5,        // 内圈半径（树干位置）
+        outerRadius: 5.0,        // 外圈半径
+        particleRatio: 0.03,     // 粒子数量比例 (3%)
+        heightSpread: 0.8,       // 高度分布范围
+        densityFalloff: 0.6,     // 边缘密度衰减 (0-1, 值越大边缘越稀疏)
+    },
 } as const;
 
