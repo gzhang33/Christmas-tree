@@ -88,9 +88,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             const dataUrl = await new Promise<string>((resolve) => {
                                 const reader = new FileReader();
                                 reader.onload = (e) => resolve(e.target?.result as string);
+                                reader.onerror = () => resolve('');
                                 reader.readAsDataURL(file);
-                            });
-                            uploadedUrls.push(dataUrl);
+                            }); uploadedUrls.push(dataUrl);
                         }
                     }));
                 }

@@ -146,6 +146,7 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
     const animationRef = useRef({
         startTime: 0,
         progress: 0,
+        needsReset: false, // Flag to reset startTime on next frame
     });
 
     // Callback guards
@@ -275,7 +276,8 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
 
     // Track phase changes
     useEffect(() => {
-        animationRef.current.startTime = performance.now() / 1000;
+        // Mark that we need to reset startTime on next frame using Three.js clock
+        animationRef.current.needsReset = true;
         animationRef.current.progress = 0;
 
         // Reset callback guards and uniforms
@@ -307,6 +309,12 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
 
         const time = state.clock.elapsedTime;
         materialRef.current.uniforms.uTime.value = time;
+
+        // Reset startTime using Three.js clock when phase changes
+        if (animationRef.current.needsReset) {
+            animationRef.current.startTime = time;
+            animationRef.current.needsReset = false;
+        }
 
         const elapsed = time - animationRef.current.startTime;
 
@@ -381,7 +389,8 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
 
     // Only render during morphing phase (SceneContainer controls mounting)
     // Return null otherwise as safety check
-    if (landingPhase !== 'morphing') {
+    // 只有 tree 阶段由其他组件接管
+    if (landingPhase === 'tree') {
         return null;
     }
 

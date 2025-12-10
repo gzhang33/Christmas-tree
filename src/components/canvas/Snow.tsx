@@ -39,7 +39,7 @@ export const Snow: React.FC<SnowProps> = ({
       for (let i = 0; i < cfg.branches; i++) {
         ctx.save();
         ctx.translate(cfg.centerX, cfg.centerY);
-        ctx.rotate((i * 60 * Math.PI) / 180);
+        ctx.rotate((i * 2 * Math.PI) / cfg.branches);
 
         // Main branch
         ctx.beginPath();

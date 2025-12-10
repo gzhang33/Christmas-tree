@@ -5,7 +5,7 @@ import { Experience } from '../canvas/Experience';
 import { Snow } from '../canvas/Snow';
 import { LandingParticles } from '../canvas/LandingParticles';
 import { CinematicEffects } from '../canvas/CinematicEffects';
-import { usePerformanceMonitor } from '../canvas/PerformanceMonitor';
+import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
 import { useStore } from '../../store/useStore';
 import { CAMERA_CONFIG, getResponsiveValue } from '../../config';
@@ -14,13 +14,13 @@ interface SceneContainerProps {
     uiState: UIState;
     config: AppConfig;
     estimatedParticleCount: number;
-    onPerformanceUpdate: (data: any) => void;
+    onPerformanceUpdate: (data: Partial<PerformanceData>) => void;
 }
 
 // Performance monitor wrapper component internal to SceneContainer
 const PerformanceMonitorWrapper: React.FC<{
     particleCount: number;
-    onUpdate: (data: any) => void;
+    onUpdate: (data: Partial<PerformanceData>) => void;
 }> = ({ particleCount, onUpdate }) => {
     const { TrackerComponent, updateData } = usePerformanceMonitor();
 
@@ -28,7 +28,10 @@ const PerformanceMonitorWrapper: React.FC<{
         onUpdate({ particleCount });
     }, [particleCount, onUpdate]);
 
-    return <TrackerComponent onUpdate={(data) => { updateData(data); onUpdate(data); }} />;
+    return <TrackerComponent onUpdate={(data) => {
+        updateData(data);
+        onUpdate({ ...data, particleCount });
+    }} />;
 };
 
 export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({

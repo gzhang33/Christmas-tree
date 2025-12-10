@@ -44,6 +44,7 @@ export const useAudioController = (initialVolume = 0.35) => {
                     audio.currentTime = LOOP_START_TIME;
                 }
                 await audio.play();
+                if (audioRef.current) audioRef.current.muted = false;
                 setIsMuted(false);
             } catch (e) {
                 console.warn('Audio playback failed after interaction:', e);
@@ -62,9 +63,11 @@ export const useAudioController = (initialVolume = 0.35) => {
                     hasSetInitialTime = true;
                 }
                 await audio.play();
+                if (audioRef.current) audioRef.current.muted = false;
                 setIsMuted(false);
             } catch (err) {
                 console.log('Audio autoplay prevented. Waiting for user interaction.');
+                if (audioRef.current) audioRef.current.muted = true;
                 setIsMuted(true);
 
                 document.addEventListener('click', handleInteraction);

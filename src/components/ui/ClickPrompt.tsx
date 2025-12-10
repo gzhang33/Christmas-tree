@@ -26,19 +26,18 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({ onClick, isVisible }) 
                     exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: animation.fadeDuration }}
                     onClick={onClick}
-                    aria-label="点击点亮圣诞树"
-                >                    <motion.div
-                    animate={{
-                        opacity: breathe.opacity,
-                        scale: breathe.scale,
-                    }}
-                    transition={{
-                        duration: animation.breatheDuration,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                    className="relative flex flex-col items-center gap-2"
-                >
+                    aria-label="Click to light up the Christmas tree"                >                    <motion.div
+                        animate={{
+                            opacity: breathe.opacity,
+                            scale: breathe.scale,
+                        }}
+                        transition={{
+                            duration: animation.breatheDuration,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                        className="relative flex flex-col items-center gap-2"
+                    >
                         {/* Pulsing ring effect */}
                         <motion.div
                             className="absolute inset-0 -m-4 rounded-full border-2 border-amber-400/30"

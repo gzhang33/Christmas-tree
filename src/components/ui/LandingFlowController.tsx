@@ -24,7 +24,7 @@ export const LandingFlowController: React.FC<LandingFlowControllerProps> = ({
         if (userName && landingPhase === 'input') {
             setLandingPhase('entrance');
         }
-    }, [userName, landingPhase, setLandingPhase]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Notify parent of phase changes
     useEffect(() => {
@@ -32,7 +32,7 @@ export const LandingFlowController: React.FC<LandingFlowControllerProps> = ({
     }, [landingPhase, onPhaseChange]);
 
     // Handle name submission
-    const handleNameSubmit = useCallback((name: string) => {
+    const handleNameSubmit = useCallback(async (name: string) => {
         setUserName(name);
         setLandingPhase('entrance');
 

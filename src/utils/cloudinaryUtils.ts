@@ -91,6 +91,10 @@ export const uploadToCloudinary = async (
             if (xhr.status === 200) {
                 try {
                     const response = JSON.parse(xhr.responseText);
+                    if (!response || !response.secure_url) {
+                        reject(new Error('服务器返回的数据格式不正确'));
+                        return;
+                    }
                     resolve(response.secure_url);
                 } catch (error) {
                     reject(new Error('Failed to parse server response'));

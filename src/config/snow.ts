@@ -36,7 +36,7 @@ export const SNOW_CONFIG = {
         // 下落速度配置
         velocity: {
             min: 0.01, // 最小下落速度
-            max: 0.05, // 最大下落速度（min + 0.1）
+            max: 0.05, // 最大下落速度（min + 0.04）
         },
 
         // 旋转速度配置

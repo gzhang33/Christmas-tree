@@ -13,10 +13,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { INTERACTION_CONFIG } from '../../config';
 
 interface NameInputModalProps {
-    onSubmit: (name: string) => void;
+    onSubmit: (name: string) => Promise<void>;
     isVisible: boolean;
 }
-
 // Get validation config
 const { validation, errorMessages } = INTERACTION_CONFIG.nameInput;
 

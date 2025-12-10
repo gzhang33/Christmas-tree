@@ -160,7 +160,8 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
         // Linear interpolation for viewport scale
         const clampedWidth = Math.max(vp.minWidth, Math.min(width, vp.maxWidth));
-        const t = (clampedWidth - vp.minWidth) / (vp.maxWidth - vp.minWidth);
+        const widthRange = vp.maxWidth - vp.minWidth;
+        const t = widthRange > 0 ? (clampedWidth - vp.minWidth) / widthRange : 0;
         const viewportScale = vp.minScale + t * (vp.maxScale - vp.minScale);
 
         // Base values from TITLE_CONFIG

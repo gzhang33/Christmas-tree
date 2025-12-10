@@ -90,14 +90,14 @@ export const PERFORMANCE_CONFIG = {
          */
         particleSize: {
             normal: {
-                min: 1.0,       // 桌面端最小尺寸
-                max: 1.5,       // 桌面端最大尺寸
-                minDraw: 1.0,   // 桌面端渲染最小半径
+                min: 1.0,
+                max: 1.5,
+                minDraw: 1.0,
             },
             compact: {
-                min: 1.0,       // 移动端最小尺寸
-                max: 1.5,       // 移动端最大尺寸
-                minDraw: 1.0,   // 移动端渲染最小半径
+                min: 1.2,
+                max: 1.8,
+                minDraw: 1.2,
             },
         },
     },

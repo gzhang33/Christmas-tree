@@ -9,7 +9,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 // - Particle count
 // - LOD level
 
-interface PerformanceData {
+export interface PerformanceData {
   fps: number;
   frameTime: number;
   drawCalls: number;

@@ -38,10 +38,9 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                         (url.startsWith('https://') || url.startsWith('http://'))
                     );
                     const restoredPhotos = validUrls.map(url => ({
-                        id: Math.random().toString(36).substring(2, 9),
+                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                         url: url
-                    }));
-                    setPhotos(restoredPhotos);
+                    })); setPhotos(restoredPhotos);
                 }
 
                 // Restore Config
@@ -78,7 +77,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 // window.history.replaceState({}, '', window.location.pathname);
             }
         }
-    }, [setPhotos, setConfig, setTreeColor]);
+    }, []); // 只在首次加载时执行
 
     return { generateShareUrl };
 };

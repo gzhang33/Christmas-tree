@@ -61,8 +61,11 @@ const DEFAULT_OPTIONS: Partial<TextParticleOptions> = {
  * @returns TextParticleResult with positions and metadata
  */
 export function generateTextParticles(options: Partial<TextParticleOptions>): TextParticleResult {
-    const config = { ...DEFAULT_OPTIONS, ...options } as TextParticleOptions;
-
+    const config: TextParticleOptions = {
+        ...DEFAULT_OPTIONS,
+        ...options,
+        text: options.text || '',
+    } as TextParticleOptions;
     if (!config.text) {
         return { positions: new Float32Array(0), count: 0, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 } };
     }

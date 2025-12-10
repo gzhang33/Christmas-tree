@@ -93,7 +93,10 @@ export class MaterialPool {
     dispose(): void {
         // Warning if active materials exist
         if (this.activeCount > 0) {
-            console.warn(`Disposing pool with ${this.activeCount} active materials. This may cause memory leaks.`);
+            throw new Error(
+                `Cannot dispose pool with ${this.activeCount} active materials. ` +
+                `Please release all materials first.`
+            );
         }
 
         // Dispose all materials owned by this pool, not just pooled ones
