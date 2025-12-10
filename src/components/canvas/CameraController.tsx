@@ -106,6 +106,11 @@ export const CameraController: React.FC = () => {
         const damp = Math.min(CAMERA_CONFIG.photoView.dampingSpeed * delta, 1.0);
         state.camera.position.lerp(targetPos.current, damp);
 
+        // Limit camera z position to maximum value
+        if (state.camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
+            state.camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
+        }
+
         // Smoothly Interpolate Camera Rotation (Orbit around target)
         currentQRef.current.copy(state.camera.quaternion);
         state.camera.lookAt(targetLook.current);

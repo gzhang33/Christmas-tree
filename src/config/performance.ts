@@ -149,6 +149,12 @@ export const CAMERA_CONFIG = {
         returnDampingSpeed: 2,              // 返回默认位置的插值速度
         returnAnimationDuration: 1.5,       // 返回动画持续时间（秒）- 之后允许用户自由控制
     },
+
+    /** 相机距离限制 */
+    limits: {
+        maxDistance: 43.0,                  // 相机距离场景中心的最大距离
+        maxZPosition: 43.0,                 // 相机Z轴的最大位置
+    },
 } as const;
 
 // ============================================================================

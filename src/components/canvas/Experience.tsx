@@ -115,6 +115,10 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 const eased = 1 - Math.pow(1 - progress, 3);
 
                 camera.position.lerpVectors(startPos, initialPos, eased);
+                // Limit camera z position to maximum value
+                if (camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
+                    camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
+                }
                 camera.lookAt(initialLookAt);
 
                 if (progress < 1) {
@@ -168,6 +172,10 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                     tempDriftVec.copy(camera.position).normalize().negate();
                     tempDriftVec.multiplyScalar(PERFORMANCE_CONFIG.camera.driftSpeed * delta);
                     camera.position.add(tempDriftVec);
+                    // Limit camera z position to maximum value
+                    if (camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
+                        camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
+                    }
 
                     // Update OrbitControls to match new camera position
                     controlsRef.current?.update();
@@ -203,7 +211,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 enabled={!activePhoto} // Disable controls when looking at a photo
                 enablePan={false}
                 minDistance={10}
-                maxDistance={50}
+                maxDistance={CAMERA_CONFIG.limits.maxDistance}
                 autoRotate={isExploded && !hoveredPhotoInstanceId} // Stop rotation on hover
                 autoRotateSpeed={0.3}
                 enableZoom={true}
