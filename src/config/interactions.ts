@@ -63,9 +63,9 @@ export const INTERACTION_CONFIG = {
         },
         ranges: {
             particleCount: {
-                min: 5000,
-                max: 50000,
-                step: 2500,
+                min: 100000,
+                max: 1000000,
+                step: 25000,
             },
             rotationSpeed: {
                 min: 0,

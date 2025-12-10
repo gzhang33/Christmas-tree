@@ -37,15 +37,15 @@ export const PERFORMANCE_CONFIG = {
     particles: {
         /** 默认粒子总数 - 响应式配置 */
         defaultCount: {
-            normal: 14000,
-            compact: 10000,
+            normal: 500000,
+            compact: 500000,
         },
 
         /** 推荐的粒子数量范围 (桌面端) */
         recommended: {
-            high: 18000,   // 高端设备 (独立显卡, 60+ FPS)
-            medium: 12000, // 中端设备 (集成显卡, 30-45 FPS) ✅ 推荐
-            low: 8000,     // 低端设备 (20-30 FPS)
+            high: 50000,   // 高端设备 (独立显卡, 60+ FPS)
+            medium: 30000, // 中端设备 (集成显卡, 30-45 FPS) ✅ 推荐
+            low: 20000,     // 低端设备 (20-30 FPS)
             minimal: 5000, // 最低配置 (15-20 FPS) - 不推荐用于 Landing
         },
 
@@ -151,14 +151,14 @@ export const PERFORMANCE_PRESETS = {
     /** 高性能模式 (桌面端) */
     high: {
         normal: {
-            particleCount: 18000,
+            particleCount: 50000,
             titleDensity: 4,
             particleGenDensity: 4,
             enablePostProcessing: true,
             enableShadows: false,
         },
         compact: {
-            particleCount: 12000,
+            particleCount: 30000,
             titleDensity: 4,
             particleGenDensity: 4,
             enablePostProcessing: true,
@@ -169,14 +169,14 @@ export const PERFORMANCE_PRESETS = {
     /** 平衡模式 (推荐) ✅ */
     balanced: {
         normal: {
-            particleCount: 12000,
+            particleCount: 30000,
             titleDensity: 6,
             particleGenDensity: 5,
             enablePostProcessing: true,
             enableShadows: false,
         },
         compact: {
-            particleCount: 10000,
+            particleCount: 20000,
             titleDensity: 5,
             particleGenDensity: 4,
             enablePostProcessing: true,
@@ -259,7 +259,10 @@ export const getResponsiveValue = <T>(config: { normal: T; compact: T }): T => {
 export const CAMERA_CONFIG = {
     /** 默认相机设置 */
     default: {
-        position: [0, 5, 28] as const,      // 默认位置 [x, y, z]
+        position: {
+            normal: [0, 0, 28] as readonly [number, number, number],
+            compact: [0, 0, 38] as readonly [number, number, number],
+        },      // 默认位置 [x, y, z]
         lookAt: [0, 0, 0] as const,         // 默认注视点 [x, y, z]
         fov: 42,                            // 视野角度 (度)
     },

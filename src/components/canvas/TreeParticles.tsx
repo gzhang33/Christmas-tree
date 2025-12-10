@@ -24,6 +24,60 @@ import { preloadTextures } from "../../utils/texturePreloader";
 import { distributePhotos } from "../../utils/photoDistribution";
 import { PhotoData } from "../../types.ts";
 import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/materialPool"; // NEW: Material pool
+import { SkeletonUtils } from "three-stdlib"; // NEW: For Model-to-Particle conversion & Scene cloning
+
+import { useGLTF } from "@react-three/drei"; // NEW: Load user models
+
+const GIFT_MODELS = [
+  '/models/a_gift_box.glb',
+  '/models/fnaf_gift_box.glb',
+  '/models/gift_box(1).glb',
+  '/models/gift_box(2).glb',
+  '/models/gift_box.glb',
+  '/models/gift_box_2.glb',
+];
+
+// Preload models for smoother experience
+// Preload models for smoother experience
+GIFT_MODELS.forEach(path => useGLTF.preload(path));
+
+const GiftMesh = React.memo(({ scene, width, height, position, rotation, visible }: { scene: THREE.Group, width: number, height: number, position: [number, number, number], rotation: number, visible: boolean }) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  const clonedScene = useMemo(() => {
+    // Clone the scene to allow independent transforms
+    const clone = SkeletonUtils.clone(scene);
+
+    // Compute bounding box to auto-scale
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    // Calculate scale to fit target dimensions
+    const sx = size.x > 0 ? width / size.x : 1;
+    const sy = size.y > 0 ? height / size.y : 1;
+    const sz = size.z > 0 ? width / size.z : 1;
+
+    // Uniform scale? No, user boxes might be non-uniform.
+    // Apply scale to root
+    clone.scale.set(sx, sy, sz);
+
+    // Center logic? GLTFs usually have origin at bottom or center.
+    // We'll trust the GLTF or center it manually if needed, but for now simple scale is safer.
+
+    return clone;
+
+  }, [scene, width, height]);
+
+  return (
+    <primitive
+      object={clonedScene}
+      position={position}
+      rotation={[0, rotation, 0]}
+      visible={visible}
+    />
+  );
+});
 
 interface TreeParticlesProps {
   isExploded: boolean;
@@ -265,6 +319,23 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
   const { viewport } = useThree();
+
+  // === LOAD USER MODELS ===
+  const giftGltfs = useGLTF(GIFT_MODELS);
+
+  // Extract geometries from loaded GLTFs
+  const giftGeometries = useMemo(() => {
+    return giftGltfs.map((gltf) => {
+      let geo: THREE.BufferGeometry | null = null;
+      gltf.scene.traverse((child) => {
+        if (!geo && (child as THREE.Mesh).isMesh) {
+          geo = (child as THREE.Mesh).geometry;
+        }
+      });
+      // Fallback if no mesh found
+      return geo || new THREE.BoxGeometry(1, 1, 1);
+    });
+  }, [giftGltfs]);
 
   // Local State
   const [texturesLoaded, setTexturesLoaded] = React.useState(false);
@@ -899,6 +970,90 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
+  // === GIFT BOX CONFIG ===
+  const gifts = useMemo(() => [
+    {
+      r: 3.2,
+      ang: 0.6,
+      w: 2.2,
+      h: 2.0,
+      c: colorVariants.base,
+      rib: STATIC_COLORS.white,
+    },
+    {
+      r: 2.3,
+      ang: 1.2,
+      w: 1.8,
+      h: 1.6,
+      c: STATIC_COLORS.silver,
+      rib: colorVariants.dark,
+    },
+    {
+      r: 2.1,
+      ang: 2.5,
+      w: 2.5,
+      h: 1.8,
+      c: colorVariants.dark,
+      rib: STATIC_COLORS.gold,
+    },
+    {
+      r: 2.4,
+      ang: 3.8,
+      w: 1.6,
+      h: 2.2,
+      c: STATIC_COLORS.white,
+      rib: STATIC_COLORS.ukRed,
+    },
+    {
+      r: 2.2,
+      ang: 5.0,
+      w: 2.0,
+      h: 1.5,
+      c: STATIC_COLORS.cream,
+      rib: STATIC_COLORS.silver,
+    },
+    {
+      r: 3.2,
+      ang: 0.6,
+      w: 1.4,
+      h: 1.2,
+      c: colorVariants.light,
+      rib: STATIC_COLORS.silver,
+    },
+    {
+      r: 3.5,
+      ang: 2.0,
+      w: 1.6,
+      h: 1.4,
+      c: STATIC_COLORS.white,
+      rib: colorVariants.base,
+    },
+    {
+      r: 3.3,
+      ang: 3.5,
+      w: 1.3,
+      h: 1.1,
+      c: STATIC_COLORS.silver,
+      rib: STATIC_COLORS.gold,
+    },
+    {
+      r: 3.6,
+      ang: 4.8,
+      w: 1.5,
+      h: 1.3,
+      c: colorVariants.dark,
+      rib: STATIC_COLORS.white,
+    },
+    {
+      r: 3.8,
+      ang: 5.8,
+      w: 1.2,
+      h: 1.0,
+      c: STATIC_COLORS.ukBlue,
+      rib: STATIC_COLORS.white,
+    },
+  ], [colorVariants]);
+
   // === GIFT BOXES (Photo Source) ===
   const giftData = useMemo(() => {
     // Scale gifts proportionally to particle count
@@ -922,163 +1077,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // This will be used by PolaroidPhoto components to match the particle they replace
     const photoParticleStartPositions: [number, number, number][] = [];
 
-    const gifts = [
-      {
-        r: 2.0,
-        ang: 0,
-        w: 2.2,
-        h: 2.0,
-        c: colorVariants.base,
-        rib: STATIC_COLORS.white,
-      },
-      {
-        r: 2.3,
-        ang: 1.2,
-        w: 1.8,
-        h: 1.6,
-        c: STATIC_COLORS.silver,
-        rib: colorVariants.dark,
-      },
-      {
-        r: 2.1,
-        ang: 2.5,
-        w: 2.5,
-        h: 1.8,
-        c: colorVariants.dark,
-        rib: STATIC_COLORS.gold,
-      },
-      {
-        r: 2.4,
-        ang: 3.8,
-        w: 1.6,
-        h: 2.2,
-        c: STATIC_COLORS.white,
-        rib: STATIC_COLORS.ukRed,
-      },
-      {
-        r: 2.2,
-        ang: 5.0,
-        w: 2.0,
-        h: 1.5,
-        c: STATIC_COLORS.cream,
-        rib: STATIC_COLORS.silver,
-      },
-      {
-        r: 3.2,
-        ang: 0.6,
-        w: 1.4,
-        h: 1.2,
-        c: colorVariants.light,
-        rib: STATIC_COLORS.silver,
-      },
-      {
-        r: 3.5,
-        ang: 2.0,
-        w: 1.6,
-        h: 1.4,
-        c: STATIC_COLORS.white,
-        rib: colorVariants.base,
-      },
-      {
-        r: 3.3,
-        ang: 3.5,
-        w: 1.3,
-        h: 1.1,
-        c: STATIC_COLORS.silver,
-        rib: STATIC_COLORS.gold,
-      },
-      {
-        r: 3.6,
-        ang: 4.8,
-        w: 1.5,
-        h: 1.3,
-        c: colorVariants.dark,
-        rib: STATIC_COLORS.white,
-      },
-      {
-        r: 3.8,
-        ang: 5.8,
-        w: 1.2,
-        h: 1.0,
-        c: STATIC_COLORS.ukBlue,
-        rib: STATIC_COLORS.white,
-      },
-    ];
+    // Inner gifts definition removed to use outer scope gifts
 
-    const perGift = Math.floor(count / gifts.length);
-    let idx = 0;
 
-    gifts.forEach((gift) => {
-      const cx = Math.cos(gift.ang) * gift.r;
-      const cz = Math.sin(gift.ang) * gift.r;
-      const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3;
-      const rot = Math.random() * Math.PI;
+    // Particle generation disabled
 
-      for (let i = 0; i < perGift; i++) {
-        if (idx >= count) break;
-
-        let ux = Math.random() - 0.5;
-        let uy = Math.random() - 0.5;
-        let uz = Math.random() - 0.5;
-
-        // Bias to surface for box appearance
-        if (Math.random() > 0.1) {
-          const axis = Math.floor(Math.random() * 3);
-          if (axis === 0) ux = ux > 0 ? 0.5 : -0.5;
-          if (axis === 1) uy = uy > 0 ? 0.5 : -0.5;
-          if (axis === 2) uz = uz > 0 ? 0.5 : -0.5;
-        }
-
-        let px = ux * gift.w;
-        let py = uy * gift.h;
-        let pz = uz * gift.w;
-
-        // Rotate
-        const rpx = px * Math.cos(rot) - pz * Math.sin(rot);
-        const rpz = px * Math.sin(rot) + pz * Math.cos(rot);
-
-        const fx = rpx + cx;
-        const fy = py + cy;
-        const fz = rpz + cz;
-
-        const startPos: [number, number, number] = [fx, fy, fz];
-        pos[idx * 3] = fx;
-        pos[idx * 3 + 1] = fy;
-        pos[idx * 3 + 2] = fz;
-
-        positionStart[idx * 3] = fx;
-        positionStart[idx * 3 + 1] = fy;
-        positionStart[idx * 3 + 2] = fz;
-
-        // Default explosion target
-        let endPos = getExplosionTarget(config.explosionRadius);
-
-        // WILL BE OVERRIDDEN if this particle is selected as a photo
-        positionEnd[idx * 3] = endPos[0];
-        positionEnd[idx * 3 + 1] = endPos[1];
-        positionEnd[idx * 3 + 2] = endPos[2];
-
-        const ctrlPt = calculateControlPoint(startPos, endPos);
-        controlPoints[idx * 3] = ctrlPt[0];
-        controlPoints[idx * 3 + 1] = ctrlPt[1];
-        controlPoints[idx * 3 + 2] = ctrlPt[2];
-
-        random[idx] = Math.random();
-        branchAngles[idx] = gift.ang;
-
-        // Ribbon pattern
-        const isRibbon = Math.abs(ux) < 0.12 || Math.abs(uz) < 0.12;
-        const c = isRibbon ? gift.rib : gift.c;
-
-        col[idx * 3] = c.r;
-        col[idx * 3 + 1] = c.g;
-        col[idx * 3 + 2] = c.b;
-        siz[idx] = 0.8;
-
-        isPhotoParticle[idx] = 0.0;
-        idx++;
-      }
-    });
 
     // Select particles to be photos - BUT DO NOT MARK THEM AS PHOTOS in the shader
     // We want the box to remain INTACT until the photos are printed.
@@ -1093,7 +1096,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     gifts.forEach((gift) => {
       const cx = Math.cos(gift.ang) * gift.r;
       const cz = Math.sin(gift.ang) * gift.r;
-      const cy = -6.5 + gift.h / 2;
+      const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3;
       // Spawn point is at the top of the box
       giftCenters.push({ center: [cx, cy + gift.h / 2, cz], angle: gift.ang });
     });
@@ -1121,7 +1124,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       isPhotoParticle, // All zeros, keeping boxes solid
       photoParticleStartPositions,
-      count: idx,
+      count: 0,
     };
   }, [
     particleCount,
@@ -1129,6 +1132,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     colorVariants,
     PARTICLE_CONFIG,
     photoData,
+    giftGeometries,
   ]);
 
   // === TREE BASE LAYER (Ground ring to fix floating tree) ===
@@ -1709,6 +1713,29 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <primitive object={treeBaseMaterialRef.current} attach="material" />
         )}
       </points>
+
+      {/* Real 3D Gift Models */}
+      <group>
+        {gifts.map((gift, i) => {
+          // Deterministically pick a model based on index
+          const modelIndex = i % giftGltfs.length;
+          const cx = Math.cos(gift.ang) * gift.r;
+          const cz = Math.sin(gift.ang) * gift.r;
+          const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3; // Match previous particle logic
+
+          return (
+            <GiftMesh
+              key={i}
+              scene={giftGltfs[modelIndex].scene}
+              width={gift.w}
+              height={gift.h}
+              position={[cx, cy, cz]}
+              rotation={gift.ang} // Face outward
+              visible={true} // Gifts stay visible during/after explosion
+            />
+          );
+        })}
+      </group>
 
       {/* Ornaments and pearls */}
       <points ref={ornamentsRef}>

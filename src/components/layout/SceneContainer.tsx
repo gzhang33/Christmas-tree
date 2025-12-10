@@ -8,6 +8,7 @@ import { CinematicEffects } from '../canvas/CinematicEffects';
 import { usePerformanceMonitor } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
 import { useStore } from '../../store/useStore';
+import { CAMERA_CONFIG, getResponsiveValue } from '../../config';
 
 interface SceneContainerProps {
     uiState: UIState;
@@ -41,7 +42,10 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
     return (
         <div className="absolute inset-0 z-0">
             <Canvas
-                camera={{ position: [0, 5, 28], fov: 42 }}
+                camera={{
+                    position: getResponsiveValue(CAMERA_CONFIG.default.position) as [number, number, number],
+                    fov: CAMERA_CONFIG.default.fov
+                }}
                 dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
                 gl={{
                     antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)

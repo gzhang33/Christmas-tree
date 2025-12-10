@@ -220,6 +220,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         textureLoaded: false,
         orbitAngle: null as number | null, // Track accumulated orbit angle
         simulatedTime: 0, // Track time adjusted for slowdown
+        controlPoint: new THREE.Vector3(), // Control point for Fountain Bezier
     });
 
     // Hover state (using refs to avoid re-renders - critical for 60fps)
@@ -302,6 +303,15 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             anim.isAnimating = true;
             anim.startTime = -1;
             anim.currentPosition.set(...particleStartPosition);
+
+            // Calculate Fountain Control Point (Bezier P1)
+            const p0 = new THREE.Vector3(...particleStartPosition);
+            const p2 = new THREE.Vector3(...position);
+            const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
+            // Fountain height boost (randomized 8-12 units for dramatic effect)
+            mid.y = Math.max(p0.y, p2.y) + 8.0 + Math.random() * 4.0;
+            anim.controlPoint.copy(mid);
+
             anim.orbitAngle = null; // Reset orbit
 
             // CRITICAL OPTIMIZATION:
@@ -466,81 +476,74 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             let developProgress = 0.0;
 
             if (elapsed > 0) {
-                // PHASE 1: EJECTION (Printing from Slot)
-                if (elapsed < ejectionDuration) {
-                    // === EJECTION PHASE ===
-                    const t = elapsed / ejectionDuration;
+                // FOUNTAIN ARC ANIMATION (Quadratic Bezier)
+                const flightDuration = 1.8; // Time to fly
+                const tRaw = elapsed / flightDuration;
+                const t = Math.min(Math.max(tRaw, 0), 1);
+                const easeT = 1 - Math.pow(1 - t, 3); // Cubic ease out for position? No, linear t for Bezier is better physics.
+                // Actually simple T is fine for arc.
 
-                    // Position: Rise UP from spawn point
-                    const ejectHeight = 1.2;
-                    anim.currentPosition.x = particleStartPosition[0];
-                    anim.currentPosition.y = particleStartPosition[1] + (t * ejectHeight);
-                    anim.currentPosition.z = particleStartPosition[2];
+                const tInv = 1 - t;
+                const tInv2 = tInv * tInv;
+                const t2 = t * t;
+                const twoTInvT = 2 * tInv * t;
 
-                    // Scale Y: 0->1
-                    group.scale.set(scale, scale * t, scale);
+                // P0 (Start)
+                const x0 = particleStartPosition[0];
+                const y0 = particleStartPosition[1];
+                const z0 = particleStartPosition[2];
 
-                    // Ejection Phase: Pure Energy (develop = 0)
-                    developProgress = 0.0;
-                }
-                else if (elapsed < myTotalDuration) {
-                    // === TRANSITION PHASE ===
-                    // Dynamic speed based on available time
-                    const t = (elapsed - ejectionDuration) / transitionDuration;
+                // P1 (Control High Point)
+                const x1 = anim.controlPoint.x;
+                const y1 = anim.controlPoint.y;
+                const z1 = anim.controlPoint.z;
 
-                    // Snappy Ejection: BackOut easing
-                    // s = 1.2 for slight overshoot
-                    const s = 1.2;
-                    const t2 = t - 1;
-                    const animationProgress = t2 * t2 * ((s + 1) * t2 + s) + 1;
-                    const developEase = 1 - Math.pow(1 - t, 3);
+                // P2 (Target)
+                const x2 = position[0];
+                const y2 = position[1];
+                const z2 = position[2];
 
-                    // Start: BoxTop (Spawn + EjectHeight)
-                    const startY = particleStartPosition[1] + 1.2;
+                // Bezier Interpolation
+                anim.currentPosition.x = tInv2 * x0 + twoTInvT * x1 + t2 * x2;
+                anim.currentPosition.y = tInv2 * y0 + twoTInvT * y1 + t2 * y2;
+                anim.currentPosition.z = tInv2 * z0 + twoTInvT * z1 + t2 * z2;
 
-                    // Lerp
-                    // Lerp
-                    anim.currentPosition.x = THREE.MathUtils.lerp(particleStartPosition[0], position[0], animationProgress);
-                    anim.currentPosition.y = THREE.MathUtils.lerp(startY, position[1], animationProgress);
-                    anim.currentPosition.z = THREE.MathUtils.lerp(particleStartPosition[2], position[2], animationProgress);
+                // Rotation: Spin wildly during flight, settle at end
+                const spinDecay = 1 - easeT;
+                anim.currentRotation.x = rotation[0] + (Math.sin(time * 10) * spinDecay * 2);
+                anim.currentRotation.y = rotation[1] + (time * 8 * spinDecay);
+                anim.currentRotation.z = rotation[2] + (Math.cos(time * 8) * spinDecay * 2);
 
-                    // Rotation
-                    anim.currentRotation.x = rotation[0] * animationProgress;
-                    anim.currentRotation.y = rotation[1] * animationProgress;
-                    anim.currentRotation.z = rotation[2] * animationProgress;
+                // Scale: rapid elastic pop
+                const scaleProgress = Math.min(elapsed / 0.4, 1);
+                const elastic = scaleProgress === 1 ? 1 : 1 - Math.pow(2, -10 * scaleProgress);
+                group.scale.setScalar(scale * elastic);
 
-                    group.scale.setScalar(scale);
+                // Develop photo as it flies
+                developProgress = t * t; // Reveal mostly near end
 
-                    // Transition Phase: Develop 0 -> 1 using easeOut
-                    developProgress = developEase;
-                }
-                else {
-                    // Animation Done - Hand over to Orbit Loop
+                if (t >= 1) {
                     anim.isAnimating = false;
                     group.scale.setScalar(scale);
+                    anim.currentPosition.set(x2, y2, z2);
+                    anim.currentRotation.set(rotation[0], rotation[1], rotation[2]);
                     developProgress = 1.0;
                 }
-
-                // Opacity runs over total duration (Fade in during Ejection mainly)
-                const opacityProgress = Math.min(elapsed / 0.5, 1);
-                if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
-
-                // Update Shader Uniforms
-                if (materials.photoMat && anim.textureLoaded) {
-                    materials.photoMat.uniforms.opacity.value = opacityProgress;
-                    materials.photoMat.uniforms.uDevelop.value = developProgress;
-                }
-
-                // Apply updates
-                group.position.copy(anim.currentPosition);
-
-                // In Phase 1 we keep rotation 0 (flat/aligned)
-                if (elapsed >= ejectionDuration) {
-                    group.rotation.copy(anim.currentRotation);
-                } else {
-                    group.rotation.set(0, 0, 0);
-                }
             }
+
+            // Opacity runs over total duration (Fade in during Ejection mainly)
+            const opacityProgress = Math.min(elapsed / 0.5, 1);
+            if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
+
+            // Update Shader Uniforms
+            if (materials.photoMat && anim.textureLoaded) {
+                materials.photoMat.uniforms.opacity.value = opacityProgress;
+                materials.photoMat.uniforms.uDevelop.value = developProgress;
+            }
+
+            // Apply updates
+            group.position.copy(anim.currentPosition);
+            group.rotation.copy(anim.currentRotation);
         } else if (isExploded) {
             // === PHASE 2: ORBIT & FLOAT ===
             // Ensure fully developed

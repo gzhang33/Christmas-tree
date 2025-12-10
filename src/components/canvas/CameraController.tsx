@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
-import { CAMERA_CONFIG } from '../../config';
+import { CAMERA_CONFIG, getResponsiveValue } from '../../config';
 
 export const CameraController: React.FC = () => {
     const activePhoto = useStore(state => state.activePhoto);
@@ -19,8 +19,19 @@ export const CameraController: React.FC = () => {
     const currentQRef = useRef(new THREE.Quaternion());
     const targetQRef = useRef(new THREE.Quaternion());
     // Default camera pose (reusable to avoid per-frame allocation)
-    const defaultPosRef = useRef(new THREE.Vector3(...CAMERA_CONFIG.default.position));
+    const defaultPosRef = useRef(new THREE.Vector3(...getResponsiveValue(CAMERA_CONFIG.default.position)));
     const defaultLookAtRef = useRef(new THREE.Vector3(...CAMERA_CONFIG.default.lookAt));
+
+    // Update default position on window resize to support responsive layout changes
+    React.useEffect(() => {
+        const handleResize = () => {
+            const newPos = getResponsiveValue(CAMERA_CONFIG.default.position);
+            defaultPosRef.current.set(newPos[0], newPos[1], newPos[2]);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Track when photo was closed to allow brief return animation
     const photoClosedTime = useRef<number | null>(null);

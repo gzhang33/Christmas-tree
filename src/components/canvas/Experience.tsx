@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
-import { OrbitControls as DreiOrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls as DreiOrbitControls, Stars, Environment } from '@react-three/drei';
+
 import { useFrame, useThree } from '@react-three/fiber';
 import { TreeParticles } from './TreeParticles.tsx';
 import { MagicDust } from './MagicDust.tsx';
@@ -9,7 +10,7 @@ import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
-import { PERFORMANCE_CONFIG } from '../../config/performance';
+import { PERFORMANCE_CONFIG, CAMERA_CONFIG, getResponsiveValue } from '../../config';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -84,7 +85,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             }
 
             // Smoothly animate camera back to initial position
-            const initialPos = new THREE.Vector3(0, 5, 28);
+            const initialPos = new THREE.Vector3(...getResponsiveValue(CAMERA_CONFIG.default.position));
             const initialLookAt = new THREE.Vector3(0, 0, 0);
 
             // Use manual lerp with requestAnimationFrame for smooth transition
@@ -232,6 +233,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
 
             {/* === ENVIRONMENT === */}
+            <Environment preset="city" />
             <Stars radius={150} depth={60} count={6000} factor={4} saturation={0.1} fade speed={0.3} />
 
             <MagicDust count={magicDustCount} isExploded={isExploded} />

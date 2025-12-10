@@ -27,6 +27,11 @@
   - **Strategy:** Reuse current project functionality; avoid recreating assets unless strictly necessary for performance.
   - **Goal:** Fix the "floating tree" visual issue.
 
+- [x] **[TREE-07] Integrate User 3D Models for Gifts**
+  - **Task:** Load .glb files from `public/models` and use them for gift particles.
+  - **Strategy:** Use `useGLTF` + `MeshSurfaceSampler` with auto-scaling to fit existing gift dimensions.
+  - **Goal:** Replace procedural cubes with user-provided 3D assets while keeping particle effects.
+
 - [ ] **[TREE-06] Audio Control UI**
   - **Task:** Implement a dropdown menu or toggle for background music selection.
 
