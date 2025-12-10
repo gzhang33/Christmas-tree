@@ -10,7 +10,7 @@ import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
-import { PERFORMANCE_CONFIG, CAMERA_CONFIG, getResponsiveValue } from '../../config';
+import { PERFORMANCE_CONFIG, CAMERA_CONFIG, SCENE_CONFIG, getResponsiveValue } from '../../config';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -105,7 +105,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             // Use manual lerp with requestAnimationFrame for smooth transition
             const startPos = camera.position.clone();
             const startTime = Date.now();
-            const duration = 1500; // 1.5 seconds
+            const duration = CAMERA_CONFIG.transition.resetAnimationDuration; // 重置动画持续时间
 
             const animate = () => {
                 const elapsed = Date.now() - startTime;
@@ -184,22 +184,22 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         }
 
         // === 2. LIGHT DIMMING ===
-        const targetFactor = isHovered ? 0.3 : 1.0;
-        const lerpSpeed = 3.0 * delta;
+        const targetFactor = isHovered ? SCENE_CONFIG.lighting.dimming.targetFactorHovered : SCENE_CONFIG.lighting.dimming.targetFactorNormal;
+        const lerpSpeed = SCENE_CONFIG.lighting.dimming.lerpSpeed * delta;
 
         if (ambientRef.current) {
             ambientRef.current.intensity = THREE.MathUtils.lerp(
-                ambientRef.current.intensity, 0.15 * targetFactor, lerpSpeed
+                ambientRef.current.intensity, SCENE_CONFIG.lighting.ambient.intensity * targetFactor, lerpSpeed
             );
         }
         if (mainSpotRef.current) {
             mainSpotRef.current.intensity = THREE.MathUtils.lerp(
-                mainSpotRef.current.intensity, 1.2 * targetFactor, lerpSpeed
+                mainSpotRef.current.intensity, SCENE_CONFIG.lighting.mainSpot.intensity * targetFactor, lerpSpeed
             );
         }
         if (fillSpotRef.current) {
             fillSpotRef.current.intensity = THREE.MathUtils.lerp(
-                fillSpotRef.current.intensity, 0.8 * targetFactor, lerpSpeed
+                fillSpotRef.current.intensity, SCENE_CONFIG.lighting.fillSpot.intensity * targetFactor, lerpSpeed
             );
         }
     });
@@ -209,43 +209,43 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             <DreiOrbitControls
                 ref={controlsRef}
                 enabled={!activePhoto} // Disable controls when looking at a photo
-                enablePan={false}
-                minDistance={10}
+                enablePan={SCENE_CONFIG.orbitControls.enablePan}
+                minDistance={SCENE_CONFIG.orbitControls.minDistance}
                 maxDistance={CAMERA_CONFIG.limits.maxDistance}
                 autoRotate={isExploded && !hoveredPhotoInstanceId} // Stop rotation on hover
-                autoRotateSpeed={0.3}
-                enableZoom={true}
-                maxPolarAngle={Math.PI / 2 - 0.02}
+                autoRotateSpeed={SCENE_CONFIG.orbitControls.autoRotateSpeed}
+                enableZoom={SCENE_CONFIG.orbitControls.enableZoom}
+                maxPolarAngle={SCENE_CONFIG.orbitControls.maxPolarAngle}
                 onStart={handleControlStart}
                 onEnd={handleControlEnd}
             />
 
             {/* === CINEMATIC LIGHTING === */}
-            <ambientLight ref={ambientRef} intensity={0.15} color="#FFFFFF" />
+            <ambientLight ref={ambientRef} intensity={SCENE_CONFIG.lighting.ambient.intensity} color={SCENE_CONFIG.lighting.ambient.color} />
 
             {/* Main Key Light */}
             <spotLight
                 ref={mainSpotRef}
-                position={[-5, 10, -5]}
-                intensity={1.2}
-                color="#FFB7C5"
-                angle={0.7}
-                penumbra={1}
-                decay={1.5}
-                distance={50}
+                position={SCENE_CONFIG.lighting.mainSpot.position}
+                intensity={SCENE_CONFIG.lighting.mainSpot.intensity}
+                color={SCENE_CONFIG.lighting.mainSpot.color}
+                angle={SCENE_CONFIG.lighting.mainSpot.angle}
+                penumbra={SCENE_CONFIG.lighting.mainSpot.penumbra}
+                decay={SCENE_CONFIG.lighting.mainSpot.decay}
+                distance={SCENE_CONFIG.lighting.mainSpot.distance}
                 castShadow={false}
             />
 
             {/* Fill Light */}
             <spotLight
                 ref={fillSpotRef}
-                position={[5, 8, 5]}
-                intensity={0.8}
-                color="#E0F7FA"
-                angle={0.6}
-                penumbra={1}
-                decay={1.5}
-                distance={40}
+                position={SCENE_CONFIG.lighting.fillSpot.position}
+                intensity={SCENE_CONFIG.lighting.fillSpot.intensity}
+                color={SCENE_CONFIG.lighting.fillSpot.color}
+                angle={SCENE_CONFIG.lighting.fillSpot.angle}
+                penumbra={SCENE_CONFIG.lighting.fillSpot.penumbra}
+                decay={SCENE_CONFIG.lighting.fillSpot.decay}
+                distance={SCENE_CONFIG.lighting.fillSpot.distance}
             />
 
             {/* OPTIMIZATION: Configured for 3-point lighting only. 
@@ -255,8 +255,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
 
             {/* === ENVIRONMENT === */}
-            <Environment preset="city" />
-            <Stars radius={150} depth={60} count={6000} factor={4} saturation={0.1} fade speed={0.3} />
+            <Environment preset={SCENE_CONFIG.environment.preset} />
+            <Stars radius={SCENE_CONFIG.environment.stars.radius} depth={SCENE_CONFIG.environment.stars.depth} count={SCENE_CONFIG.environment.stars.count} factor={SCENE_CONFIG.environment.stars.factor} saturation={SCENE_CONFIG.environment.stars.saturation} fade={SCENE_CONFIG.environment.stars.fade} speed={SCENE_CONFIG.environment.stars.speed} />
 
             <MagicDust count={magicDustCount} isExploded={isExploded} />
 
@@ -268,7 +268,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
             {/* === FLOOR === */}
             <mesh rotation={[-Math.PI / 2, 0, 0]}
-                position={[0, -6.6, 0]}
+                position={SCENE_CONFIG.floor.position}
                 receiveShadow
                 onClick={(e) => {
                     e.stopPropagation();
@@ -281,8 +281,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                     setHoveredPhoto(null);
                 }}
             >
-                <circleGeometry args={[25, 64]} />
-                <meshStandardMaterial color="#050001" metalness={0.7} roughness={0.3} envMapIntensity={0.5} />
+                <circleGeometry args={[SCENE_CONFIG.floor.radius, SCENE_CONFIG.floor.segments]} />
+                <meshStandardMaterial color={SCENE_CONFIG.floor.material.color} metalness={SCENE_CONFIG.floor.material.metalness} roughness={SCENE_CONFIG.floor.material.roughness} envMapIntensity={SCENE_CONFIG.floor.material.envMapIntensity} />
             </mesh>
 
 

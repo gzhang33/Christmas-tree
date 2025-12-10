@@ -14,6 +14,7 @@ export {
     isMobileDevice,
     getResponsiveValue,
     CAMERA_CONFIG,              // 相机配置
+    SCENE_CONFIG,               // 场景配置
     POST_PROCESSING_CONFIG      // 后期处理配置
 } from './performance';
 

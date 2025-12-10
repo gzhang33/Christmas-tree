@@ -148,6 +148,7 @@ export const CAMERA_CONFIG = {
     transition: {
         returnDampingSpeed: 2,              // 返回默认位置的插值速度
         returnAnimationDuration: 1.5,       // 返回动画持续时间（秒）- 之后允许用户自由控制
+        resetAnimationDuration: 1500,       // 重置动画持续时间（毫秒）
     },
 
     /** 相机距离限制 */
@@ -158,7 +159,88 @@ export const CAMERA_CONFIG = {
 } as const;
 
 // ============================================================================
-// 4. 后期处理配置 (Post-Processing Configuration)
+// 4. 场景配置 (Scene Configuration)
+// ============================================================================
+
+/**
+ * 场景配置
+ * 包含OrbitControls、光照、环境等参数
+ */
+export const SCENE_CONFIG = {
+    /** OrbitControls 配置 */
+    orbitControls: {
+        enablePan: false,                   // 禁用平移
+        minDistance: 10,                    // 最小距离
+        autoRotateSpeed: 0.3,               // 自动旋转速度
+        enableZoom: true,                   // 启用缩放
+        maxPolarAngle: Math.PI / 2 - 0.02,  // 最大极角（防止相机穿过地面）
+    },
+
+    /** 光照配置 */
+    lighting: {
+        /** 环境光 */
+        ambient: {
+            intensity: 0.15,                // 强度
+            color: '#FFFFFF',               // 颜色
+        },
+        /** 主光源 (Key Light) */
+        mainSpot: {
+            position: [-5, 10, -5] as const,// 位置
+            intensity: 1.2,                 // 强度
+            color: '#FFB7C5',               // 颜色
+            angle: 0.7,                     // 光锥角度
+            penumbra: 1,                    // 半影
+            decay: 1.5,                     // 衰减
+            distance: 50,                   // 距离
+        },
+        /** 补光 (Fill Light) */
+        fillSpot: {
+            position: [5, 8, 5] as const,   // 位置
+            intensity: 0.8,                 // 强度
+            color: '#E0F7FA',               // 颜色
+            angle: 0.6,                     // 光锥角度
+            penumbra: 1,                    // 半影
+            decay: 1.5,                     // 衰减
+            distance: 40,                   // 距离
+        },
+        /** 光照调光效果 */
+        dimming: {
+            targetFactorHovered: 0.3,       // 悬停时的目标因子
+            targetFactorNormal: 1.0,        // 正常时的目标因子
+            lerpSpeed: 3.0,                 // 插值速度
+        },
+    },
+
+    /** 环境配置 */
+    environment: {
+        preset: 'city' as const,            // 环境预设
+        stars: {
+            radius: 150,                    // 半径
+            depth: 60,                      // 深度
+            count: 6000,                    // 数量
+            factor: 4,                      // 因子
+            saturation: 0.1,                // 饱和度
+            fade: true,                     // 淡入淡出
+            speed: 0.3,                     // 速度
+        },
+    },
+
+    /** 地面配置 */
+    floor: {
+        position: [0, -6.6, 0] as const,    // 位置
+        radius: 25,                         // 半径
+        segments: 64,                       // 分段数
+        material: {
+            color: '#050001',               // 颜色
+            metalness: 0.7,                 // 金属度
+            roughness: 0.3,                 // 粗糙度
+            envMapIntensity: 0.5,           // 环境贴图强度
+        },
+    },
+} as const;
+
+// ============================================================================
+// 5. 后期处理配置 (Post-Processing Configuration)
 // ============================================================================
 
 /**
