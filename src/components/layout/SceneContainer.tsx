@@ -61,6 +61,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                 onCreated={({ scene }) => {
                     scene.background = new THREE.Color('#030002');
                 }}
+                onPointerMissed={() => {
+                    // Clear hover preview when clicking outside any object
+                    const setHoveredPhoto = useStore.getState().setHoveredPhoto;
+                    setHoveredPhoto(null);
+                }}
             >
                 {/* Snow - shown in all phases */}
                 <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />

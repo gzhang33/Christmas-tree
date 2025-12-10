@@ -27,7 +27,7 @@ function App() {
   const triggerExplosion = useStore((state) => state.triggerExplosion);
   const resetExplosion = useStore((state) => state.resetExplosion);
   const landingPhase = useStore((state) => state.landingPhase);
-  const hoveredPhotoId = useStore((state) => state.hoveredPhotoId);
+  const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId);
 
   // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);

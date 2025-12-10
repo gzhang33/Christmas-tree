@@ -67,6 +67,7 @@ interface PolaroidPhotoProps {
         photoMaterial: THREE.ShaderMaterial | null;
         animState: any;
         hoverState: any;
+        id: string; // NEW: Pass ID
         position: [number, number, number];
         rotation: [number, number, number];
         scale: number;
@@ -199,6 +200,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
     const setActivePhoto = useStore(state => state.setActivePhoto);
     const activePhoto = useStore(state => state.activePhoto);
+    const hoveredPhotoInstanceId = useStore(state => state.hoveredPhotoInstanceId); // Need current hover state for click logic
 
     // Identify memory ID from URL
     const memoryId = useMemo(() => {
@@ -352,6 +354,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 photoMaterial: photoMaterialRef.current,
                 animState: animRef.current,
                 hoverState: hoverRef.current,
+                id: memoryId, // NEW: Pass global tracking ID
                 position,
                 rotation,
                 scale,
@@ -362,13 +365,13 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 isThisActive,
             });
         }
-    }, [useExternalAnimation, onRegisterAnimation, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
+    }, [useExternalAnimation, onRegisterAnimation, memoryId, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
 
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 
     const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
-        setHoveredPhoto(url); // Notify global store
+        setHoveredPhoto(instanceId); // Notify global store with instanceId
 
         const hover = hoverRef.current;
         hover.isHovered = true;
@@ -376,7 +379,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
         // Standard pointer cursor (no custom icon per AC:3)
         document.body.style.cursor = 'pointer';
-    }, [url, setHoveredPhoto]);
+    }, [instanceId, setHoveredPhoto]);
 
     const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
@@ -575,7 +578,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 const radius = Math.sqrt(initialX * initialX + initialZ * initialZ);
 
                 // Global Hover Check
-                const isAnyHovered = useStore.getState().hoveredPhotoId !== null;
+                const isAnyHovered = useStore.getState().hoveredPhotoInstanceId !== null;
                 const effectiveSpeed = isAnyHovered ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
 
                 // Accumulate angle
@@ -688,6 +691,17 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             onClick={(e) => {
                 e.stopPropagation();
                 if (!isExploded || !groupRef.current) return;
+
+                // === MOBILE INTERACTION: Tap-to-Preview ===
+                // Check if user is on a touch device or using touch input
+                // If not currently hovered (previewing), set hover first.
+                // This creates a 2-step process: Tap 1 -> Preview, Tap 2 -> Open.
+                const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+                if (isTouch && hoveredPhotoInstanceId !== instanceId) {
+                    setHoveredPhoto(instanceId);
+                    return; // Stop here, do not open
+                }
 
                 // Toggle Logic:
                 // If this photo is already active, clicking it again de-selects it (Return to Sea).

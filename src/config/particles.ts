@@ -80,8 +80,8 @@ export const PARTICLE_CONFIG = {
 
         // 爆炸物理阻尼速度
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
-        dampingSpeedExplosion: 0.02, // 爆炸时阻尼速度
-        dampingSpeedReset: 0.05,     // 回归时阻尼速度
+        dampingSpeedExplosion: 0.002, // 爆炸时阻尼速度
+        dampingSpeedReset: 0.008,     // 回归时阻尼速度
     },
 
     // ------------------------------------------------------------------------

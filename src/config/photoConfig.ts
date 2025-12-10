@@ -23,7 +23,7 @@ export const PHOTO_DISTRIBUTION = {
 
     // 垂直角度范围 (弧度) - 限制照片的高低位置
     // 0 = 赤道, PI/2 = 北极, -PI/2 = 南极
-    polarAngleMin: -0.6, // 略低于地平线
+    polarAngleMin: -0.4, // 略低于地平线
     polarAngleMax: 0.7,  // 高于地平线
 
     // 中心偏向 - 照片更可能出现在相机前方

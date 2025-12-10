@@ -30,7 +30,7 @@ interface ExperienceProps {
 export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     const { config, isExploded, toggleExplosion, photos } = uiState;
     const particleCount = useStore((state) => state.particleCount);
-    const hoveredPhotoId = useStore((state) => state.hoveredPhotoId); // Consume hover state
+    const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId); // Consume hover state
     const activePhoto = useStore((state) => state.activePhoto);
     const setActivePhoto = useStore((state) => state.setActivePhoto);
     const { camera } = useThree();
@@ -72,6 +72,20 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
         idleRef.current.isInteracting = false;
         idleRef.current.lastInteractionTime = Date.now();
     }, []);
+
+    // Reset idle tracking when hover preview ends to resume auto-rotation immediately
+    useEffect(() => {
+        if (hoveredPhotoInstanceId === null && isExploded && controlsRef.current) {
+            // When hover ends, force OrbitControls to resume auto-rotation immediately
+            // Reset interaction state to bypass idle threshold waiting
+            idleRef.current.isInteracting = false;
+            idleRef.current.lastInteractionTime = 0; // Set to 0 to immediately pass idle threshold
+            idleRef.current.isIdle = true;
+
+            // Force controls update to apply autoRotate immediately
+            controlsRef.current.update();
+        }
+    }, [hoveredPhotoInstanceId, isExploded]);
 
     // Reset camera position when returning from exploded state to tree state
     const prevIsExplodedRef = useRef(isExploded);
@@ -130,7 +144,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + VolumetricRays + Post-Processing ===
     useFrame((state, delta) => {
         const idle = idleRef.current;
-        const isHovered = !!hoveredPhotoId;
+        const isHovered = hoveredPhotoInstanceId !== null;
 
 
 
@@ -190,7 +204,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 enablePan={false}
                 minDistance={10}
                 maxDistance={50}
-                autoRotate={isExploded && !hoveredPhotoId} // Stop rotation on hover
+                autoRotate={isExploded && !hoveredPhotoInstanceId} // Stop rotation on hover
                 autoRotateSpeed={0.3}
                 enableZoom={true}
                 maxPolarAngle={Math.PI / 2 - 0.02}
@@ -244,16 +258,19 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             {/* === LIGHTBOX OVERLAY === */}
             <CameraController />
 
-
             {/* === FLOOR === */}
             <mesh rotation={[-Math.PI / 2, 0, 0]}
                 position={[0, -6.6, 0]}
                 receiveShadow
                 onClick={(e) => {
                     e.stopPropagation();
+                    // Close active photo if open
                     if (activePhoto) {
                         setActivePhoto(null);
                     }
+                    // Clear hover preview (for mobile tap-to-preview)
+                    const setHoveredPhoto = useStore.getState().setHoveredPhoto;
+                    setHoveredPhoto(null);
                 }}
             >
                 <circleGeometry args={[25, 64]} />

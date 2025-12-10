@@ -37,8 +37,8 @@ export const PERFORMANCE_CONFIG = {
     particles: {
         /** 默认粒子总数 - 响应式配置 */
         defaultCount: {
-            normal: 500000,
-            compact: 500000,
+            normal: 400000,
+            compact: 200000,
         },
     },
 
