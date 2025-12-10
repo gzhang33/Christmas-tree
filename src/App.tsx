@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
+import { ClickPrompt } from './components/ui/ClickPrompt.tsx';
 import { LandingTitle } from './components/ui/LandingTitle.tsx';
 import { BackgroundMusicPlayer } from './components/ui/BackgroundMusicPlayer.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
@@ -202,6 +203,15 @@ function App() {
 
         {/* UI Overlay - only shown in tree phase */}
         {landingPhase === 'tree' && <Controls uiState={uiState} />}
+
+        {/* Restore Prompt */}
+        <ClickPrompt
+          isVisible={landingPhase === 'tree' && isExploded}
+          onClick={toggleExplosion}
+          mainText={<><span className="text-amber-300">Double Click</span> to restore</>}
+          subText="双击屏幕还原圣诞树 ✨"
+          showArrow={false}
+        />
 
         {/* Debug Store Panel (F4 to toggle) */}
         <DebugStore performanceData={performanceData} />

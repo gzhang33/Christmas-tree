@@ -1503,7 +1503,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       ref={rootRef}
       onClick={(e) => {
         e.stopPropagation();
-        onParticlesClick();
+        if (!isExploded) {
+          onParticlesClick();
+        }
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        if (isExploded) {
+          onParticlesClick();
+        }
       }}
     >
       {/* === ENTITY LAYER (Normal Blending + Depth Write) === */}

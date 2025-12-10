@@ -17,7 +17,13 @@ export interface PerformanceData {
   particleCount: number;
   lodLevel: string;
   memoryUsage: number;
+  cameraPosition?: { x: number; y: number; z: number };
+  resolution?: string;
+  textureCount?: number;
+  shaderCount?: number;
 }
+
+
 
 interface PerformanceMonitorProps {
   particleCount: number;
@@ -65,6 +71,14 @@ const PerformanceTracker: React.FC<{
         drawCalls: info.render.calls,
         triangles: info.render.triangles,
         lodLevel,
+        cameraPosition: {
+          x: Number(camera.position.x.toFixed(2)),
+          y: Number(camera.position.y.toFixed(2)),
+          z: Number(camera.position.z.toFixed(2)),
+        },
+        resolution: `${gl.domElement.width}x${gl.domElement.height}`,
+        textureCount: info.memory.textures,
+        shaderCount: info.programs?.length ?? 0,
       });
 
       frameCount.current = 0;
