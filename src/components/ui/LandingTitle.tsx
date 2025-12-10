@@ -196,10 +196,10 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
         // 动态计算所需高度：确保画布能容纳用户名
         // 用户名 Y 位置 = fontSize * lineSpacing * yOffset + 用户名字体高度
         const userNameConfig = LANDING_CONFIG.userName;
-        const userNameYOffset = isMobile ? userNameConfig.yOffset.compact : userNameConfig.yOffset.normal;
+        const tempUserNameYOffset = isMobile ? userNameConfig.yOffset.compact : userNameConfig.yOffset.normal;
         const userNameFontRatio = userNameConfig.fontSizeRatio;
         // 所需高度倍数 = lineSpacing * yOffset + 用户名占用高度 (约 1.2 倍用户名字体)
-        const requiredHeightForUserName = TITLE_CONFIG.text.lineSpacing * userNameYOffset + userNameFontRatio * 1.2;
+        const requiredHeightForUserName = TITLE_CONFIG.text.lineSpacing * tempUserNameYOffset + userNameFontRatio * 1.2;
         // 取两者最大值
         const heightMultiplier = Math.max(baseHeightMultiplier, requiredHeightForUserName);
 
@@ -234,6 +234,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
         // Resolve responsive userName config
         const userNameXOffset = isMobile ? userNameConfig.xOffset.compact : userNameConfig.xOffset.normal;
+        const userNameYOffset = isMobile ? userNameConfig.yOffset.compact : userNameConfig.yOffset.normal;
 
         // Resolve alignment and offsets
         const alignment = isMobile ? LANDING_CONFIG.title.alignment.compact : LANDING_CONFIG.title.alignment.normal;
@@ -561,7 +562,6 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
 
                 let x = particle.originX;
                 let y = particle.originY;
-                let alpha = 1; // Username always full alpha for sharp typewriter effect
                 const size = particle.size;
 
                 // Simple breathe animation for username
@@ -574,7 +574,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     y += breathe * 0.1;
                 }
 
-                if (alpha <= 0.02 || size <= 0.3) return;
+                if (size <= 0.3) return;
 
                 // 获取响应式粒子最小渲染半径
                 const sizeConfig = responsive.isMobile
@@ -582,7 +582,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({
                     : TITLE_CONFIG.particle.size.normal;
 
                 ctx.save();
-                ctx.globalAlpha = alpha;
+                ctx.globalAlpha = 1;
                 ctx.shadowBlur = TITLE_CONFIG.effects.shadowBlur * 0.8;
                 ctx.shadowColor = particle.color;
 

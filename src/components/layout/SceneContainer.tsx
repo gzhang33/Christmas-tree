@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from '../canvas/Experience';
@@ -24,13 +24,23 @@ const PerformanceMonitorWrapper: React.FC<{
 }> = ({ particleCount, onUpdate }) => {
     const { TrackerComponent, updateData } = usePerformanceMonitor();
 
+    // Store the latest onUpdate callback in a ref to avoid re-running the effect
+    // when the parent recreates the callback function
+    const onUpdateRef = useRef(onUpdate);
+
+    // Keep the ref updated with the latest callback
     useEffect(() => {
-        onUpdate({ particleCount });
-    }, [particleCount, onUpdate]);
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
+
+    // Only depend on particleCount, use the ref for the callback
+    useEffect(() => {
+        onUpdateRef.current({ particleCount });
+    }, [particleCount]);
 
     return <TrackerComponent onUpdate={(data) => {
         updateData(data);
-        onUpdate({ ...data, particleCount });
+        onUpdateRef.current({ ...data, particleCount });
     }} />;
 };
 
@@ -68,7 +78,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                 }}
             >
                 {/* Snow - shown in all phases */}
-                <Snow count={Math.floor(config.snowDensity)} speed={config.snowSpeed} wind={config.windStrength} />
+                <Snow
+                    count={Math.max(0, Math.floor(config.snowDensity || 0))}
+                    speed={config.snowSpeed}
+                    wind={config.windStrength}
+                />
 
                 {/* Landing Particles - handles Morphing phase (3D GPU particles) */}
                 {landingPhase === 'morphing' && <LandingParticles />}

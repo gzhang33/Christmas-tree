@@ -8,24 +8,37 @@ import { POST_PROCESSING_CONFIG } from '../../config';
 
 export const CinematicEffects: React.FC = () => {
     const isExploded = useStore((state) => state.isExploded);
-    const hoveredPhotoId = useStore((state) => state.hoveredPhotoId);
+    const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId);
 
     const chromaticRef = useRef<any>(null);
+
+    // Calculate initial offset to avoid jump on first load
+    // 计算初始偏移值，避免首次加载时的跳动
+    const initialOffset = useMemo(() => {
+        const offset = isExploded && hoveredPhotoInstanceId === null
+            ? POST_PROCESSING_CONFIG.chromaticAberration.exploded
+            : POST_PROCESSING_CONFIG.chromaticAberration.normal;
+        return new THREE.Vector2(offset, offset);
+    }, [isExploded, hoveredPhotoInstanceId]);
 
     // Animation for Chromatic Aberration
     useFrame((state, delta) => {
         if (chromaticRef.current) {
-            const isHovered = !!hoveredPhotoId;
+            const isHovered = hoveredPhotoInstanceId !== null;
             // Target offset: exploded value when exploded and not hovering, normal otherwise
             const targetOffset = isExploded && !isHovered
                 ? POST_PROCESSING_CONFIG.chromaticAberration.exploded
                 : POST_PROCESSING_CONFIG.chromaticAberration.normal;
 
+            // Frame-rate independent lerp factor
+            const CHROMATIC_LERP_SPEED = 3.0; // Adjust to taste
+            const t = Math.min(delta * CHROMATIC_LERP_SPEED, 1);
+
             chromaticRef.current.offset.x = THREE.MathUtils.lerp(
-                chromaticRef.current.offset.x, targetOffset, delta
+                chromaticRef.current.offset.x, targetOffset, t
             );
             chromaticRef.current.offset.y = THREE.MathUtils.lerp(
-                chromaticRef.current.offset.y, targetOffset, delta
+                chromaticRef.current.offset.y, targetOffset, t
             );
         }
     });
@@ -59,13 +72,9 @@ export const CinematicEffects: React.FC = () => {
                 blendFunction={BlendFunction.NORMAL}
             />
 
-            {/* Dynamic Chromatic Aberration */}
             <ChromaticAberration
                 ref={chromaticRef}
-                offset={new THREE.Vector2(
-                    chromaticAberration.offset.x,
-                    chromaticAberration.offset.y
-                )}
+                offset={initialOffset}
                 radialModulation={chromaticAberration.radialModulation}
                 modulationOffset={chromaticAberration.modulationOffset}
             />

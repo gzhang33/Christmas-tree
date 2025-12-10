@@ -371,6 +371,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Support touch and pen input
+        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
+
         setHoveredPhoto(instanceId); // Notify global store with instanceId
 
         const hover = hoverRef.current;
@@ -379,10 +383,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
         // Standard pointer cursor (no custom icon per AC:3)
         document.body.style.cursor = 'pointer';
-    }, [instanceId, setHoveredPhoto]);
+    }, [instanceId, memoryId, setHoveredPhoto]);
 
     const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Support touch and pen input
+        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
+
         setHoveredPhoto(null); // Notify global store
 
         const hover = hoverRef.current;
@@ -392,7 +400,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetTiltX = 0;
         hover.targetTiltY = 0;
         document.body.style.cursor = 'auto';
-    }, [setHoveredPhoto]);
+    }, [memoryId, setHoveredPhoto]);
 
     // === 3D TILT INTERACTION (AC: 2) ===
 
@@ -402,24 +410,41 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
         if (!hover.isHovered || !groupRef.current) return;
 
-        // Get intersection point in local coordinates using scratch vector (No Sync/Clone)
-        tempMouseVec.copy(e.point);
-        groupRef.current.worldToLocal(tempMouseVec);
+        // Support touch and pen input
+        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
 
-        // Calculate normalized offset from center (-1 to 1)
-        // Frame dimensions: width=1.0, height=1.2
-        const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
-        const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
+        // Safe fallback if e.uv is undefined
+        // Use e.point for 3D position-based tilt calculation
+        if (e.uv) {
+            // UV-based tilt (if available)
+            const normalizedX = (e.uv.x - 0.5) * 2; // Convert 0-1 to -1 to 1
+            const normalizedY = (e.uv.y - 0.5) * 2;
 
-        // Clamp values to avoid extreme tilts
-        const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
-        const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
+            const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
+            const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
 
-        // Apply tilt: mouse on right tilts card left (negative Y rotation)
-        // Mouse on top tilts card back (positive X rotation)
-        hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
-        hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
-    }, []);
+            hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
+            hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
+        } else {
+            // Fallback: Get intersection point in local coordinates using scratch vector
+            tempMouseVec.copy(e.point);
+            groupRef.current.worldToLocal(tempMouseVec);
+
+            // Calculate normalized offset from center (-1 to 1)
+            // Frame dimensions: width=1.0, height=1.2
+            const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
+            const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
+
+            // Clamp values to avoid extreme tilts
+            const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
+            const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
+
+            // Apply tilt: mouse on right tilts card left (negative Y rotation)
+            // Mouse on top tilts card back (positive X rotation)
+            hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
+            hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
+        }
+    }, [memoryId, setHoveredPhoto]);
 
     // Animation frame - optimized to minimize allocations
     // NEW: Skip if using external animation (PhotoManager handles it)

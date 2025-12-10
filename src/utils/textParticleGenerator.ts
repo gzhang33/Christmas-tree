@@ -146,7 +146,7 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
         maxY = Math.max(maxY, worldY);
     }
 
-    // 如果没有粒子，设置默认边界值
+    // If no particles, set default bounds
     if (particleCount === 0) {
         minX = maxX = minY = maxY = 0;
     }
@@ -156,7 +156,7 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
         count: particleCount,
         bounds: { minX, maxX, minY, maxY },
     };
-};
+}
 
 /**
  * Generates particles for multi-line text (e.g., "Merry\nChristmas\n[UserName]")
@@ -229,7 +229,7 @@ export function padParticlePositions(
         return result.positions;
     }
 
-    // 如果原始结果为空，返回在原点附近的随机位置
+    // If original result is empty, return random positions near origin
     if (result.count === 0) {
         const padded = new Float32Array(targetCount * 3);
         for (let i = 0; i < targetCount; i++) {

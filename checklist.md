@@ -27,11 +27,6 @@
   - **Strategy:** Reuse current project functionality; avoid recreating assets unless strictly necessary for performance.
   - **Goal:** Fix the "floating tree" visual issue.
 
-- [x] **[TREE-07] Integrate User 3D Models for Gifts**
-  - **Task:** Load .glb files from `public/models` and use them for gift particles.
-  - **Strategy:** Use `useGLTF` + `MeshSurfaceSampler` with auto-scaling to fit existing gift dimensions.
-  - **Goal:** Replace procedural cubes with user-provided 3D assets while keeping particle effects.
-
 - [x] **[TREE-06] Audio Control UI**
   - **Task:** Implement a dropdown menu or toggle for background music selection.
   - **Implementation:** Created `audio.ts` config with 5 music options, added `selectedAudioId` to store, implemented `BackgroundMusicPlayer.tsx` for playback, and added music selection UI with preview functionality in Controls panel.
@@ -43,6 +38,12 @@
   - **Task:** Debug `dat.GUI` (or current controls).
   - **Fix:** Prevent browser freeze/crash when adjusting the `Particle Count` slider.
   - **Implementation:** Increased debounce delay to 500ms, reduced max particle count from 100k to 50k, increased step to 2500.
+
+  - [x] **[TREE-09] Integrate User 3D Models for Gifts**
+  - **Task:** Load .glb files from `public/models` and use them for gift particles.
+  - **Strategy:** Use `useGLTF` + `MeshSurfaceSampler` with auto-scaling to fit existing gift dimensions.
+  - **Goal:** Replace procedural cubes with user-provided 3D assets while keeping particle effects.
+
 
 ## 💥 Part 2: Transition & Morphing
 

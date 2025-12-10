@@ -18,7 +18,7 @@ export const AUDIO_OPTIONS: AudioOption[] = [
     {
         id: 'all-i-want',
         name: 'All I Want for Christmas',
-        path: '/audio/All I Want for Christmas Is You.flac',
+        path: '/All-I-Want-for-Christmas-Is-You.flac',
     },
     {
         id: 'jingle-bells',
@@ -28,12 +28,12 @@ export const AUDIO_OPTIONS: AudioOption[] = [
     {
         id: 'jingle-bells-child',
         name: 'Jingle Bells (Child)',
-        path: '/audio/child-Jingle Bells.mp3',
+        path: '/audio/child-Jingle-Bells.mp3',
     },
     {
         id: 'jingle-bells-classical',
         name: 'Jingle Bells (Classical)',
-        path: '/audio/classical-Jingle Bells.mp3',
+        path: '/audio/classical-Jingle-Bells.mp3',
     },
 ] as const;
 

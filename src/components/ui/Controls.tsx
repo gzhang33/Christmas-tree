@@ -94,9 +94,12 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             const dataUrl = await new Promise<string>((resolve) => {
                                 const reader = new FileReader();
                                 reader.onload = (e) => resolve(e.target?.result as string);
-                                reader.onerror = () => resolve('');
+                                reader.onerror = () => resolve(''); // 考虑是否应该 reject 而不是返回空字符串
                                 reader.readAsDataURL(file);
-                            }); uploadedUrls.push(dataUrl);
+                            });
+                            if (dataUrl) {
+                                uploadedUrls.push(dataUrl);
+                            }
                         }
                     }));
                 }
@@ -110,22 +113,21 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     addPhotos(uploadedUrls);
                 }
 
+
             } catch (error) {
-                console.error("Upload error", error);
-                // Fallback: Use Data URL
-                if (e.target.files) {
-                    const fallbackUrls = await Promise.all(
-                        Array.from(e.target.files).map(file =>
-                            new Promise<string>((resolve) => {
-                                const reader = new FileReader();
-                                reader.onload = (e) => resolve(e.target?.result as string);
-                                reader.readAsDataURL(file);
-                            })
-                        )
-                    );
-                    addPhotos(fallbackUrls);
-                    setFailedUploads(Array.from(e.target.files).map(f => f.name));
-                }
+                // Fallback: Use Data URL if cloud upload completely fails
+                const fallbackUrls = await Promise.all(
+                    Array.from(e.target.files).map(file =>
+                        new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target?.result as string);
+                            reader.onerror = () => resolve(''); // 失败时返回空字符串
+                            reader.readAsDataURL(file);
+                        })
+                    )
+                );
+                addPhotos(fallbackUrls);
+                setFailedUploads(Array.from(e.target.files).map(f => f.name));
             } finally {
                 setIsUploading(false);
                 setUploadProgress(0);
@@ -507,9 +509,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             </div>
                         </div>
                     </motion.div>
-                </motion.div >
-            )
-            }
-        </AnimatePresence >
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 };

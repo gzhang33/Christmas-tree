@@ -31,7 +31,7 @@ void main() {
     vec3 color = vColor * hdrBoost;
     
     // Center glow
-    float glow = 1.0 - dist * 1.2;
+    float glow = max(0.0, 1.0 - dist * 1.2);
     color += glow * 0.08;
     
     gl_FragColor = vec4(color, alpha);

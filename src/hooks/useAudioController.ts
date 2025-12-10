@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export const useAudioController = (initialVolume = 0.35) => {
+    // Audio segment configuration: play from 45s to end, then loop
+    const LOOP_START_TIME = 45; // Start playback at 45 seconds
+
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -10,8 +13,7 @@ export const useAudioController = (initialVolume = 0.35) => {
 
         audio.volume = initialVolume;
 
-        // Audio segment configuration: play from 45s to end, then loop
-        const LOOP_START_TIME = 45; // Start playback at 45 seconds
+
 
         // Flag to track if we've set the initial time
         let hasSetInitialTime = false;
@@ -28,7 +30,7 @@ export const useAudioController = (initialVolume = 0.35) => {
         // Handle loop: when audio ends, restart from 45 seconds
         const handleTimeUpdate = () => {
             // When audio reaches the end, loop back to 45 seconds
-            if (audio.duration > 0 && audio.currentTime >= audio.duration - 0.5) {
+            if (!isNaN(audio.duration) && audio.duration > 0 && audio.currentTime >= audio.duration - 0.5) {
                 console.log('[Audio] Looping back to 45s');
                 audio.currentTime = LOOP_START_TIME;
                 audio.play().catch(e => console.warn('Loop play failed:', e));
@@ -57,11 +59,9 @@ export const useAudioController = (initialVolume = 0.35) => {
         const attemptPlay = async () => {
             try {
                 // Wait for audio to be ready, then set time and play
-                if (audio.readyState >= 2) {
-                    console.log('[Audio] Autoplay - setting time to 45s');
-                    audio.currentTime = LOOP_START_TIME;
-                    hasSetInitialTime = true;
-                }
+                // Wait for audio to be ready, then play
+                // Initial time is handled by handleCanPlay listener
+
                 await audio.play();
                 if (audioRef.current) audioRef.current.muted = false;
                 setIsMuted(false);
@@ -108,8 +108,8 @@ export const useAudioController = (initialVolume = 0.35) => {
             try {
                 audioRef.current.muted = false;
                 // Ensure we start from 45 seconds if audio is at the beginning
-                if (audioRef.current.currentTime < 45) {
-                    audioRef.current.currentTime = 45;
+                if (audioRef.current.currentTime < LOOP_START_TIME) {
+                    audioRef.current.currentTime = LOOP_START_TIME;
                 }
                 await audioRef.current.play();
                 setIsMuted(false);
@@ -117,7 +117,12 @@ export const useAudioController = (initialVolume = 0.35) => {
                 console.warn('Unmute failed:', e);
             }
         }
-    }, []);
+    }, [LOOP_START_TIME]);
 
-    return { isMuted, toggleMute, unmute, audioRef };
+    return {
+        audioRef,
+        isMuted,
+        toggleMute,
+        unmute
+    };
 };

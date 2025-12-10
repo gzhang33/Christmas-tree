@@ -42,7 +42,6 @@ const GIFT_MODELS = [
 GIFT_MODELS.forEach(path => useGLTF.preload(path));
 
 const GiftMesh = React.memo(({ scene, width, height, position, rotation, visible }: { scene: THREE.Group, width: number, height: number, position: [number, number, number], rotation: number, visible: boolean }) => {
-  const groupRef = useRef<THREE.Group>(null);
 
   const clonedScene = useMemo(() => {
     // Clone the scene to allow independent transforms
@@ -68,6 +67,23 @@ const GiftMesh = React.memo(({ scene, width, height, position, rotation, visible
     return clone;
 
   }, [scene, width, height]);
+
+  // 组件卸载时清理克隆的场景资源
+  useEffect(() => {
+    return () => {
+      clonedScene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.geometry?.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => m.dispose());
+          } else {
+            mesh.material?.dispose();
+          }
+        }
+      });
+    };
+  }, [clonedScene]);
 
   return (
     <primitive
@@ -524,7 +540,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const count = Math.floor(
       Math.max(
         particleCount * PARTICLE_CONFIG.ratios.entity,
-        PARTICLE_CONFIG.minCounts.tree * 0.7,
+        PARTICLE_CONFIG.minCounts.entity * 0.7,
       ),
     );
 
@@ -685,7 +701,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const count = Math.floor(
       Math.max(
         particleCount * PARTICLE_CONFIG.ratios.glow,
-        PARTICLE_CONFIG.minCounts.tree * 0.3,
+        PARTICLE_CONFIG.minCounts.entity * 0.3,
       ),
     );
     const pos = new Float32Array(count * 3);

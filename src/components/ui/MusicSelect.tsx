@@ -31,7 +31,8 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
     return (
         <div className="relative w-full" ref={containerRef}>
             {/* Trigger Button */}
-            <div
+            <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
                     w-full flex items-center justify-between
@@ -46,7 +47,6 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                     hover:border-[rgba(255,255,255,0.2)]
                     ${isOpen ? 'border-electric-purple ring-1 ring-electric-purple/50' : ''}
                 `}
-                role="button"
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
@@ -70,8 +70,7 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                         ${isOpen ? 'rotate-180 text-electric-purple' : 'group-hover:text-white/80'}
                     `}
                 />
-            </div>
-
+            </button>
             {/* Dropdown List */}
             {isOpen && (
                 <div className="

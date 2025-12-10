@@ -127,7 +127,7 @@ function createLandingShaderMaterial(): THREE.ShaderMaterial {
 }
 
 export const LandingParticles: React.FC<LandingParticlesProps> = () => {
-    const { viewport } = useThree();
+    const { viewport, size } = useThree();
     const userNameRaw = useStore((state) => state.userName);
     const landingPhase = useStore((state) => state.landingPhase);
     const treeColor = useStore((state) => state.treeColor);
@@ -161,8 +161,8 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
             lines.push(userName);
         }
 
-        // Responsive parameters
-        const isCompact = viewport.width < 768;
+        // Responsive parameters (use pixel width, not Three.js world units)
+        const isCompact = size.width < 768;
         const particleConfig = LANDING_CONFIG.title.particleGeneration;
 
         const fontSize = isCompact
@@ -187,7 +187,7 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
         });
 
         // Fixed Buffer Allocation: max(text, tree)
-        const treeParticleCount = PARTICLE_CONFIG.minCounts.tree;
+        const treeParticleCount = PARTICLE_CONFIG.minCounts.entity;
         const maxCount = Math.max(textResult.count, treeParticleCount);
 
         // Pad text positions to match max count
@@ -223,7 +223,7 @@ export const LandingParticles: React.FC<LandingParticlesProps> = () => {
             count: maxCount,
             textCount: textResult.count,
         };
-    }, [userName, viewport.width]);
+    }, [userName, size.width]);
 
     // Create geometry
     const geometry = useMemo(() => {

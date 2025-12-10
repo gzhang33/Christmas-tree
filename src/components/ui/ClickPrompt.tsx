@@ -35,11 +35,12 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({
                     exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: animation.fadeDuration }}
                     onClick={onClick}
-                    aria-label="Click to light up the Christmas tree"                >                    <motion.div
-                        animate={{
-                            opacity: breathe.opacity,
-                            scale: breathe.scale,
-                        }}
+                    aria-label="Click to light up the Christmas tree"
+                >
+                    <motion.div animate={{
+                        opacity: breathe.opacity,
+                        scale: breathe.scale,
+                    }}
                         transition={{
                             duration: animation.breatheDuration,
                             repeat: Infinity,

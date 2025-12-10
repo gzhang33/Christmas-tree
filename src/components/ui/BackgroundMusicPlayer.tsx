@@ -7,6 +7,9 @@ interface BackgroundMusicPlayerProps {
     onAudioReady?: (audioElement: HTMLAudioElement) => void;
 }
 
+// 音量常量
+const DEFAULT_VOLUME = 0.35;
+
 /**
  * 背景音乐播放器组件
  * 根据 store 中选中的音频 ID 自动播放对应音乐
@@ -22,33 +25,51 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
-    // 音频元素创建后的回调
-    useEffect(() => {
-        if (audioRef.current && onAudioReady) {
-            onAudioReady(audioRef.current);
+    // 辅助函数：规范化 URL 以便比较
+    const normalizeUrl = useCallback((url: string): string => {
+        try {
+            // 如果是相对路径，转换为绝对路径
+            return new URL(url, window.location.href).href;
+        } catch {
+            return url;
         }
-    }, [onAudioReady]);
+    }, []);
 
-    // 处理静音状态
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.muted = isMuted;
+    // 辅助函数：确保音量设置
+    const ensureVolume = useCallback((audio: HTMLAudioElement) => {
+        if (audio.volume !== DEFAULT_VOLUME) {
+            audio.volume = DEFAULT_VOLUME;
         }
-    }, [isMuted]);
+    }, []);
 
-    // 尝试播放音乐
+    // 辅助函数：尝试播放音频
     const attemptPlay = useCallback(async () => {
         if (!audioRef.current) return;
 
+        const audio = audioRef.current;
+        ensureVolume(audio);
+
         try {
-            await audioRef.current.play();
+            await audio.play();
             setAutoplayBlocked(false);
             console.log('[BackgroundMusicPlayer] Playing music');
         } catch (error) {
             console.log('[BackgroundMusicPlayer] Autoplay prevented, waiting for user interaction');
             setAutoplayBlocked(true);
         }
-    }, []);
+    }, [ensureVolume]);
+
+    // 音频元素初始化
+    useEffect(() => {
+        if (audioRef.current) {
+            // 设置初始音量
+            ensureVolume(audioRef.current);
+
+            if (onAudioReady) {
+                onAudioReady(audioRef.current);
+            }
+        }
+    }, [onAudioReady, ensureVolume]);
 
     // 用户交互处理
     useEffect(() => {
@@ -59,6 +80,7 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             console.log('[BackgroundMusicPlayer] User interaction detected');
 
             if (audioRef.current && !isMuted) {
+                ensureVolume(audioRef.current);
                 audioRef.current.play().catch((error) => {
                     console.warn('[BackgroundMusicPlayer] Play after interaction failed:', error);
                 });
@@ -73,14 +95,14 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             document.removeEventListener('click', handleInteraction);
             document.removeEventListener('keydown', handleInteraction);
         };
-    }, [hasUserInteracted, autoplayBlocked, isMuted]);
+    }, [hasUserInteracted, autoplayBlocked, isMuted, ensureVolume]);
 
     // 处理音乐切换
     useEffect(() => {
         if (!audioRef.current) return;
 
-        const selectedOption = AUDIO_OPTIONS.find(option => option.id === selectedAudioId);
         const audio = audioRef.current;
+        const selectedOption = AUDIO_OPTIONS.find(option => option.id === selectedAudioId);
 
         // 如果选择了"No Music"或找不到对应选项，停止播放
         if (!selectedOption || !selectedOption.path) {
@@ -89,11 +111,15 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             return;
         }
 
-        // 构建完整路径
-        const fullPath = selectedOption.path;
+        // 获取完整路径并规范化
+        const fullPath = normalizeUrl(selectedOption.path);
+        const currentSrc = audio.src ? normalizeUrl(audio.src) : '';
 
-        // 如果音频源已经是当前选择的音乐，不需要重新加载
-        if (audio.src.endsWith(selectedOption.path)) {
+        // 精确比较：如果音频源已经是当前选择的音乐，不需要重新加载
+        if (currentSrc === fullPath) {
+            // 确保音量正确
+            ensureVolume(audio);
+
             // 如果暂停了且未静音且用户已交互，则播放
             if (audio.paused && !isMuted && (hasUserInteracted || !autoplayBlocked)) {
                 audio.play().catch((error) => {
@@ -107,18 +133,18 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         audio.pause();
 
         // 更新音频源
-        audio.src = fullPath;
-        audio.volume = 0.35; // 设置音量为 35%
+        audio.src = selectedOption.path;
+        ensureVolume(audio);
         audio.load();
 
         // 尝试播放（如果未静音）
         if (!isMuted) {
-            // 如果用户还未交互，尝试自动播放（可能会被阻止）
             attemptPlay();
         }
-    }, [selectedAudioId, isMuted, hasUserInteracted, autoplayBlocked, attemptPlay]);
+    }, [selectedAudioId, isMuted, hasUserInteracted, autoplayBlocked, attemptPlay, normalizeUrl, ensureVolume]);
 
-    // 当用户切换静音状态时
+    // 静音控制（统一机制）
+    // 使用 pause()/play() 而非 muted 属性来控制静音，节省资源
     useEffect(() => {
         if (!audioRef.current) return;
 
@@ -126,14 +152,15 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         if (!isMuted && audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
             // 取消静音时，如果音频已暂停且有音源，尝试播放
+            ensureVolume(audio);
             audio.play().catch((error) => {
                 console.warn('[BackgroundMusicPlayer] Play on unmute failed:', error);
             });
         } else if (isMuted && !audio.paused) {
-            // 静音时暂停
+            // 静音时暂停播放
             audio.pause();
         }
-    }, [isMuted, hasUserInteracted, autoplayBlocked]);
+    }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
 
     return (
         <audio
