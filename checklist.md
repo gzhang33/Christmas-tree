@@ -22,7 +22,7 @@
   - **Goal:** Increase visual depth and festive atmosphere.
   - **Implementation:** Added `warmGold` (#FFB347) and `deepRed` (#8B0000) to STATIC_COLORS, injected 3-8% into particle colors.
 
-- [ ] **[TREE-05] 3D Base Model Optimization**
+- [x] **[TREE-05] 3D Base Model Optimization**
   - **Task:** Optimize existing particle gift styles to form the base.
   - **Strategy:** Reuse current project functionality; avoid recreating assets unless strictly necessary for performance.
   - **Goal:** Fix the "floating tree" visual issue.
@@ -32,8 +32,9 @@
   - **Strategy:** Use `useGLTF` + `MeshSurfaceSampler` with auto-scaling to fit existing gift dimensions.
   - **Goal:** Replace procedural cubes with user-provided 3D assets while keeping particle effects.
 
-- [ ] **[TREE-06] Audio Control UI**
+- [x] **[TREE-06] Audio Control UI**
   - **Task:** Implement a dropdown menu or toggle for background music selection.
+  - **Implementation:** Created `audio.ts` config with 5 music options, added `selectedAudioId` to store, implemented `BackgroundMusicPlayer.tsx` for playback, and added music selection UI with preview functionality in Controls panel.
 
 - [ ] **[TREE-07] Gift Box Icon Polish**
   - **Task:** Optimize the rendering/material of the gift box UI element.

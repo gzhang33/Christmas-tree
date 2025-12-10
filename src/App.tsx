@@ -3,13 +3,12 @@ import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
 import { LandingTitle } from './components/ui/LandingTitle.tsx';
+import { BackgroundMusicPlayer } from './components/ui/BackgroundMusicPlayer.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
-import { AUDIO } from './config/assets.ts';
 import { PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
 import { useStore } from './store/useStore.ts';
 import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
 import { SceneContainer } from './components/layout/SceneContainer';
-import { useAudioController } from './hooks/useAudioController';
 import { useShareSystem } from './hooks/useShareSystem';
 import './index.css';
 
@@ -53,8 +52,14 @@ function App() {
     windStrength: 0.4,
   });
 
-  // Audio Controller Hook
-  const { isMuted, toggleMute, unmute, audioRef } = useAudioController(0.35);
+  // Audio State (simplified - managed by BackgroundMusicPlayer)
+  const [isMuted, setIsMuted] = useState(false);
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => !prev);
+  }, []);
+  const unmute = useCallback(async () => {
+    setIsMuted(false);
+  }, []);
 
   // Share System Hook
   const { generateShareUrl } = useShareSystem({
@@ -187,15 +192,6 @@ function App() {
   return (
     <LandingFlowProvider>
       <div className="w-full h-screen relative bg-black overflow-hidden">
-        {/* Background Music */}
-        <audio
-          ref={audioRef}
-          src={AUDIO.jingleBells}
-          crossOrigin="anonymous"
-          muted={isMuted}
-          preload="auto"
-        />
-
         {/* 3D Canvas Scene */}
         <SceneContainer
           uiState={uiState}
@@ -221,6 +217,9 @@ function App() {
 
         {/* Landing Title - shown during entrance/text/morphing phases (2D canvas particles) */}
         <LandingTitle />
+
+        {/* Background Music Player - plays user-selected music from Controls */}
+        <BackgroundMusicPlayer isMuted={isMuted} />
 
         {/* Performance Monitor Overlay */}
         <PerformanceOverlay visible={showPerformance} data={performanceData} />

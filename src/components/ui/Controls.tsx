@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette, Share2, Check, AlertCircle } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { TREE_COLOR_PRESETS, MAGIC_DUST_COLOR_PRESETS } from '../../config/colors';
 import { INTERACTION_CONFIG } from '../../config';
+import { AUDIO_OPTIONS } from '../../config/audio';
+import { MusicSelect } from './MusicSelect';
 
 interface ControlsProps {
     uiState: UIState; // Keeping for backward compatibility during migration, but will prefer store
@@ -19,9 +21,11 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const particleCount = useStore((state) => state.particleCount);
     const isExploded = useStore((state) => state.isExploded);
     const magicDustColor = useStore((state) => state.magicDustColor);
+    const selectedAudioId = useStore((state) => state.selectedAudioId);
     const setTreeColor = useStore((state) => state.setTreeColor);
     const setParticleCount = useStore((state) => state.setParticleCount);
     const setMagicDustColor = useStore((state) => state.setMagicDustColor);
+    const setSelectedAudioId = useStore((state) => state.setSelectedAudioId);
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
 
@@ -139,6 +143,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
         }
     };
 
+
+
     return (
         <AnimatePresence>
             {!isExploded && (
@@ -202,16 +208,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                         {isExploded ? 'Rebuild' : 'Reveal'}
                                     </button>
 
-                                    <button
-                                        onClick={toggleMute}
-                                        className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isMuted
-                                            ? 'border-neon-pink/50 text-neon-pink bg-neon-pink/10'
-                                            : 'border-white/20 text-white hover:bg-white/10'}`}
-                                        title={isMuted ? "Unmute" : "Mute"}
-                                        aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-                                    >
-                                        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                    </button>
+
 
                                     <button
                                         onClick={() => {
@@ -272,7 +269,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 <div className="space-y-3">
                                     <label className="text-sm text-white/60 flex justify-between items-center">
                                         <span>Tree Color</span>
-                                        <span className="text-xs font-mono font-bold text-electric-purple">{treeColor}</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{treeColor.substring(0, 7)}</span>
                                     </label>
                                     <div className="flex flex-wrap gap-3">
                                         {TREE_COLOR_PRESETS.map(({ hex, name }) => (
@@ -280,7 +277,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 key={hex}
                                                 onClick={() => setTreeColor(hex)}
                                                 aria-label={`Select color ${name}`}
-                                                className={`w-8 h-8 rounded-full border-2 transition-all ${treeColor === hex
+                                                className={`w-8 h-8 rounded-full border-2 transition-all ${treeColor.toLowerCase().startsWith(hex.toLowerCase())
                                                     ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                     : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`}
                                                 style={{ backgroundColor: hex }}
@@ -294,7 +291,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                                 aria-label="Custom color picker"
                                             />
-                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => c.hex === treeColor)
+                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => treeColor.toLowerCase().startsWith(c.hex.toLowerCase()))
                                                 ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                 : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
                                                 <Palette size={20} className="text-white" />
@@ -307,7 +304,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 <div className="space-y-3">
                                     <label className="text-sm text-white/60 flex justify-between items-center">
                                         <span>Magic Dust Color</span>
-                                        <span className="text-xs font-mono font-bold text-electric-purple">{magicDustColor}</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{magicDustColor.substring(0, 7)}</span>
                                     </label>
                                     <div className="flex flex-wrap gap-3">
                                         {MAGIC_DUST_COLOR_PRESETS.map(({ hex, name }) => (
@@ -315,7 +312,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 key={hex}
                                                 onClick={() => setMagicDustColor(hex)}
                                                 aria-label={`Select magic dust color ${name}`}
-                                                className={`w-8 h-8 rounded-full border-2 transition-all ${magicDustColor === hex
+                                                className={`w-8 h-8 rounded-full border-2 transition-all ${magicDustColor.toLowerCase().startsWith(hex.toLowerCase())
                                                     ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                     : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`}
                                                 style={{ backgroundColor: hex }}
@@ -329,7 +326,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                                 aria-label="Custom magic dust color picker"
                                             />
-                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!MAGIC_DUST_COLOR_PRESETS.some(c => c.hex === magicDustColor)
+                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!MAGIC_DUST_COLOR_PRESETS.some(c => magicDustColor.toLowerCase().startsWith(c.hex.toLowerCase()))
                                                 ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                 : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
                                                 <Palette size={20} className="text-white" />
@@ -392,6 +389,21 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                         onChange={(e) => updateConfig('photoSize', parseFloat(e.target.value))}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
                                         aria-label="Adjust photo scale"
+                                    />
+                                </div>
+
+                                {/* Background Music */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center mb-1">
+                                        <span className="flex items-center gap-2">
+                                            <Music size={16} className="text-teal-accent" />
+                                            Background Music
+                                        </span>
+                                    </label>
+                                    <MusicSelect
+                                        options={AUDIO_OPTIONS}
+                                        value={selectedAudioId}
+                                        onChange={setSelectedAudioId}
                                     />
                                 </div>
                             </div>

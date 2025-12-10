@@ -32,6 +32,7 @@ export const useStore = create<AppState>()(
                 particleCount: state.particleCount,
                 userName: state.userName,
                 magicDustColor: state.magicDustColor,
+                selectedAudioId: state.selectedAudioId,
             }),
         }
     )

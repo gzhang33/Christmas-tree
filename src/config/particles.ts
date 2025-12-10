@@ -51,7 +51,7 @@ export const PARTICLE_CONFIG = {
         rotationSpeed: 0.15,    // 轨道旋转速度
 
         // 视觉效果
-        colors: ['#845696ff', '#b150e4ff', '#FFFAF0'], // 金色系
+        colors: ['#845696', '#b150e4', '#FFFAF0'], // 金色系
         minSize: 0.1,          // 最小粒子尺寸
         maxSize: 0.3,          // 最大粒子尺寸
         radiusVariation: 0.2,  // 半径随机变化

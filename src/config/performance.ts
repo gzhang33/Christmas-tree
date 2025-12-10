@@ -40,21 +40,6 @@ export const PERFORMANCE_CONFIG = {
             normal: 500000,
             compact: 500000,
         },
-
-        /** 推荐的粒子数量范围 (桌面端) */
-        recommended: {
-            high: 50000,   // 高端设备 (独立显卡, 60+ FPS)
-            medium: 30000, // 中端设备 (集成显卡, 30-45 FPS) ✅ 推荐
-            low: 20000,     // 低端设备 (20-30 FPS)
-            minimal: 5000, // 最低配置 (15-20 FPS) - 不推荐用于 Landing
-        },
-
-        /** 用户可调节的粒子数量范围 (UI Controls) */
-        range: {
-            min: 5000,
-            max: 50000,
-            step: 1000,
-        },
     },
 
     // ------------------------------------------------------------------------
@@ -103,32 +88,6 @@ export const PERFORMANCE_CONFIG = {
     },
 
     // ------------------------------------------------------------------------
-    // 渲染优化配置 (Rendering Optimization) - 响应式
-    // ------------------------------------------------------------------------
-    rendering: {
-        /** 后处理效果开关 - 响应式 */
-        enablePostProcessing: {
-            normal: true,   // 桌面端: 启用后处理
-            compact: true, // 移动端: 关闭后处理以提升性能
-        },
-
-        /** 阴影渲染 (关闭可提升性能) */
-        enableShadows: false,
-
-        /** 抗锯齿质量 - 响应式 */
-        antialias: {
-            normal: true,   // 桌面端: 启用抗锯齿
-            compact: true, // 移动端: 启用抗锯齿以提升性能
-        },
-
-        /** 像素比率上限 (防止高 DPI 屏幕过载) - 响应式 */
-        maxPixelRatio: {
-            normal: 2,   // 桌面端: 最大 2x
-            compact: 2, // 移动端: 最大 1.5x (降低渲染负载)
-        },
-    },
-
-    // ------------------------------------------------------------------------
     // 相机与交互性能 (Camera & Interaction Performance)
     // ------------------------------------------------------------------------
     camera: {
@@ -140,94 +99,6 @@ export const PERFORMANCE_CONFIG = {
 
         /** 最小相机距离 */
         minDistance: 12,
-    },
-} as const;
-
-/**
- * 性能等级预设 (响应式)
- * 可根据设备性能自动选择配置
- */
-export const PERFORMANCE_PRESETS = {
-    /** 高性能模式 (桌面端) */
-    high: {
-        normal: {
-            particleCount: 50000,
-            titleDensity: 4,
-            particleGenDensity: 4,
-            enablePostProcessing: true,
-            enableShadows: false,
-        },
-        compact: {
-            particleCount: 30000,
-            titleDensity: 4,
-            particleGenDensity: 4,
-            enablePostProcessing: true,
-            enableShadows: false,
-        },
-    },
-
-    /** 平衡模式 (推荐) ✅ */
-    balanced: {
-        normal: {
-            particleCount: 30000,
-            titleDensity: 6,
-            particleGenDensity: 5,
-            enablePostProcessing: true,
-            enableShadows: false,
-        },
-        compact: {
-            particleCount: 20000,
-            titleDensity: 5,
-            particleGenDensity: 4,
-            enablePostProcessing: true,
-            enableShadows: false,
-        },
-    },
-
-    /** 性能优先模式 */
-    performance: {
-        normal: {
-            particleCount: 8000,
-            titleDensity: 8,
-            particleGenDensity: 6,
-            enablePostProcessing: false,
-            enableShadows: false,
-        },
-        compact: {
-            particleCount: 6000,
-            titleDensity: 7,
-            particleGenDensity: 5,
-            enablePostProcessing: false,
-            enableShadows: false,
-        },
-    },
-} as const;
-
-/**
- * 性能监控阈值
- * 用于 PerformanceMonitor 组件
- */
-export const PERFORMANCE_THRESHOLDS = {
-    /** FPS 阈值 */
-    fps: {
-        excellent: 55,  // >= 55 FPS: 优秀
-        good: 40,       // >= 40 FPS: 良好
-        acceptable: 25, // >= 25 FPS: 可接受
-        poor: 15,       // < 15 FPS: 差
-    },
-
-    /** 帧预算 (ms) */
-    frameBudget: {
-        target: 16.6,   // 60 FPS 目标
-        warning: 25,    // 40 FPS 警告
-        critical: 40,   // 25 FPS 严重
-    },
-
-    /** Draw Call 阈值 */
-    drawCalls: {
-        optimal: 50,
-        acceptable: 100,
-        warning: 150,
     },
 } as const;
 

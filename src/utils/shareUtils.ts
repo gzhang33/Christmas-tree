@@ -4,6 +4,7 @@ export interface ShareableState {
     p: string[]; // photo urls
     c: string;   // tree color
     cfg: Partial<AppConfig>; // config
+    a?: string;  // audio id (optional)
 }
 
 /**
@@ -12,7 +13,8 @@ export interface ShareableState {
 export const encodeState = (
     photos: PhotoData[],
     treeColor: string,
-    config: AppConfig
+    config: AppConfig,
+    selectedAudioId?: string
 ): string => {
     const state: ShareableState = {
         p: photos.map(photo => photo.url),
@@ -24,6 +26,11 @@ export const encodeState = (
             photoSize: config.photoSize
         }
     };
+
+    // Add audio ID if specified
+    if (selectedAudioId) {
+        state.a = selectedAudioId;
+    }
 
     try {
         const json = JSON.stringify(state);

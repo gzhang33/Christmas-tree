@@ -14,13 +14,15 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
     // Store actions
     const setTreeColor = useStore((state) => state.setTreeColor);
     const treeColor = useStore((state) => state.treeColor); // Need current color for sharing
+    const selectedAudioId = useStore((state) => state.selectedAudioId); // Audio selection
+    const setSelectedAudioId = useStore((state) => state.setSelectedAudioId);
 
     // Generate Share URL
     const generateShareUrl = useCallback(() => {
-        const shareCode = encodeState(photos, treeColor, config); // Read directly from store
+        const shareCode = encodeState(photos, treeColor, config, selectedAudioId);
         const baseUrl = window.location.origin + window.location.pathname;
         return `${baseUrl}?s=${shareCode}`;
-    }, [photos, config, treeColor]);
+    }, [photos, config, treeColor, selectedAudioId]);
 
     // Restore from URL on mount
     useEffect(() => {
@@ -71,6 +73,11 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 // Restore Color
                 if (data.c && /^#[0-9A-Fa-f]{6}$/.test(data.c)) {
                     setTreeColor(data.c);
+                }
+
+                // Restore Audio Selection
+                if (data.a && typeof data.a === 'string') {
+                    setSelectedAudioId(data.a);
                 }
 
                 // Optional: clear URL to keep it clean? 

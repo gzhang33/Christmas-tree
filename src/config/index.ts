@@ -10,8 +10,6 @@
 // ============================================================================
 export {
     PERFORMANCE_CONFIG,
-    PERFORMANCE_PRESETS,
-    PERFORMANCE_THRESHOLDS,
     RESPONSIVE_BREAKPOINTS,
     isMobileDevice,
     getResponsiveValue,
