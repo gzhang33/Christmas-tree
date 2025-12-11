@@ -55,11 +55,7 @@ export const LandingFlowController: React.FC<LandingFlowControllerProps> = ({
                 onSubmit={handleNameSubmit}
             />
 
-            {/* Click Prompt - shown in 'text' phase */}
-            <ClickPrompt
-                isVisible={landingPhase === 'text'}
-                onClick={handleTreeClick}
-            />
+            {/* Click Prompt removed - integrated into LandingTitle */}
         </>
     );
 };
