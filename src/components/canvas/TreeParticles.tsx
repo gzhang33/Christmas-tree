@@ -13,7 +13,7 @@ import {
   generatePhotoPositions,
   PhotoPosition,
 } from "../../config/photoConfig";
-import { getTreeRadius } from "../../utils/treeUtils";
+import { getTreeRadius, calculateErosionFactor } from "../../utils/treeUtils";
 
 import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
@@ -26,7 +26,7 @@ import { PhotoData } from "../../types.ts";
 import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/materialPool"; // NEW: Material pool
 import { SkeletonUtils } from "three-stdlib"; // NEW: For Model-to-Particle conversion & Scene cloning
 
-import { useGLTF } from "@react-three/drei"; // NEW: Load user models
+import { useGLTF, Image } from "@react-three/drei"; // NEW: Load user models & Images
 
 const GIFT_MODELS = [
   '/models/a_gift_box.glb',
@@ -197,8 +197,12 @@ const assignOrnamentType = (heightRatio: number): OrnamentType => {
     // Middle 30%: Flag or Bus
     return rand < 0.4 ? "FLAG" : "BUS";
   } else {
-    // Bottom 50%: Corgi or Gift
-    return rand < 0.3 ? "CORGI" : "GIFT";
+
+    // Bottom 50%: Corgi, Gift, or Bauble
+    const subRand = Math.random();
+    if (subRand < 0.3) return "CORGI";
+    if (subRand < 0.6) return "BAUBLE";
+    return "GIFT";
   }
 };
 
@@ -219,21 +223,7 @@ const getExplosionTarget = (
   ];
 };
 
-/**
- * Calculate erosion factor for particle dissipation effect
- * Returns a normalized value [0,1] where:
- * - 0 = top of tree (erodes first)
- * - 1 = bottom of tree (erodes last)
- * 
- * @param yPosition - Y coordinate of the particle
- * @returns Clamped erosion factor [0,1]
- */
-const calculateErosionFactor = (yPosition: number): number => {
-  const treeTopY = PARTICLE_CONFIG.treeBottomY + PARTICLE_CONFIG.treeHeight;
-  const erosionRange = PARTICLE_CONFIG.treeHeight + Math.abs(PARTICLE_CONFIG.treeBottomY);
-  const factor = (treeTopY - yPosition) / erosionRange;
-  return Math.max(0, Math.min(1, factor)); // Clamp to [0,1]
-};
+// Note: calculateErosionFactor is imported from treeUtils for consistency with MagicDust
 
 /**
  * Calculate Bezier control point for explosion arc
@@ -287,12 +277,22 @@ const SIZE_COEFFICIENTS: Record<OrnamentType, number> = {
   BAUBLE: 1.0,
 };
 
+const ORNAMENT_IMAGE_MAP: Partial<Record<OrnamentType, string>> = {
+  BUS: '/models/ornament-bus.png',
+  FLAG: '/models/ornament-uk-flag.png',
+  CORGI: '/models/ornament-corgi.png',
+  BAUBLE: '/models/ornament-ball.png',
+};
+
 
 
 // === CUSTOM SHADER MATERIAL ===
 /**
  * Creates a custom ShaderMaterial for GPU-driven particle animation
  * Implements the GPU State Machine pattern from architecture.md
+ * 
+ * Dissipation animation parameters are sourced from PARTICLE_CONFIG.dissipation
+ * to ensure synchronization with MagicDust particles.
  */
 const createParticleShaderMaterial = (
   treeColor: THREE.Color,
@@ -316,12 +316,91 @@ const createParticleShaderMaterial = (
       uBreatheAmp3: { value: PARTICLE_CONFIG.animation.breatheAmplitude3 },
       uSwayFreq: { value: PARTICLE_CONFIG.animation.swayFrequency },
       uSwayAmp: { value: PARTICLE_CONFIG.animation.swayAmplitude },
+      uGlobalAlpha: { value: 0.0 }, // Start invisible for fade-in
+      // Dual-layer particle system uniforms
+      uDissipateOnly: { value: PARTICLE_CONFIG.dissipation.dissipateOnly ? 1.0 : 0.0 },
+      uCoreLayerRatio: { value: PARTICLE_CONFIG.dissipation.coreLayerRatio },
+      uIsEntrance: { value: 0.0 }, // Set dynamically based on landingPhase
+      // Dissipation animation uniforms (synchronized with MagicDust)
+      uProgressMultiplier: { value: PARTICLE_CONFIG.dissipation.progressMultiplier },
+      uNoiseInfluence: { value: PARTICLE_CONFIG.dissipation.noiseInfluence },
+      uHeightInfluence: { value: PARTICLE_CONFIG.dissipation.heightInfluence },
+      uUpForce: { value: PARTICLE_CONFIG.dissipation.upForce },
+      uDriftAmplitude: { value: PARTICLE_CONFIG.dissipation.driftAmplitude },
+      uGrowPeakProgress: { value: PARTICLE_CONFIG.dissipation.growPeakProgress },
+      uGrowAmount: { value: PARTICLE_CONFIG.dissipation.growAmount },
+      uShrinkAmount: { value: PARTICLE_CONFIG.dissipation.shrinkAmount },
+      uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
+      uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
     },
     transparent: true,
     depthWrite: false,
     blending: THREE.NormalBlending,
     vertexColors: true,
   });
+};
+
+// === DISSOLVING IMAGE COMPONENT ===
+const DissolvingImage = ({
+  url,
+  position,
+  scale,
+  rotation,
+  progressRef,
+  erosionFactor,
+}: {
+  url: string;
+  position: [number, number, number];
+  scale: [number, number] | number; // Updated type compatibility
+  rotation: [number, number, number];
+  progressRef: React.MutableRefObject<number>;
+  erosionFactor: number;
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      // Access the material using 'any' to bypass TS check for 'opacity' on Material type
+      // The Image component uses a MeshBasicMaterial behind the scenes
+      const material = (meshRef.current.material as THREE.MeshBasicMaterial);
+
+      // Calculate opacity based on erosion logic
+      // If progress > erosionFactor, we are eroding.
+      // We want a sharp but smooth fade.
+      const progress = progressRef.current;
+
+      // Threshold: visible if progress <= erosionFactor
+      // Let's add a small smooth transition
+      const visibilityThreshold = erosionFactor * 0.8;
+      const fadeWidth = 0.15;
+
+      let alpha = 1.0;
+      if (progress > visibilityThreshold) {
+        // Fading out
+        // Normalized fade progress: 0 (start) -> 1 (fully faded)
+        const fadeProgress = (progress - visibilityThreshold) / fadeWidth;
+        alpha = 1.0 - Math.min(Math.max(fadeProgress, 0.0), 1.0);
+      } else {
+        // Fully visible
+        alpha = 1.0;
+      }
+
+      material.opacity = alpha;
+      material.transparent = true;
+      material.depthWrite = true; // Fix transparency sorting issues
+    }
+  });
+
+  return (
+    <Image
+      ref={meshRef}
+      url={url}
+      position={position}
+      scale={scale}
+      rotation={rotation}
+      transparent
+    />
+  );
 };
 
 // === MAIN COMPONENT ===
@@ -334,7 +413,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Global State
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
+  const landingPhase = useStore((state) => state.landingPhase);
   const { viewport } = useThree();
+
+  const globalAlphaRef = useRef(0.0);
 
   // === LOAD USER MODELS ===
   const giftGltfs = useGLTF(GIFT_MODELS);
@@ -367,6 +449,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const entityLayerRef = useRef<THREE.Points>(null);
   const glowLayerRef = useRef<THREE.Points>(null);
   const ornamentsRef = useRef<THREE.Points>(null);
+  const imageOrnamentsRef = useRef<THREE.Group>(null); // NEW: Group for image ornaments
   const giftsRef = useRef<THREE.Points>(null);
   const treeBaseRef = useRef<THREE.Points>(null);
 
@@ -395,7 +478,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   }); // Run after every render if pending
 
   // Animation state
-  const progressRef = useRef(0.0);
+  // Start exploded (1.5) if we are in morphing phase (Entrance)
+  // Otherwise 0.0 (Tree)
+  const isEntrance = useStore.getState().landingPhase === 'morphing';
+  const progressRef = useRef(isEntrance ? 1.2 : 0.0);
+
   const targetProgressRef = useRef(0.0);
   const rootRef = useRef<THREE.Group>(null);
   const shakeIntensity = useRef(0);
@@ -830,15 +917,85 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       baseSize: number;
     }> = [];
 
-    for (let i = 0; i < 80; i++) {
-      const t = 0.05 + Math.random() * 0.9;
+    // Image ornaments list
+    const imageItems: Array<{
+      type: OrnamentType;
+      position: [number, number, number];
+      scale: number;
+      rotation: number;
+      erosionFactor: number;
+    }> = [];
+
+    // Helper to check distance
+    const isTooClose = (
+      pos: { x: number, y: number, z: number },
+      type: OrnamentType,
+      existing: typeof imageItems,
+      minDistSame: number = 3.5,
+      minDistDiff: number = 2.0
+    ) => {
+      for (const item of existing) {
+        const dx = pos.x - item.position[0];
+        const dy = pos.y - item.position[1];
+        const dz = pos.z - item.position[2];
+        const distSq = dx * dx + dy * dy + dz * dz;
+
+        const limit = item.type === type ? minDistSame : minDistDiff;
+        if (distSq < limit * limit) return true;
+      }
+      return false;
+    };
+
+    let attempts = 0;
+    const maxItems = 60; // Slightly reduced count for better spacing
+    let placedCount = 0;
+
+    while (placedCount < maxItems && attempts < 500) {
+      attempts++;
+      const t = 0.1 + Math.random() * 0.85; // Avoid very top and bottom
       const y = treeBottom + t * treeHeight;
       const heightRatio = t;
+
       const angle = Math.random() * Math.PI * 2;
       const type = assignOrnamentType(heightRatio);
-      const baseSize = 0.3 + Math.random() * 0.2;
 
+      // Strict surface placement
+      const surfaceR = getTreeRadius(heightRatio);
+      // Place EXACTLY on surface, pushed out slightly to avoid clipping
+      const r = surfaceR + 0.2;
+
+      const cx = Math.cos(angle) * r;
+      const cz = Math.sin(angle) * r;
+
+      // Check distance
+      if (isTooClose(
+        { x: cx, y, z: cz },
+        type,
+        imageItems,
+        2.5, // Min dist specific
+        1.5  // Min dist generic
+      )) {
+        continue;
+      }
+
+      // If image ornament, add to image list
+      if (ORNAMENT_IMAGE_MAP[type]) {
+        const sizeCoef = SIZE_COEFFICIENTS[type];
+        imageItems.push({
+          type: type,
+          position: [cx, y, cz],
+          scale: (0.3 + Math.random() * 0.2) * sizeCoef * 3.5,
+          rotation: -angle,
+          erosionFactor: calculateErosionFactor(y)
+        });
+        placedCount++;
+        continue;
+      }
+
+      // If particle cluster, add to clusters list
+      const baseSize = 0.3 + Math.random() * 0.2;
       clusters.push({ y, angle, type, baseSize });
+      placedCount++;
     }
 
     let idx = 0;
@@ -900,6 +1057,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const cx = Math.cos(cluster.angle) * baseR;
       const cz = Math.sin(cluster.angle) * baseR;
       const sizeCoef = SIZE_COEFFICIENTS[cluster.type];
+
+      // Check if this is an image ornament - Should be already handled above, 
+      // but for legacy clusters generated outside our new loop (if any)
+      if (ORNAMENT_IMAGE_MAP[cluster.type]) {
+        return; // Skip, detailed image items are already handled
+      }
 
       for (let p = 0; p < particlesPerCluster; p++) {
         if (idx >= count) break;
@@ -982,7 +1145,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       branchAngles,
       isPhotoParticle,
       erosionFactors,
+
       count: idx,
+      imageItems, // Return image items
     };
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
@@ -1336,6 +1501,22 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             uBreatheAmp3: { value: PARTICLE_CONFIG.animation.breatheAmplitude3 },
             uSwayFreq: { value: PARTICLE_CONFIG.animation.swayFrequency },
             uSwayAmp: { value: PARTICLE_CONFIG.animation.swayAmplitude },
+            uGlobalAlpha: { value: 0.0 },
+            // Dual-layer particle system uniforms
+            uDissipateOnly: { value: PARTICLE_CONFIG.dissipation.dissipateOnly ? 1.0 : 0.0 },
+            uCoreLayerRatio: { value: PARTICLE_CONFIG.dissipation.coreLayerRatio },
+            uIsEntrance: { value: 0.0 }, // Set dynamically based on landingPhase
+            // Dissipation animation uniforms (synchronized with MagicDust)
+            uProgressMultiplier: { value: PARTICLE_CONFIG.dissipation.progressMultiplier },
+            uNoiseInfluence: { value: PARTICLE_CONFIG.dissipation.noiseInfluence },
+            uHeightInfluence: { value: PARTICLE_CONFIG.dissipation.heightInfluence },
+            uUpForce: { value: PARTICLE_CONFIG.dissipation.upForce },
+            uDriftAmplitude: { value: PARTICLE_CONFIG.dissipation.driftAmplitude },
+            uGrowPeakProgress: { value: PARTICLE_CONFIG.dissipation.growPeakProgress },
+            uGrowAmount: { value: PARTICLE_CONFIG.dissipation.growAmount },
+            uShrinkAmount: { value: PARTICLE_CONFIG.dissipation.shrinkAmount },
+            uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
+            uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
           },
           transparent: true,
           depthWrite: false,
@@ -1387,17 +1568,24 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   }, [treeColor, featherTexture, sparkleTexture]);
 
   // === UPDATE TARGET PROGRESS & START TIME ===
+  const prevIsExplodedRef = useRef(isExploded);
+  const setTreeMorphState = useStore.getState().setTreeMorphState;
+
   useEffect(() => {
     targetProgressRef.current = isExploded ? 1.0 : 0.0;
-    if (isExploded) {
-      // Capture the timestamp when explosion starts
-      // We can't access 'state.clock' here easily without a hook,
-      // but we can assume this effect runs on frame or shortly after.
-      // Actually best to set a flag and capture time in useFrame
-      // OR just look at uTime in shader.
-      // Let's rely on useFrame to capture "transition start".
+
+    // Detect explosion start: transition from tree (false) to photo sea (true)
+    if (isExploded && !prevIsExplodedRef.current) {
+      setTreeMorphState('morphing-out');
     }
-  }, [isExploded]);
+    // Detect reset: transition from photo sea (true) back to tree (false)
+    // Note: This triggers morphing back to tree (similar to morphing-in)
+    if (!isExploded && prevIsExplodedRef.current) {
+      setTreeMorphState('morphing-in');
+    }
+
+    prevIsExplodedRef.current = isExploded;
+  }, [isExploded, setTreeMorphState]);
 
   // === ANIMATION FRAME ===
   const { camera, clock } = useThree(); // Get clock directly
@@ -1445,32 +1633,87 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     PARTICLE_CONFIG.animation.breatheAmplitude3
   ]);
 
+  // Track previous phase to detect transitions
+  const prevPhaseRef = useRef(landingPhase);
+
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     const delta = state.clock.getDelta();
 
+    // Detect phase change to 'morphing' and reset progress instantly
+    if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {
+      progressRef.current = 1.2;
+      // Reset trigger flag
+      (window as any)._morphingCompleteTriggered = false;
+      // Set morphing-in state for entrance animation
+      useStore.getState().setTreeMorphState('morphing-in');
+    }
+    prevPhaseRef.current = landingPhase;
+
     // === GPU STATE MACHINE: Interpolate uProgress uniform ===
-    // Damping speeds: Explosion (0.02) is slower for high-velocity effect,
-    // Reset (0.04) is faster for quicker return. Matches AC6 "Midnight Magic" aesthetic
-    // requirement: "high velocity, rapid damping" for explosion phase.
-    const dampingSpeed = isExploded
-      ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
-      : PARTICLE_CONFIG.animation.dampingSpeedReset;
+    // Determine target based on state
+    // If morphing, we target 0.0 (implode to tree)
+    targetProgressRef.current = isExploded ? 1.0 : 0.0;
+
+    // Select damping speed based on phase
+    let dampingSpeed;
+    if (landingPhase === 'morphing') {
+      dampingSpeed = PARTICLE_CONFIG.animation.dampingSpeedEntrance;
+    } else {
+      dampingSpeed = isExploded
+        ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
+        : PARTICLE_CONFIG.animation.dampingSpeedReset;
+    }
+
     const diff = targetProgressRef.current - progressRef.current;
     progressRef.current += diff * dampingSpeed;
+
+    // Check animation completion and update morph state accordingly
+    const isAnimationComplete = Math.abs(diff) < 0.005;
+    const currentMorphState = useStore.getState().treeMorphState;
+
+    // Check for entrance completion (morphing-in)
+    if (landingPhase === 'morphing' && isAnimationComplete && progressRef.current < 0.01) {
+      // We have effectively reached the tree state
+      if (!(window as any)._morphingCompleteTriggered) {
+        (window as any)._morphingCompleteTriggered = true;
+        // Complete the morphing phase and set idle
+        useStore.getState().setLandingPhase('tree');
+        useStore.getState().setTreeMorphState('idle');
+      }
+    }
+
+    // Check for explosion completion (morphing-out)
+    if (isExploded && currentMorphState === 'morphing-out' && isAnimationComplete && progressRef.current > 0.99) {
+      useStore.getState().setTreeMorphState('idle');
+    }
+
+    // Check for reset completion (morphing-in from photo sea back to tree)
+    if (!isExploded && landingPhase === 'tree' && currentMorphState === 'morphing-in' && isAnimationComplete && progressRef.current < 0.01) {
+      useStore.getState().setTreeMorphState('idle');
+    }
 
     // Update all shader materials with new uniform values
     const materials = [
       entityMaterialRef.current,
       glowMaterialRef.current,
       ornamentMaterialRef.current,
-      // giftMaterialRef.current is handled separately below
+      giftMaterialRef.current, // Added gift material to loop
+      treeBaseMaterialRef.current, // Added tree base to loop
     ];
 
     materials.forEach((mat) => {
       if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
         mat.uniforms.uProgress.value = progressRef.current;
         mat.uniforms.uTime.value = time;
+        // Update entrance phase flag for dual-layer particle system
+        if (mat.uniforms.uIsEntrance) {
+          mat.uniforms.uIsEntrance.value = landingPhase === 'morphing' ? 1.0 : 0.0;
+        }
+        // Removed uGlobalAlpha logic (using implosion instead)
+        if (mat.uniforms.uGlobalAlpha) {
+          mat.uniforms.uGlobalAlpha.value = 1.0;
+        }
       }
     });
 
@@ -1485,7 +1728,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       giftMaterialRef.current instanceof THREE.ShaderMaterial &&
       giftMaterialRef.current.uniforms
     ) {
-      if (isExploded) {
+      if (landingPhase === 'morphing') {
+        // During entrance, gifts participate in implosion
+        giftMaterialRef.current.uniforms.uProgress.value = progressRef.current;
+      } else if (isExploded) {
         // Fix for disappearing particles:
         // Keep gift boxes solid and at their original position (uProgress = 0.0)
         // throughout the entire explosion sequence. They serve as the anchor.
@@ -1504,6 +1750,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     if (entityLayerRef.current) entityLayerRef.current.rotation.y += rotSpeed;
     if (glowLayerRef.current) glowLayerRef.current.rotation.y += rotSpeed;
     if (ornamentsRef.current) ornamentsRef.current.rotation.y += rotSpeed;
+    if (imageOrnamentsRef.current) imageOrnamentsRef.current.rotation.y += rotSpeed; // Rotate images
     if (giftsRef.current) giftsRef.current.rotation.y += rotSpeed;
 
     // Ensure root position is reset (shake animation removed)
@@ -1829,6 +2076,21 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           <primitive object={ornamentMaterialRef.current} attach="material" />
         )}
       </points>
+
+      {/* Image Ornaments Group */}
+      <group ref={imageOrnamentsRef}>
+        {ornamentData.imageItems.map((item, i) => (
+          <DissolvingImage
+            key={i}
+            url={ORNAMENT_IMAGE_MAP[item.type]!}
+            position={item.position}
+            scale={item.scale}
+            rotation={[0, item.rotation + Math.PI / 2, 0]}
+            progressRef={progressRef}
+            erosionFactor={item.erosionFactor}
+          />
+        ))}
+      </group>
 
       {/* Gift boxes */}
       <points ref={giftsRef}>

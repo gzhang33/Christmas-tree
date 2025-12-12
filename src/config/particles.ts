@@ -7,6 +7,24 @@
  */
 
 /**
+ * Tree Shape Configuration
+ * 树形配置参数
+ * 
+ * 用于 treeUtils 工具函数和 magicDust.vert 着色器
+ * 定义圣诞树的几何形状参数
+ */
+export const TREE_SHAPE_CONFIG = {
+    // 着色器用参数 (用于 MagicDust 螺旋粒子)
+    maxRadius: 12.0,      // 树底部最大半径
+    radiusScale: 0.9,     // 半径缩放系数
+    minRadius: 1.0,       // 树顶部最小半径
+
+    // 显示渲染用参数 (用于 getTreeRadius 分层算法)
+    layers: 7,            // 分层数量
+    maxRDisplay: 5.5,     // 显示用最大半径
+} as const;
+
+/**
  * 圣诞树粒子系统配置
  */
 export const PARTICLE_CONFIG = {
@@ -23,9 +41,9 @@ export const PARTICLE_CONFIG = {
     ratios: {
         entity: 0.485,    // 48.5% - 树主体
         glow: 0.10,       // 10.0% - 光晕效果
-        ornament: 0.155,  // 15.5% - 装饰球
+        ornament: 0.16,  // 16.0% - 装饰球
         gift: 0.23,       // 23.0% - 礼物盒
-        magicDust: 0.005, // 0.5% - 魔法尘埃螺旋光环
+        magicDust: 0.01, // 1.0% - 魔法尘埃螺旋光环
         treeBase: 0.025,  // 2.5% - 树底座
     },
 
@@ -41,6 +59,35 @@ export const PARTICLE_CONFIG = {
         // 注：glow 和 treeBase 不设最小值，因为...（补充原因）
     },
     // ------------------------------------------------------------------------
+    // 消散动画配置 (Dissipation Animation Configuration)
+    // 用于 TreeParticles 和 MagicDust 的同步消散效果
+    // ------------------------------------------------------------------------
+    dissipation: {
+        // === 双层粒子系统 (Dual-Layer Particle System) ===
+        // 当 dissipateOnly = true 时，只有消散层粒子向上飘散，骨架层粒子保持原位
+        dissipateOnly: true,      // 是否只执行消散动画（圣诞树不消失）
+        coreLayerRatio: 0.4,      // 骨架层粒子比例 (0-1)，这部分粒子不参与消散
+
+        // 触发逻辑参数 (Trigger Logic)
+        progressMultiplier: 2.6,  // uProgress 的缩放系数，确保覆盖完整动画范围
+        noiseInfluence: 0.3,      // 随机噪声对触发时间的影响 (0-1)
+        heightInfluence: 1.0,     // 高度延迟对触发时间的影响 (自上而下消散)
+
+        // 运动物理参数 (Movement Physics)
+        upForce: 15.0,            // 向上浮力
+        driftAmplitude: 4.0,      // 飘移幅度
+
+        // 尺寸动画参数 (Size Animation)
+        growPeakProgress: 0.3,    // 增长峰值时的进度
+        growAmount: 0.3,          // 增长量
+        shrinkAmount: 0.6,        // 缩小量
+
+        // 淡出参数 (Fade Out)
+        fadeStart: 0.3,           // 开始淡出的进度
+        fadeEnd: 0.85,            // 完全消失的进度
+    },
+
+    // ------------------------------------------------------------------------
     // 魔法尘埃特效配置 (Magic Dust Configuration)
     // ------------------------------------------------------------------------
     magicDust: {
@@ -51,7 +98,8 @@ export const PARTICLE_CONFIG = {
         rotationSpeed: 0.15,    // 轨道旋转速度
 
         // 视觉效果
-        colors: ['#845696', '#b150e4', '#FFFAF0'], // 紫色系        minSize: 0.1,          // 最小粒子尺寸
+        colors: ['#845696', '#b150e4', '#FFFAF0'], // 紫色系
+        minSize: 0.1,          // 最小粒子尺寸
         maxSize: 0.3,          // 最大粒子尺寸
         radiusVariation: 0.2,  // 半径随机变化
         angleVariation: 0.5,   // 角度随机变化
@@ -63,15 +111,15 @@ export const PARTICLE_CONFIG = {
     // ------------------------------------------------------------------------
     animation: {
         // 呼吸动画全局开关
-        enableBreathing: false,
+        enableBreathing: true,
 
         // 呼吸动画频率 (多层有机运动)
         breatheFrequency1: 0.6,    // 主呼吸层
         breatheFrequency2: 1.2,    // 次呼吸层
         breatheFrequency3: 0.4,    // 第三呼吸层
-        breatheAmplitude1: 0.15,   // 主呼吸幅度
-        breatheAmplitude2: 0.10,   // 次呼吸幅度
-        breatheAmplitude3: 0.08,   // 第三呼吸幅度
+        breatheAmplitude1: 0.10,   // 主呼吸幅度
+        breatheAmplitude2: 0.05,   // 次呼吸幅度
+        breatheAmplitude3: 0.04,   // 第三呼吸幅度
 
         // 摇摆动画 (树体摆动)
         swayFrequency: 0.5,        // 摇摆频率
@@ -79,8 +127,9 @@ export const PARTICLE_CONFIG = {
 
         // 爆炸物理阻尼速度
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
-        dampingSpeedExplosion: 0.002, // 爆炸时阻尼速度
-        dampingSpeedReset: 0.008,     // 回归时阻尼速度
+        dampingSpeedExplosion: 0.002, // 爆炸速度 (High velocity)
+        dampingSpeedReset: 0.004,     // 还原速度 (Rapid damping)
+        dampingSpeedEntrance: 0.002,  // 入场速度 (Slower for entrance)
     },
 
     // ------------------------------------------------------------------------

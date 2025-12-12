@@ -372,6 +372,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
 
+        // Disable hover during photo centering animation
+        if (activePhoto) return;
+
         // Support touch and pen input
         const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
 
@@ -383,10 +386,13 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
         // Standard pointer cursor (no custom icon per AC:3)
         document.body.style.cursor = 'pointer';
-    }, [instanceId, memoryId, setHoveredPhoto]);
+    }, [instanceId, memoryId, setHoveredPhoto, activePhoto]);
 
     const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Disable hover during photo centering animation
+        if (activePhoto) return;
 
         // Support touch and pen input
         const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
@@ -400,12 +406,16 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetTiltX = 0;
         hover.targetTiltY = 0;
         document.body.style.cursor = 'auto';
-    }, [memoryId, setHoveredPhoto]);
+    }, [memoryId, setHoveredPhoto, activePhoto]);
 
     // === 3D TILT INTERACTION (AC: 2) ===
 
     const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Disable tilt during photo centering animation
+        if (activePhoto) return;
+
         const hover = hoverRef.current;
 
         if (!hover.isHovered || !groupRef.current) return;
@@ -444,7 +454,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
             hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
         }
-    }, [memoryId, setHoveredPhoto]);
+    }, [memoryId, setHoveredPhoto, activePhoto]);
 
     // Animation frame - optimized to minimize allocations
     // NEW: Skip if using external animation (PhotoManager handles it)

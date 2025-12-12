@@ -1,14 +1,15 @@
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PARTICLE_CONFIG } from '../../config/particles';
+import { PARTICLE_CONFIG, TREE_SHAPE_CONFIG } from '../../config/particles';
 import { useStore } from '../../store/useStore';
+import { calculateErosionFactor } from '../../utils/treeUtils';
 import magicDustVertexShader from '../../shaders/magicDust.vert?raw';
 import magicDustFragmentShader from '../../shaders/magicDust.frag?raw';
 
 interface MagicDustProps {
   count?: number;
-  isExploded?: boolean;
+  // Note: isExploded is now read directly from store for synchronization with TreeParticles
 }
 
 // Meteor texture with comet-like glow
@@ -51,12 +52,15 @@ const createMeteorTexture = () => {
   return tex;
 };
 
-export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = false }) => {
+export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const meteorTexture = useMemo(() => createMeteorTexture(), []);
 
   // Get dynamic color from store
   const magicDustColor = useStore((state) => state.magicDustColor);
+
+  // Read isExploded directly from store for perfect synchronization with TreeParticles
+  const isExploded = useStore((state) => state.isExploded);
 
   // Destructure config for precise dependency tracking
   const {
@@ -71,8 +75,29 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
 
   const { treeHeight, treeBottomY } = PARTICLE_CONFIG;
 
+  // Dissipation config for synchronized animation with TreeParticles
+  const {
+    progressMultiplier: configProgressMultiplier,
+    noiseInfluence: configNoiseInfluence,
+    heightInfluence: configHeightInfluence,
+    upForce: configUpForce,
+    driftAmplitude: configDriftAmplitude,
+    growPeakProgress: configGrowPeakProgress,
+    growAmount: configGrowAmount,
+    shrinkAmount: configShrinkAmount,
+    fadeStart: configFadeStart,
+    fadeEnd: configFadeEnd,
+  } = PARTICLE_CONFIG.dissipation;
+
+  // Get landing phase for synchronized entrance animation
+  const landingPhase = useStore((state) => state.landingPhase);
+
   // Animation state for smooth transitions
-  const progressRef = useRef(0.0);
+  // Start exploded (1.5) if we are in morphing phase (Entrance) to sync with tree
+  const isEntrance = landingPhase === 'morphing';
+  const progressRef = useRef(isEntrance ? 1.2 : 0.0);
+
+
   const targetProgressRef = useRef(0.0);
 
   // Generate color variations from the selected color
@@ -92,13 +117,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
   // Increase particle count to account for trails which are now just more particles
   const totalParticles = count * 6; // *6 for trail density
 
-  // Helper for erosion (Dissipation logic)
-  const calculateErosionFactor = (yPosition: number): number => {
-    const treeTopY = treeBottomY + treeHeight;
-    const erosionRange = treeHeight + Math.abs(treeBottomY);
-    const factor = (treeTopY - yPosition) / erosionRange;
-    return Math.max(0, Math.min(1, factor)); // Clamp to [0,1]
-  };
+  // Note: calculateErosionFactor is imported from treeUtils for consistency with TreeParticles
 
   const data = useMemo(() => {
     const positions = new Float32Array(totalParticles * 3); // Dummy positions, shader does layout
@@ -182,31 +201,82 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600, isExploded = 
     uTreeBottomY: { value: treeBottomY },
     uSpiralTurns: { value: configSpiralTurns },
     uRadiusOffset: { value: configRadiusOffset },
-  }), [meteorTexture, treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset]);
+    // Tree shape parameters (from TREE_SHAPE_CONFIG in treeUtils)
+    uMaxRadius: { value: TREE_SHAPE_CONFIG.maxRadius },
+    uRadiusScale: { value: TREE_SHAPE_CONFIG.radiusScale },
+    uMinRadius: { value: TREE_SHAPE_CONFIG.minRadius },
+    // Dissipation animation parameters (synchronized with TreeParticles)
+    uProgressMultiplier: { value: configProgressMultiplier },
+    uNoiseInfluence: { value: configNoiseInfluence },
+    uHeightInfluence: { value: configHeightInfluence },
+    uUpForce: { value: configUpForce },
+    uDriftAmplitude: { value: configDriftAmplitude },
+    uGrowPeakProgress: { value: configGrowPeakProgress },
+    uGrowAmount: { value: configGrowAmount },
+    uShrinkAmount: { value: configShrinkAmount },
+    uFadeStart: { value: configFadeStart },
+    uFadeEnd: { value: configFadeEnd },
+  }), [
+    meteorTexture, treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset,
+    configProgressMultiplier, configNoiseInfluence, configHeightInfluence,
+    configUpForce, configDriftAmplitude, configGrowPeakProgress,
+    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd
+  ]);
 
   // Explicitly update uniforms when config changes
   useEffect(() => {
     if (materialRef.current) {
-      console.log('[MagicDust] Updating Config:', {
-        radiusOffset: configRadiusOffset,
-        spiralTurns: configSpiralTurns,
-      });
+      // Tree shape parameters
       materialRef.current.uniforms.uTreeHeight.value = treeHeight;
       materialRef.current.uniforms.uTreeBottomY.value = treeBottomY;
       materialRef.current.uniforms.uSpiralTurns.value = configSpiralTurns;
       materialRef.current.uniforms.uRadiusOffset.value = configRadiusOffset;
+      // Dissipation animation parameters (synchronized with TreeParticles)
+      materialRef.current.uniforms.uProgressMultiplier.value = configProgressMultiplier;
+      materialRef.current.uniforms.uNoiseInfluence.value = configNoiseInfluence;
+      materialRef.current.uniforms.uHeightInfluence.value = configHeightInfluence;
+      materialRef.current.uniforms.uUpForce.value = configUpForce;
+      materialRef.current.uniforms.uDriftAmplitude.value = configDriftAmplitude;
+      materialRef.current.uniforms.uGrowPeakProgress.value = configGrowPeakProgress;
+      materialRef.current.uniforms.uGrowAmount.value = configGrowAmount;
+      materialRef.current.uniforms.uShrinkAmount.value = configShrinkAmount;
+      materialRef.current.uniforms.uFadeStart.value = configFadeStart;
+      materialRef.current.uniforms.uFadeEnd.value = configFadeEnd;
     }
-  }, [treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset]);
+  }, [
+    treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset,
+    configProgressMultiplier, configNoiseInfluence, configHeightInfluence,
+    configUpForce, configDriftAmplitude, configGrowPeakProgress,
+    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd
+  ]);
+
+  // Track previous phase to detect transitions
+  const prevPhaseRef = useRef(landingPhase);
 
   // Animation Loop - STRICTLY SYNCED with TreeParticles
   useFrame((state) => {
-    // 1. Interpolate Progress based on isExploded prop
-    // Logic must match TreeParticles.tsx exactly to prevent de-sync
+    const delta = state.clock.getDelta(); // Although we don't use delta for damping yet (per original design), we might need it later.
+
+    // Detect phase change to 'morphing' and reset progress instantly
+    if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {
+      progressRef.current = 1.2;
+    }
+    prevPhaseRef.current = landingPhase;
+
+    // 1. Interpolate Progress based on Phase & isExploded
+    // Determine target based on state
+    // If morphing, we target 0.0 (implode to tree)
     targetProgressRef.current = isExploded ? 1.0 : 0.0;
 
-    const dampingSpeed = isExploded
-      ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
-      : PARTICLE_CONFIG.animation.dampingSpeedReset;
+    // Select damping speed based on phase
+    let dampingSpeed;
+    if (landingPhase === 'morphing') {
+      dampingSpeed = PARTICLE_CONFIG.animation.dampingSpeedEntrance;
+    } else {
+      dampingSpeed = isExploded
+        ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
+        : PARTICLE_CONFIG.animation.dampingSpeedReset;
+    }
 
     const diff = targetProgressRef.current - progressRef.current;
     progressRef.current += diff * dampingSpeed;

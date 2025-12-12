@@ -3,6 +3,11 @@
  *
  * Refactored to use high-quality 2D typography overlay with HTML/CSS
  * replacing the previous particle-based implementation.
+ * 
+ * Features:
+ * - Christmas Star font for title
+ * - Festive entrance animation with scale, blur, and glow effects
+ * - Username visibility coordination with UsernameTransition component
  */
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +24,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
     const context = useLandingFlow();
     const userNameRaw = useStore((state) => state.userName);
     const landingPhase = useStore((state) => state.landingPhase);
+    const usernameTransitionComplete = useStore((state) => state.usernameTransitionComplete);
 
     // Derived state
     const userName = userNameRaw
@@ -30,9 +36,11 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
     // Internal state for "fading out" logic unique to this UI layer
     const [isExiting, setIsExiting] = useState(false);
 
+    // Track if title entrance animation has completed
+    const [titleEntranceComplete, setTitleEntranceComplete] = useState(false);
+
     // Trigger next sequence when fade out completes
     const handleExitComplete = () => {
-        console.log('[LandingTitle] handleExitComplete called, setting phase to morphing');
         // Transition to morphing phase (which triggers 3D particles)
         // We add a slight delay to ensure particles have cleared screen visually if needed, 
         // though the callback is called when all vaporized.
@@ -46,13 +54,31 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
 
     // Auto-trigger entrance complete when fully visible
     useEffect(() => {
-        if (landingPhase === 'entrance' || landingPhase === 'text') {
+        if (landingPhase === 'entrance') {
             if (context.onEntranceComplete) {
                 const timer = setTimeout(() => context.onEntranceComplete(), 1000);
                 return () => clearTimeout(timer);
             }
         }
     }, [landingPhase, context.onEntranceComplete]);
+
+    // Auto-trigger exit after 2 seconds in text phase
+    useEffect(() => {
+        if (landingPhase === 'text' && !isExiting) {
+            const timer = setTimeout(() => {
+                setIsExiting(true);
+            }, 2000); // 2 seconds auto-trigger
+            return () => clearTimeout(timer);
+        }
+    }, [landingPhase, isExiting]);
+
+    // Reset states when entering entrance phase
+    useEffect(() => {
+        if (landingPhase === 'entrance') {
+            setTitleEntranceComplete(false);
+            setIsExiting(false);
+        }
+    }, [landingPhase]);
 
     // Hide during input, tree, and morphing phases
     if (landingPhase === 'input' || landingPhase === 'tree' || landingPhase === 'morphing') {
@@ -67,7 +93,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 1.5, ease: "easeOut" }}
-                className="fixed inset-0 z-30 flex flex-col items-center justify-between pointer-events-none select-none"
+                className="fixed inset-0 z-50 flex flex-col items-center justify-between pointer-events-none select-none"
                 style={{
                     background: 'transparent',
                     paddingTop: '30vh',
@@ -76,12 +102,47 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
             >
                 {/* Title & Username Section */}
                 <div className="flex flex-col items-center text-center space-y-4 pointer-events-auto relative w-full h-[400px]">
-                    {/* Merry Christmas Title */}
-                    <div className="w-full h-[200px] flex justify-center items-center">
+                    {/* Merry Christmas Title with Christmas entrance animation */}
+                    <motion.div
+                        className="w-full h-[200px] flex justify-center items-center"
+                        initial={{
+                            scale: 0.85,
+                            opacity: 0,
+                            filter: 'blur(8px)'
+                        }}
+                        animate={{
+                            scale: 1,
+                            opacity: 1,
+                            filter: 'blur(0px)'
+                        }}
+                        transition={{
+                            duration: 1.5,
+                            ease: [0.25, 0.46, 0.45, 0.94],
+                            delay: 0.2
+                        }}
+                        onAnimationComplete={() => setTitleEntranceComplete(true)}
+                    >
+                        {/* Glow layer behind the title */}
+                        <motion.div
+                            className="absolute inset-0 flex justify-center items-center pointer-events-none"
+                            initial={{ opacity: 0 }}
+                            animate={{
+                                opacity: [0, 0.6, 0.4],
+                            }}
+                            transition={{
+                                duration: 2,
+                                ease: "easeOut",
+                                delay: 0.5
+                            }}
+                            style={{
+                                filter: 'blur(30px)',
+                                background: 'radial-gradient(ellipse at center, rgba(212, 175, 55, 0.3) 0%, transparent 70%)'
+                            }}
+                        />
                         <VaporizeTextCycle
                             texts={["Merry Christmas"]}
                             font={{
-                                fontFamily: "'Mountains of Christmas', cursive",
+                                fontFamily: "'Merry Christmas Star', 'Mountains of Christmas', cursive",
                                 fontSize: "96px", // MD/LG sizes roughly
                                 fontWeight: 700
                             }}
@@ -100,10 +161,17 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                             loop={false}
                             onComplete={handleExitComplete}
                         />
-                    </div>
+                    </motion.div>
 
-                    {/* Username */}
-                    <div className="w-full h-[100px] flex justify-center items-center">
+                    {/* Username - only show after transition animation completes */}
+                    <motion.div
+                        className="w-full h-[100px] flex justify-center items-center"
+                        initial={{ opacity: 0 }}
+                        animate={{
+                            opacity: usernameTransitionComplete ? 1 : 0
+                        }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                    >
                         <VaporizeTextCycle
                             texts={[userName]}
                             font={{
@@ -125,7 +193,7 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                             manualTrigger={isExiting}
                             loop={false}
                         />
-                    </div>
+                    </motion.div>
                 </div>
 
                 {/* Interaction Button */}
@@ -165,3 +233,4 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
 };
 
 export default LandingTitle;
+

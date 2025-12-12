@@ -37,27 +37,100 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
     // Subscribe to all store state
     const isExploded = useStore((state) => state.isExploded);
     const activePhoto = useStore((state) => state.activePhoto);
-
     const landingPhase = useStore((state) => state.landingPhase);
+    const treeMorphState = useStore((state) => state.treeMorphState);
 
-    // Determine current scene
-    const getCurrentScene = () => {
+    /**
+     * Unified state display logic:
+     * - When treeMorphState is active (not idle), show morphing state as priority
+     * - Otherwise show the scene state based on landingPhase/isExploded/activePhoto
+     * 
+     * State flow:
+     * 1. Entrance animation: "Morphing In" (particles converging to form tree)
+     * 2. Tree idle: "Tree Idle"
+     * 3. Tree -> Photo Sea explosion: "Morphing Out" (particles dispersing)
+     * 4. Photo Sea idle: "Photo Sea"
+     * 5. Photo focus: "Photo Focus"
+     * 6. Photo Sea -> Tree restore: "Morphing In" (particles converging back)
+     */
+    const getUnifiedState = () => {
+        // Priority 1: Morphing animations take precedence
+        if (treeMorphState === 'morphing-in') {
+            return {
+                text: '⬇ Morphing In',
+                style: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+                isAnimating: true
+            };
+        }
+        if (treeMorphState === 'morphing-out') {
+            return {
+                text: '⬆ Morphing Out',
+                style: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+                isAnimating: true
+            };
+        }
+
+        // Priority 2: Landing phases (before tree stage)
         if (landingPhase !== 'tree') {
             switch (landingPhase) {
-                case 'entrance': return 'Entrance';
-                case 'input': return 'Name Input';
-                case 'text': return 'Text Intro';
-                case 'morphing': return 'Morphing';
-                default: return landingPhase;
+                case 'entrance':
+                    return {
+                        text: 'Entrance',
+                        style: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+                        isAnimating: true
+                    };
+                case 'input':
+                    return {
+                        text: 'Name Input',
+                        style: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+                        isAnimating: false
+                    };
+                case 'text':
+                    return {
+                        text: 'Text Intro',
+                        style: 'bg-pink-500/20 text-pink-400 border border-pink-500/30',
+                        isAnimating: true
+                    };
+                case 'morphing':
+                    // This shouldn't happen as treeMorphState would be 'morphing-in'
+                    // but as fallback show it
+                    return {
+                        text: 'Morphing',
+                        style: 'bg-pink-500/20 text-pink-400 border border-pink-500/30',
+                        isAnimating: true
+                    };
+                default:
+                    return {
+                        text: landingPhase,
+                        style: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
+                        isAnimating: false
+                    };
             }
         }
 
-        if (activePhoto) return 'Photo Focus';
-        if (isExploded) return 'Photo Sea';
-        return 'Tree Idle';
+        // Priority 3: Tree stage scenes
+        if (activePhoto) {
+            return {
+                text: 'Photo Focus',
+                style: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+                isAnimating: false
+            };
+        }
+        if (isExploded) {
+            return {
+                text: 'Photo Sea',
+                style: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+                isAnimating: false
+            };
+        }
+        return {
+            text: 'Tree Idle',
+            style: 'bg-green-500/20 text-green-400 border border-green-500/30',
+            isAnimating: false
+        };
     };
 
-    const currentScene = getCurrentScene();
+    const unifiedState = getUnifiedState();
 
     // Toggle visibility with F4
     useEffect(() => {
@@ -89,16 +162,11 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                 >
                     ✕
                 </button>            </div>
-            {/* Current Scene Badge */}
+            {/* Unified State Badge - Only ONE status shown */}
             <div className="mb-3">
-                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${currentScene === 'Entrance' || currentScene === 'Name Input' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                        currentScene === 'Text Intro' || currentScene === 'Morphing' ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30' :
-                            currentScene === 'Tree Idle' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                currentScene === 'Photo Sea' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                    'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                    }`}>
-                    <span className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse"></span>
-                    {currentScene}
+                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${unifiedState.style}`}>
+                    {unifiedState.isAnimating && <span className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse"></span>}
+                    {unifiedState.text}
                 </div>
             </div>
 
@@ -269,6 +337,6 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                     </div>
                 </div>
             )}
-        </div>
+        </div >
     );
 };

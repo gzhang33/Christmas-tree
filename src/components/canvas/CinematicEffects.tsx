@@ -15,9 +15,10 @@ export const CinematicEffects: React.FC = () => {
     // Calculate initial offset to avoid jump on first load
     // 计算初始偏移值，避免首次加载时的跳动
     const initialOffset = useMemo(() => {
-        const offset = isExploded && hoveredPhotoInstanceId === null
-            ? POST_PROCESSING_CONFIG.chromaticAberration.exploded
-            : POST_PROCESSING_CONFIG.chromaticAberration.normal;
+        // 修复逻辑：聚焦时完全清晰（0色差），其他情况使用正常值
+        const offset = isExploded && hoveredPhotoInstanceId !== null
+            ? 0.0  // 聚焦照片时：完全清晰，无色差
+            : POST_PROCESSING_CONFIG.chromaticAberration.normal;  // 其他情况：正常色差
         return new THREE.Vector2(offset, offset);
     }, [isExploded, hoveredPhotoInstanceId]);
 
@@ -25,10 +26,10 @@ export const CinematicEffects: React.FC = () => {
     useFrame((state, delta) => {
         if (chromaticRef.current) {
             const isHovered = hoveredPhotoInstanceId !== null;
-            // Target offset: exploded value when exploded and not hovering, normal otherwise
-            const targetOffset = isExploded && !isHovered
-                ? POST_PROCESSING_CONFIG.chromaticAberration.exploded
-                : POST_PROCESSING_CONFIG.chromaticAberration.normal;
+            // 修复逻辑：聚焦时完全清晰（0色差），其他情况使用正常值
+            const targetOffset = isExploded && isHovered
+                ? 0.0  // 聚焦照片时：完全清晰，无色差
+                : POST_PROCESSING_CONFIG.chromaticAberration.normal;  // 其他情况：正常色差
 
             // Frame-rate independent lerp factor
             const CHROMATIC_LERP_SPEED = 3.0; // Adjust to taste

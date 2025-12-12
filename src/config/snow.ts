@@ -28,20 +28,20 @@ export const SNOW_CONFIG = {
     particles: {
         // 空间分布范围
         spawnArea: {
-            width: 60, // X 轴范围（-30 到 30）
-            height: 40, // Y 轴初始高度范围（0 到 40）
-            depth: 60, // Z 轴范围（-30 到 30）
+            width: 60, // X 轴范围
+            height: 40, // Y 轴初始高度范围
+            depth: 60, // Z 轴范围
         },
 
         // 下落速度配置
         velocity: {
             min: 0.01, // 最小下落速度
-            max: 0.05, // 最大下落速度（min + 0.04）
+            max: 0.05, // 最大下落速度
         },
 
         // 旋转速度配置
         rotation: {
-            speedRange: 0.03, // 旋转速度范围（-0.025 到 0.025）
+            speedRange: 0.03, // 旋转速度范围（speedRange-0.025 到 speedRange+0.025）
         },
 
         // 摆动配置
@@ -49,13 +49,13 @@ export const SNOW_CONFIG = {
             xRange: 0.02, // X 轴摆动幅度
             zRange: 0.02, // Z 轴摆动幅度
             frequencyMin: 1, // 最小摆动频率
-            frequencyMax: 3, // 最大摆动频率（min + 2）
+            frequencyMax: 3, // 最大摆动频率
         },
 
         // 尺寸配置
         scale: {
             min: 0.2, // 最小缩放比例
-            max: 0.6, // 最大缩放比例（min + 0.4）
+            max: 0.6, // 最大缩放比例
         },
     },
 
@@ -75,7 +75,7 @@ export const SNOW_CONFIG = {
         reset: {
             yThreshold: -10, // Y 轴重置阈值（低于此值时重置）
             respawnYMin: 30, // 重生时的最小 Y 坐标
-            respawnYMax: 40, // 重生时的最大 Y 坐标（min + 10）
+            respawnYMax: 40, // 重生时的最大 Y 坐标
         },
 
         // 摆动动画配置

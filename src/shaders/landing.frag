@@ -9,6 +9,8 @@ varying float vAlpha;
 varying vec3 vColor;
 varying float vMix;
 
+uniform float uOpacity;
+
 void main() {
     // Distance from point center
     vec2 center = gl_PointCoord - vec2(0.5);
@@ -17,8 +19,8 @@ void main() {
     // Soft circular particle with feathered edge
     float softEdge = 1.0 - smoothstep(0.3, 0.5, dist);
     
-    // Final alpha
-    float alpha = softEdge * vAlpha;
+    // Final alpha - modulated by global opacity for fade-out
+    float alpha = softEdge * vAlpha * uOpacity;
     if (alpha < 0.01) {
         discard;
     }

@@ -3,7 +3,9 @@ import { Controls } from './components/ui/Controls.tsx';
 import { DebugStore } from './components/ui/DebugStore.tsx';
 import { LandingFlowController } from './components/ui/LandingFlowController.tsx';
 import { ClickPrompt } from './components/ui/ClickPrompt.tsx';
+import { ActionHint } from './components/ui/ActionHint.tsx';
 import { LandingTitle } from './components/ui/LandingTitle.tsx';
+import { UsernameTransition } from './components/ui/UsernameTransition.tsx';
 import { BackgroundMusicPlayer } from './components/ui/BackgroundMusicPlayer.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';
@@ -28,6 +30,7 @@ function App() {
   const resetExplosion = useStore((state) => state.resetExplosion);
   const landingPhase = useStore((state) => state.landingPhase);
   const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId);
+  const treeMorphState = useStore((state) => state.treeMorphState);
 
   // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);
@@ -204,13 +207,20 @@ function App() {
         {/* UI Overlay - only shown in tree phase */}
         {landingPhase === 'tree' && <Controls uiState={uiState} />}
 
-        {/* Restore Prompt */}
-        <ClickPrompt
-          isVisible={landingPhase === 'tree' && isExploded}
-          onClick={toggleExplosion}
-          mainText={<><span className="text-amber-300">Double Click</span> to restore</>}
-          subText="双击屏幕还原圣诞树 ✨"
-          showArrow={false}
+        {/* Tree Idle Hint - Click to reveal photos */}
+        <ActionHint
+          isVisible={landingPhase === 'tree' && !isExploded && !hoveredPhotoInstanceId}
+          text="Click"
+          subText="点击"
+          position="bottom-center"
+        />
+
+        {/* Photo Sea Hint - Double click to restore (only in Photo Sea idle state) */}
+        <ActionHint
+          isVisible={landingPhase === 'tree' && isExploded && treeMorphState === 'idle'}
+          text="Double Click to restore"
+          subText="双击还原"
+          position="bottom-center"
         />
 
         {/* Debug Store Panel (F4 to toggle) */}
@@ -224,6 +234,9 @@ function App() {
             await unmute();
           }}
         />
+
+        {/* Username Transition Animation - shown during entrance */}
+        <UsernameTransition />
 
         {/* Landing Title - shown during entrance/text/morphing phases (2D canvas particles) */}
         <LandingTitle />

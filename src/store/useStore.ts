@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ConfigSlice, createConfigSlice } from './slices/createConfigSlice';
-import { FlowSlice, createFlowSlice, LandingPhase } from './slices/createFlowSlice';
+import { FlowSlice, createFlowSlice, LandingPhase, TreeMorphState } from './slices/createFlowSlice';
 import { InteractionSlice, createInteractionSlice } from './slices/createInteractionSlice';
 
-// Export LandingPhase for consumers
-export type { LandingPhase };
+// Export LandingPhase and TreeMorphState for consumers
+export type { LandingPhase, TreeMorphState };
 
 /**
  * Global Application State Interface

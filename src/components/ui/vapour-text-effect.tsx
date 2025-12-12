@@ -255,7 +255,6 @@ export default function VaporizeTextCycle({
                     if ((vaporizeProgressRef.current >= 100 && allVaporized) || shouldForceComplete) {
                         if (!loop) {
                             animationStateRef.current = "completed";
-                            console.log('[VaporizeTextCycle] Animation completed, progress:', vaporizeProgressRef.current, 'allVaporized:', allVaporized, 'forced:', shouldForceComplete);
                             if (onCompleteRef.current) onCompleteRef.current();
                         } else {
                             setCurrentTextIndex(prevIndex => (prevIndex + 1) % texts.length);

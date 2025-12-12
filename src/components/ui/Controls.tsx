@@ -154,7 +154,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-10 p-4 sm:p-6 gap-4"
+                    className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-50 p-4 sm:p-6 gap-4"
                 >
                     {/* Toggle Button with pulse animation */}
                     <motion.button

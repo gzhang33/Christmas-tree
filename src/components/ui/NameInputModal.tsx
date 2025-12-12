@@ -105,12 +105,12 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                     exit={{ opacity: 0 }}
                     transition={{ duration: INTERACTION_CONFIG.nameInput.animation.modalFadeDuration }}
                 >
-                    {/* Backdrop with blur */}
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+                    {/* Backdrop with blur - below snow */}
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-0" />
 
-                    {/* Modal Content */}
+                    {/* Modal Content - above snow */}
                     <motion.div
-                        className="relative z-10 flex flex-col items-center gap-8 px-8 py-12 max-w-md w-full mx-4"
+                        className="relative z-50 flex flex-col items-center gap-8 px-8 py-12 max-w-md w-full mx-4"
                         initial={{ y: 30, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -30, opacity: 0 }}
@@ -164,21 +164,78 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                             </AnimatePresence>
                         </div>
 
-                        {/* Submit Button */}
+                        {/* Submit Button - Christmas Themed */}
                         <motion.button
                             onClick={handleSubmit}
                             aria-busy={isSubmitting}
                             disabled={isSubmitting || inputValue.trim().length === 0}
-                            className="px-10 py-4 text-lg font-semibold text-black bg-gradient-to-r 
-                                     from-amber-400 to-amber-500 rounded-full
-                                     shadow-lg shadow-amber-500/30
-                                     disabled:opacity-50 disabled:cursor-not-allowed
-                                     hover:from-amber-300 hover:to-amber-400
-                                     transition-all duration-300"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="group relative px-12 py-5 text-lg font-bold text-white overflow-hidden
+                                     rounded-full z-[999]
+                                     disabled:cursor-not-allowed
+                                     transition-all duration-500"
+                            style={{
+                                background: isSubmitting || inputValue.trim().length === 0
+                                    ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(185, 28, 28, 0.3) 100%)'
+                                    : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%)',
+                                border: '3px solid #fbbf24',
+                                boxShadow: isSubmitting || inputValue.trim().length === 0
+                                    ? 'none'
+                                    : '0 0 30px rgba(220, 38, 38, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                            }}
+                            whileHover={!(isSubmitting || inputValue.trim().length === 0) ? {
+                                scale: 1.08,
+                                boxShadow: '0 0 40px rgba(220, 38, 38, 0.8), 0 0 80px rgba(251, 191, 36, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                            } : {}}
+                            whileTap={!(isSubmitting || inputValue.trim().length === 0) ? { scale: 0.95 } : {}}
                         >
-                            {isSubmitting ? 'Loading...' : 'Continue →'}
+                            {/* Shimmer effect */}
+                            {!(isSubmitting || inputValue.trim().length === 0) && (
+                                <motion.div
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                    animate={{
+                                        x: ['-200%', '200%']
+                                    }}
+                                    transition={{
+                                        duration: 3,
+                                        repeat: Infinity,
+                                        repeatDelay: 1,
+                                        ease: 'linear'
+                                    }}
+                                />
+                            )}
+
+                            {/* Sparkle decorations */}
+                            {!(isSubmitting || inputValue.trim().length === 0) && (
+                                <>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl animate-pulse">✨</span>
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl animate-pulse" style={{ animationDelay: '0.5s' }}>✨</span>
+                                </>
+                            )}
+
+                            {/* Button text */}
+                            <span className="relative z-10 flex items-center gap-2">
+                                {isSubmitting ? (
+                                    <>
+                                        <motion.span
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                        >
+                                            🎄
+                                        </motion.span>
+                                        <span>Loading...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>开始圣诞之旅</span>
+                                        <motion.span
+                                            animate={{ x: [0, 4, 0] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                        >
+                                            →
+                                        </motion.span>
+                                    </>
+                                )}
+                            </span>
                         </motion.button>
 
                         {/* Decorative snowflakes */}

@@ -13,6 +13,7 @@
 uniform float uProgress;
 uniform vec3 uTreeColor;      // Primary tree color
 uniform sampler2D uMap;       // Particle texture map (feather/sparkle)
+uniform float uGlobalAlpha;   // Global alpha for fade-in transitions
 
 // === VARYINGS ===
 varying float vProgress;
@@ -65,5 +66,5 @@ void main() {
   color = mix(color, color * 0.4, fogFactor);
 
   // === OUTPUT ===
-  gl_FragColor = vec4(color, alpha);
+  gl_FragColor = vec4(color, alpha * uGlobalAlpha);
 }

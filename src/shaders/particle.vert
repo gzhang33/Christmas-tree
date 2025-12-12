@@ -7,6 +7,10 @@
  * Extended with:
  * - Photo particle support (isPhotoParticle attribute)
  * - Fade-out for non-photo particles during explosion
+ * - Synchronized dissipation animation via config uniforms
+ *
+ * All dissipation animation parameters are received from PARTICLE_CONFIG.dissipation
+ * to ensure perfect synchronization with MagicDust particles.
  *
  * @source docs/architecture.md#5-novel-pattern-designs
  */
@@ -16,6 +20,36 @@ uniform float uProgress;    // Animation progress: 0.0 (Tree) -> 1.0 (Exploded)
 uniform float uTime;        // Time for floating noise animation
 uniform vec3 uTreeColor;    // Base tree color from theme
 uniform float uBaseSize;    // Base particle size multiplier
+
+// Animation uniforms (breathing and sway)
+uniform float uBreatheFreq1; 
+uniform float uBreatheFreq2;
+uniform float uBreatheFreq3;
+uniform float uBreatheAmp1;
+uniform float uBreatheAmp2;
+uniform float uBreatheAmp3;
+uniform float uSwayFreq;
+uniform float uSwayAmp;
+
+// === DUAL-LAYER PARTICLE SYSTEM (双层粒子系统) ===
+// When uDissipateOnly is true, core layer particles stay in place while
+// dissipation layer particles float away. This creates a "smoke" effect
+// where the tree remains visible but appears to emit particles.
+uniform float uDissipateOnly;    // 0.0 = normal mode, 1.0 = tree stays visible
+uniform float uCoreLayerRatio;   // Ratio of particles that form the core layer (0-1)
+uniform float uIsEntrance;       // 1.0 = entrance animation, 0.0 = explosion/normal
+
+// Dissipation animation uniforms (synchronized with MagicDust)
+uniform float uProgressMultiplier;  // Scale factor for uProgress
+uniform float uNoiseInfluence;      // Random noise influence on trigger time
+uniform float uHeightInfluence;     // Height delay influence (top-down dissipation)
+uniform float uUpForce;             // Upward buoyancy force
+uniform float uDriftAmplitude;      // Drift/turbulence amplitude
+uniform float uGrowPeakProgress;    // Peak progress for size growth
+uniform float uGrowAmount;          // Size growth amount
+uniform float uShrinkAmount;        // Size shrink amount
+uniform float uFadeStart;           // Progress to start fading out
+uniform float uFadeEnd;             // Progress to be fully faded
 
 // === ATTRIBUTES ===
 attribute vec3 positionStart;   // Tree shape position (P0)
@@ -47,22 +81,31 @@ vec3 quadraticBezier(vec3 p0, vec3 p1, vec3 p2, float t) {
        + t * t * p2;
 }
 
-// === ANIMATION UNIFORMS ===
-uniform float uBreatheFreq1; 
-uniform float uBreatheFreq2;
-uniform float uBreatheFreq3;
-uniform float uBreatheAmp1;
-uniform float uBreatheAmp2;
-uniform float uBreatheAmp3;
-uniform float uSwayFreq;
-uniform float uSwayAmp;
-
 float easeOutCubic(float x) {
   return 1.0 - pow(1.0 - x, 3.0);
 }
 
 void main() {
-  // === DISSIPATION ANIMATION (Refactored) ===
+  // === DUAL-LAYER PARTICLE SYSTEM (双层粒子系统) ===
+  // Determine if this particle belongs to the core layer (stays in place)
+  // or the dissipation layer (floats away during explosion)
+  // Core layer is determined by aRandom < uCoreLayerRatio when uDissipateOnly is active
+  //
+  // IMPORTANT: Core layer behavior differs based on animation phase:
+  // - Entrance phase (uIsEntrance > 0.5): Core layer participates normally in the implode animation
+  // - Explosion phase (uIsEntrance <= 0.5): Core layer stays in place
+  //
+  // uIsEntrance is set by the component based on landingPhase === 'morphing'
+  
+  bool isDissipateOnlyMode = uDissipateOnly > 0.5;
+  bool isCoreLayerParticle = aRandom < uCoreLayerRatio;
+  
+  // During entrance (uIsEntrance > 0.5), core layer should animate normally
+  // Only apply "stay in place" logic when NOT in entrance phase (i.e., during explosion)
+  bool isEntrancePhase = uIsEntrance > 0.5;
+  bool shouldCoreLayerStay = isDissipateOnlyMode && isCoreLayerParticle && !isEntrancePhase;
+  
+  // === DISSIPATION ANIMATION (Synced with MagicDust via config uniforms) ===
   // Concept: Particles erode from bottom to top (or random) and float up
   
   // 1. Erosion Threshold
@@ -73,11 +116,14 @@ void main() {
   // Use pre-computed attribute for performance
   float heightDelay = aErosionFactor; 
   
-  // uProgress Scale must be > (1.0 + MaxDelay) to ensure completion
-  // We want a strong top-down effect, so we increase heightDelay weight (0.2 -> 0.6)
-  // Total deductions max approx 0.3 (noise) + 0.6 (height) = 0.9
-  // So uProgress scale needs to be > 1.9. Let's use 2.2 for safety.
-  float trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0);
+  // Trigger logic using config uniforms for synchronization
+  // Core layer particles that should stay: trigger stays at 0 (no movement during explosion)
+  float trigger;
+  if (shouldCoreLayerStay) {
+    trigger = 0.0; // Core layer stays in place during explosion
+  } else {
+    trigger = (uProgress * uProgressMultiplier) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
+  }
   float localProgress = clamp(trigger, 0.0, 1.0);
   
   // 2. Easing
@@ -87,8 +133,8 @@ void main() {
   // 3. Movement Physics (Dissipation)
   // Instead of exploding outward to a target, we float UP and DRIFT
   
-  // Upward force (buoyancy)
-  vec3 upForce = vec3(0.0, 15.0, 0.0) * easedProgress * easedProgress; // Accelerate up
+  // Upward force (buoyancy) - using config uniform
+  vec3 upForce = vec3(0.0, uUpForce, 0.0) * easedProgress * easedProgress; // Accelerate up
   
   // Turbulent Drift (Curl-like noise based on time and pos)
   // OPTIMIZED: Pre-compute phases to reduce redundant calculations
@@ -96,11 +142,12 @@ void main() {
   float noisePhaseX = positionStart.y * 0.5 + timeOffset + aRandom * 5.0;
   float noisePhaseZ = positionStart.z * 0.5 + timeOffset * 0.8 + aRandom * 4.0;
   
+  // Drift amplitude from config
   vec3 noiseOffset = vec3(
     sin(noisePhaseX),
     0.0,
     cos(noisePhaseZ)
-  ) * 4.0 * easedProgress; // Drift amplitude increases with progress
+  ) * uDriftAmplitude * easedProgress; // Drift amplitude increases with progress
   
   // === INITIAL POSITION & IDLE ANIMATION ===
   // Calculate animated start position with breathing and sway
@@ -169,18 +216,16 @@ void main() {
   // Depth-based scaling matching original PointsMaterial behavior
   float depthScale = 1.0 + (positionStart.y + 2.5) / 14.0;
 
-  // Size behavior during explosion:
-  // - Photo particles: shrink to prepare for photo morphing
-  // - Regular particles: slight growth then shrink for fade-out
+  // Size behavior during explosion (using config uniforms)
   float sizeProgress;
   if (aIsPhotoParticle > 0.5) {
     // Photo particles shrink during explosion (will be replaced by photos)
     sizeProgress = 1.0 - easedProgress * 0.8;
   } else {
     // Regular particles: grow slightly then shrink for dissipation
-    float growPhase = smoothstep(0.0, 0.3, easedProgress);
-    float shrinkPhase = smoothstep(0.3, 1.0, easedProgress);
-    sizeProgress = 1.0 + growPhase * 0.3 - shrinkPhase * 0.6;
+    float growPhase = smoothstep(0.0, uGrowPeakProgress, easedProgress);
+    float shrinkPhase = smoothstep(uGrowPeakProgress, 1.0, easedProgress);
+    sizeProgress = 1.0 + growPhase * uGrowAmount - shrinkPhase * uShrinkAmount;
   }
 
   // Base size calculation: aScale ranges 0.3-0.9, uBaseSize is the material size (0.45-0.55)
@@ -197,17 +242,14 @@ void main() {
 
   if (aIsPhotoParticle > 0.5) {
     // Photo particles fade to let photo mesh appear
-    float fadeStart = 0.2;
-    float fadeEnd = 0.6;
-    float photoFade = 1.0 - smoothstep(fadeStart, fadeEnd, easedProgress);
+    // Photo-specific fade uses different thresholds (fixed)
+    float photoFadeStart = 0.2;
+    float photoFadeEnd = 0.6;
+    float photoFade = 1.0 - smoothstep(photoFadeStart, photoFadeEnd, easedProgress);
     vAlpha = baseAlpha * photoFade;
   } else {
-    // Regular particles: complete fade-out for dissipation
-    // Keep visible during tree state and early explosion
-    // Fade out between 0.4 and 0.9 progress
-    float fadeStart = 0.3;
-    float fadeEnd = 0.85;
-    float dissipate = 1.0 - smoothstep(fadeStart, fadeEnd, easedProgress);
+    // Regular particles: complete fade-out for dissipation (using config uniforms)
+    float dissipate = 1.0 - smoothstep(uFadeStart, uFadeEnd, easedProgress);
     vAlpha = baseAlpha * dissipate;
   }
 

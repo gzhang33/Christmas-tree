@@ -1,9 +1,9 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
-import { OrbitControls as DreiOrbitControls, Stars, Environment } from '@react-three/drei';
+import { OrbitControls as DreiOrbitControls } from '@react-three/drei';
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { TreeParticles } from './TreeParticles.tsx';
-import { MagicDust } from './MagicDust.tsx';
+
 import { CameraController } from './CameraController.tsx';
 import { useStore } from '../../store/useStore';
 
@@ -19,6 +19,7 @@ const tempDriftVec = new THREE.Vector3();
 
 interface ExperienceProps {
     uiState: UIState;
+    visible?: boolean;
 }
 
 
@@ -27,7 +28,7 @@ interface ExperienceProps {
 
 
 
-export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
+export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true }) => {
     const { config, isExploded, toggleExplosion, photos } = uiState;
     const particleCount = useStore((state) => state.particleCount);
     const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId); // Consume hover state
@@ -48,19 +49,10 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     // RAF animation ID for camera reset animation
     const animationIdRef = useRef<number | null>(null);
 
-    // Light refs for dimming effect
-    const ambientRef = useRef<THREE.AmbientLight>(null);
-    const mainSpotRef = useRef<THREE.SpotLight>(null);
-    const fillSpotRef = useRef<THREE.SpotLight>(null);
-
     // NEW: Ref for VolumetricRays (moved from component)
     const raysRef = useRef<THREE.Group>(null);
 
-    const magicDustCount = useMemo(() => {
-        return Math.floor(
-            Math.max(particleCount * PARTICLE_CONFIG.ratios.magicDust, PARTICLE_CONFIG.minCounts.magicDust)
-        );
-    }, [particleCount]);
+    // MagicDust moved to SceneContainer
 
     // Handle OrbitControls interaction events
     const handleControlStart = useCallback(() => {
@@ -75,6 +67,9 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
 
     // Reset idle tracking when hover preview ends to resume auto-rotation immediately
     useEffect(() => {
+        // Skip if a photo is active (CameraController is controlling the camera)
+        if (activePhoto) return;
+
         if (hoveredPhotoInstanceId === null && isExploded && controlsRef.current) {
             // When hover ends, force OrbitControls to resume auto-rotation immediately
             // Reset interaction state to bypass idle threshold waiting
@@ -85,7 +80,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             // Force controls update to apply autoRotate immediately
             controlsRef.current.update();
         }
-    }, [hoveredPhotoInstanceId, isExploded]);
+    }, [hoveredPhotoInstanceId, isExploded, activePhoto]);
 
     // Reset camera position when returning from exploded state to tree state
     const prevIsExplodedRef = useRef(isExploded);
@@ -145,12 +140,14 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
     // === PERFORMANCE: Dynamic post-processing toggle ===
     // Moved to CinematicEffects.tsx
 
-    // === CONSOLIDATED useFrame: Camera Drift + Light Dimming + VolumetricRays + Post-Processing ===
+    // === CONSOLIDATED useFrame: Camera Drift Only (Lighting moved to SceneContainer) ===
     useFrame((state, delta) => {
+        // Skip all camera manipulation when a photo is active (during rotating/zooming animation)
+        // CameraController has exclusive control during this time
+        if (activePhoto) return;
+
         const idle = idleRef.current;
         const isHovered = hoveredPhotoInstanceId !== null;
-
-
 
         // === 1. IDLE CHECK & CAMERA DRIFT ===
         if (!isExploded) {
@@ -182,37 +179,17 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 }
             }
         }
-
-        // === 2. LIGHT DIMMING ===
-        const targetFactor = isHovered ? SCENE_CONFIG.lighting.dimming.targetFactorHovered : SCENE_CONFIG.lighting.dimming.targetFactorNormal;
-        const lerpSpeed = SCENE_CONFIG.lighting.dimming.lerpSpeed * delta;
-
-        if (ambientRef.current) {
-            ambientRef.current.intensity = THREE.MathUtils.lerp(
-                ambientRef.current.intensity, SCENE_CONFIG.lighting.ambient.intensity * targetFactor, lerpSpeed
-            );
-        }
-        if (mainSpotRef.current) {
-            mainSpotRef.current.intensity = THREE.MathUtils.lerp(
-                mainSpotRef.current.intensity, SCENE_CONFIG.lighting.mainSpot.intensity * targetFactor, lerpSpeed
-            );
-        }
-        if (fillSpotRef.current) {
-            fillSpotRef.current.intensity = THREE.MathUtils.lerp(
-                fillSpotRef.current.intensity, SCENE_CONFIG.lighting.fillSpot.intensity * targetFactor, lerpSpeed
-            );
-        }
     });
 
     return (
         <>
             <DreiOrbitControls
                 ref={controlsRef}
-                enabled={!activePhoto} // Disable controls when looking at a photo
+                enabled={visible && !activePhoto} // Disable controls when hidden or looking at a photo
                 enablePan={SCENE_CONFIG.orbitControls.enablePan}
                 minDistance={SCENE_CONFIG.orbitControls.minDistance}
                 maxDistance={CAMERA_CONFIG.limits.maxDistance}
-                autoRotate={isExploded && !hoveredPhotoInstanceId} // Stop rotation on hover
+                autoRotate={isExploded && !hoveredPhotoInstanceId && !activePhoto} // Stop rotation on hover or when photo active
                 autoRotateSpeed={SCENE_CONFIG.orbitControls.autoRotateSpeed}
                 enableZoom={SCENE_CONFIG.orbitControls.enableZoom}
                 maxPolarAngle={SCENE_CONFIG.orbitControls.maxPolarAngle}
@@ -220,45 +197,9 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
                 onEnd={handleControlEnd}
             />
 
-            {/* === CINEMATIC LIGHTING === */}
-            <ambientLight ref={ambientRef} intensity={SCENE_CONFIG.lighting.ambient.intensity} color={SCENE_CONFIG.lighting.ambient.color} />
-
-            {/* Main Key Light */}
-            <spotLight
-                ref={mainSpotRef}
-                position={SCENE_CONFIG.lighting.mainSpot.position}
-                intensity={SCENE_CONFIG.lighting.mainSpot.intensity}
-                color={SCENE_CONFIG.lighting.mainSpot.color}
-                angle={SCENE_CONFIG.lighting.mainSpot.angle}
-                penumbra={SCENE_CONFIG.lighting.mainSpot.penumbra}
-                decay={SCENE_CONFIG.lighting.mainSpot.decay}
-                distance={SCENE_CONFIG.lighting.mainSpot.distance}
-                castShadow={false}
-            />
-
-            {/* Fill Light */}
-            <spotLight
-                ref={fillSpotRef}
-                position={SCENE_CONFIG.lighting.fillSpot.position}
-                intensity={SCENE_CONFIG.lighting.fillSpot.intensity}
-                color={SCENE_CONFIG.lighting.fillSpot.color}
-                angle={SCENE_CONFIG.lighting.fillSpot.angle}
-                penumbra={SCENE_CONFIG.lighting.fillSpot.penumbra}
-                decay={SCENE_CONFIG.lighting.fillSpot.decay}
-                distance={SCENE_CONFIG.lighting.fillSpot.distance}
-            />
-
-            {/* OPTIMIZATION: Configured for 3-point lighting only. 
-                Removed extra PointLights and BackLight to save draw calls/fragment shader cost. 
-            */}
 
 
-
-            {/* === ENVIRONMENT === */}
-            <Environment preset={SCENE_CONFIG.environment.preset} />
-            <Stars radius={SCENE_CONFIG.environment.stars.radius} depth={SCENE_CONFIG.environment.stars.depth} count={SCENE_CONFIG.environment.stars.count} factor={SCENE_CONFIG.environment.stars.factor} saturation={SCENE_CONFIG.environment.stars.saturation} fade={SCENE_CONFIG.environment.stars.fade} speed={SCENE_CONFIG.environment.stars.speed} />
-
-            <MagicDust count={magicDustCount} isExploded={isExploded} />
+            {/* <MagicDust /> moved to SceneContainer for persistence */}
 
             {/* === THE TREE === */}
             <TreeParticles isExploded={isExploded} config={config} onParticlesClick={toggleExplosion} photos={photos} />
@@ -267,23 +208,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState }) => {
             <CameraController />
 
             {/* === FLOOR === */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]}
-                position={SCENE_CONFIG.floor.position}
-                receiveShadow
-                onClick={(e) => {
-                    e.stopPropagation();
-                    // Close active photo if open
-                    if (activePhoto) {
-                        setActivePhoto(null);
-                    }
-                    // Clear hover preview (for mobile tap-to-preview)
-                    const setHoveredPhoto = useStore.getState().setHoveredPhoto;
-                    setHoveredPhoto(null);
-                }}
-            >
-                <circleGeometry args={[SCENE_CONFIG.floor.radius, SCENE_CONFIG.floor.segments]} />
-                <meshStandardMaterial color={SCENE_CONFIG.floor.material.color} metalness={SCENE_CONFIG.floor.material.metalness} roughness={SCENE_CONFIG.floor.material.roughness} envMapIntensity={SCENE_CONFIG.floor.material.envMapIntensity} />
-            </mesh>
+
 
 
         </>
