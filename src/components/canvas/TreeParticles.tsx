@@ -24,6 +24,7 @@ import { preloadTextures } from "../../utils/texturePreloader";
 import { distributePhotos } from "../../utils/photoDistribution";
 import { PhotoData } from "../../types.ts";
 import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/materialPool"; // NEW: Material pool
+import { initFrameMaterialPool, disposeFrameMaterialPool } from "../../utils/frameMaterialPool"; // NEW: Frame material pool
 import { SkeletonUtils } from "three-stdlib"; // NEW: For Model-to-Particle conversion & Scene cloning
 
 import { useGLTF, Image } from "@react-three/drei"; // NEW: Load user models & Images
@@ -566,13 +567,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Update ref with current batch key before preloading
     preloadStartedRef.current = currentKey;
 
-    // OPTIMIZED: Initialize material pool before preloading textures
-    // This ensures the pool is ready when PolaroidPhoto components mount
+    // OPTIMIZED: Initialize material pools before preloading textures
+    // This ensures the pools are ready when PolaroidPhoto components mount
     try {
-      // Pre-warm 120 materials to cover all photos (99) + buffer
+      // Pre-warm 120 photo materials to cover all photos (99) + buffer
       // This prevents frame drop on first explosion due to synchronous cloning
       initPhotoMaterialPool(masterPhotoMaterial, 120);
       console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
+
+      // Pre-warm frame materials (MeshStandardMaterial for photo frames)
+      const masterFrameMat = new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        roughness: 0.4,
+        metalness: 0.1,
+        emissive: new THREE.Color(0xfffee0),
+        emissiveIntensity: 0,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0,
+      });
+      initFrameMaterialPool(masterFrameMat, 120);
+      console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
     } catch (e) {
       console.warn('[MaterialPool] Initialization failed:', e);
     }
@@ -587,13 +602,20 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       setTexturesLoaded(true);
     });
 
-    // Cleanup: Dispose material pool on unmount
+    // Cleanup: Dispose material pools on unmount
     return () => {
       try {
         disposePhotoMaterialPool();
         console.log('[MaterialPool] Disposed');
       } catch (e) {
         console.warn('[MaterialPool] Disposal failed:', e);
+      }
+
+      try {
+        disposeFrameMaterialPool();
+        console.log('[FrameMaterialPool] Disposed');
+      } catch (e) {
+        console.warn('[FrameMaterialPool] Disposal failed:', e);
       }
     };
   }, [photoData.urls]);

@@ -53,7 +53,7 @@
   - **Goal:** Create an "Epic" transition feel.
   - **Implementation:** Added explosion camera animation in `CameraController.tsx` that monitors `treeMorphState`. When explosion starts (`morphing-out` state), camera smoothly zooms out by 5 units and rotates 30° around Y-axis over 2 seconds with ease-out cubic easing. Configuration parameters added to `CAMERA_CONFIG.explosionAnimation` in `performance.ts`.
 
-- [ ] **[TRANS-02] Logic Fix (Tree Color)**
+- [x] **[TRANS-02] Logic Fix (Tree Color)**
   - **Task:** Fix the state conflict between "Tree Color Change" and "Explosion Animation".
   - **Requirement:** Ensure particles disperse correctly even if the user has modified the tree color previously. The tree mesh must not disappear abruptly.
 
@@ -90,3 +90,5 @@
 - [ ] **[PHOTO-06] Mobile Gyroscope**
   - **Task:** Add `DeviceOrientation` event listener.
   - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.
+- [ ] **[PHOTO-07] Focus mode visuals effect**
+  - **Task** update camera move logic, currently click on a image will 向  - [ ] **Action:** 照片方向实现偏移后会再执行居中的效果。 更改逻辑以实现点击后直接居中的效果。

@@ -13,39 +13,42 @@
  */
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { useVideoTexture, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
+import { getVideoTexture } from '../../utils/videoSingleton'; // NEW: Singleton
 import { MORPH_TIMING } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
 import { MEMORIES } from '../../config/assets';
 import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
+import { getFrameMaterialPool } from '../../utils/frameMaterialPool'; // NEW: Frame material pool
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
 const qOrbit = new THREE.Quaternion();
 const qTarget = new THREE.Quaternion();
-const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
-const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
-const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
 
-// Helper to handle Video Texture swapping
-const VideoHandler = ({ videoUrl, material }: { videoUrl: string, material: THREE.ShaderMaterial | null }) => {
-    const texture = useVideoTexture(videoUrl, { start: true, muted: true, loop: true });
+// NEW: Local side-effect component to swap material texture when active
+const VideoTextureSwap = ({ material }: { material: THREE.ShaderMaterial }) => {
     useEffect(() => {
-        if (material) {
+        const videoTex = getVideoTexture();
+        if (videoTex) {
             const oldMap = material.uniforms.map.value;
-            material.uniforms.map.value = texture;
+            material.uniforms.map.value = videoTex;
 
             return () => {
-                // Revert to original texture (image) on unmount
+                // Revert to original image texture on unmount/close
                 material.uniforms.map.value = oldMap;
             };
         }
-    }, [material, texture]); return null;
+    }, [material]);
+    return null;
 };
+const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
+const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
+const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
 
 interface PolaroidPhotoProps {
     url: string;
@@ -243,45 +246,80 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     // Create materials once (using texture from cache)
     // OPTIMIZED: Use material pool to reduce creation overhead
-    const materials = useMemo(() => {
-        // Frame material - Standard material for light interaction
-        const frameMat = new THREE.MeshStandardMaterial({
-            color: '#ffffff',
-            roughness: 0.4,
-            metalness: 0.1,
-            emissive: new THREE.Color(0xfffee0), // Warm glow color
-            emissiveIntensity: 0,                // Start with no glow
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0,
-        });
 
-        // OPTIMIZED: Acquire photo material from pool instead of cloning
-        // This reuses ShaderMaterial instances and reduces initialization overhead
+    // OPTIMIZED: Acquire frame material from pool instead of creating new
+    // This reuses MeshStandardMaterial instances and reduces initialization overhead
+    const frameMat = useMemo(() => {
+        try {
+            return getFrameMaterialPool().acquire();
+        } catch (e) {
+            // Fallback: Create directly if pool not ready
+            console.warn('[PolaroidPhoto] Frame pool fallback');
+            return new THREE.MeshStandardMaterial({
+                color: '#ffffff',
+                roughness: 0.4,
+                metalness: 0.1,
+                emissive: new THREE.Color(0xfffee0),
+                emissiveIntensity: 0,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0,
+            });
+        }
+    }, []);
+
+    // Photo material - deferred acquisition from pool
+    // Only acquire when texture is confirmed cached to avoid fallback clone
+    const [photoMat, setPhotoMat] = useState<THREE.ShaderMaterial | null>(null);
+
+    useEffect(() => {
+        // Only acquire material when texture is ready (cached)
+        if (!textureReady) return;
+
         const cachedTexture = getCachedTexture(url);
-        const photoMat = cachedTexture
-            ? getPhotoMaterialPool().acquire(cachedTexture)
-            : masterPhotoMaterial.clone(); // Fallback if pool not ready
+        if (cachedTexture && !photoMat) {
+            try {
+                const mat = getPhotoMaterialPool().acquire(cachedTexture);
+                setPhotoMat(mat);
+            } catch (e) {
+                // Pool not initialized, fallback to clone (should rarely happen)
+                console.warn('[PolaroidPhoto] Pool fallback for', url);
+                setPhotoMat(masterPhotoMaterial.clone());
+            }
+        }
+    }, [textureReady, url, photoMat]);
 
-        return { frameMat, photoMat };
-    }, [url]); // Add url dependency for texture updates
+    // Combine for backward compatibility
+    const materials = useMemo(() => ({
+        frameMat,
+        photoMat,
+    }), [frameMat, photoMat]);
 
     // Sync refs for useFrame and Cleanup
-    // OPTIMIZED: Release material back to pool on unmount
+    // OPTIMIZED: Release materials back to pools on unmount
     useEffect(() => {
         frameMaterialRef.current = materials.frameMat;
         photoMaterialRef.current = materials.photoMat;
 
         return () => {
-            // Dispose frame material
-            materials.frameMat.dispose();
+            // OPTIMIZED: Release frame material back to pool
+            if (materials.frameMat) {
+                try {
+                    getFrameMaterialPool().release(materials.frameMat);
+                } catch (e) {
+                    // Fallback: dispose if pool not available
+                    materials.frameMat.dispose();
+                }
+            }
 
             // OPTIMIZED: Release photo material back to pool instead of disposing
-            try {
-                getPhotoMaterialPool().release(materials.photoMat);
-            } catch (e) {
-                // Fallback: dispose if pool not available
-                materials.photoMat.dispose();
+            if (materials.photoMat) {
+                try {
+                    getPhotoMaterialPool().release(materials.photoMat);
+                } catch (e) {
+                    // Fallback: dispose if pool not available
+                    materials.photoMat.dispose();
+                }
             }
         };
     }, [materials]);
@@ -756,11 +794,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 }
             }}
         >
-            {/* Render Video Handler if active and video exists */}
+            {/* Singleton Video Logic Side Effect */}
             {isThisActive && videoUrl && materials.photoMat && (
-                <React.Suspense fallback={null}>
-                    <VideoHandler videoUrl={videoUrl} material={materials.photoMat} />
-                </React.Suspense>
+                <VideoTextureSwap material={materials.photoMat} />
             )}
 
             {/* Close Button UI */}

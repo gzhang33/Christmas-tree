@@ -10,6 +10,7 @@ import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
 import { MEMORIES } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { GlobalVideoController } from './GlobalVideoController'; // NEW
 import { PERFORMANCE_CONFIG, CAMERA_CONFIG, SCENE_CONFIG, getResponsiveValue } from '../../config';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -192,6 +193,9 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
 
             {/* === LIGHTBOX OVERLAY === */}
             <CameraController />
+
+            {/* === GLOBAL VIDEO CONTROLLER === */}
+            <GlobalVideoController />
 
             {/* === FLOOR === */}
 
