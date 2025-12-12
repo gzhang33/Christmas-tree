@@ -94,11 +94,6 @@ export const CameraController: React.FC = () => {
                 // Store initial camera state
                 explosionAnim.initialPosition.copy(camera.position);
 
-                // Calculate target position (zoom out by moving camera back along its current direction)
-                const currentDistance = camera.position.length();
-                const zoomOutFactor = 1.0 + (explosionConfig.zoomOutDistance / currentDistance);
-                explosionAnim.targetPosition.copy(camera.position).multiplyScalar(zoomOutFactor);
-
                 // Calculate rotation angles
                 tempSpherical.setFromVector3(camera.position);
                 explosionAnim.initialRotation = tempSpherical.theta;
@@ -137,13 +132,6 @@ export const CameraController: React.FC = () => {
 
             // Smooth easing function (ease-out cubic)
             const easedProgress = 1 - Math.pow(1 - progress, 3);
-
-            // Interpolate camera position (zoom out)
-            state.camera.position.lerpVectors(
-                explosionAnim.initialPosition,
-                explosionAnim.targetPosition,
-                easedProgress
-            );
 
             // Interpolate camera rotation (rotate around Y axis)
             const currentTheta = THREE.MathUtils.lerp(

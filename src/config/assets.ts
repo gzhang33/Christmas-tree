@@ -36,62 +36,62 @@ export type Memory = {
 export const MEMORIES: readonly Memory[] = [
   {
     id: 'IMG_1483',
-    image: '/photos/IMG_1483.JPG',
+    image: '/photos/IMG_1483.webp',
     video: null,
   },
   {
     id: 'IMG_1735',
-    image: '/photos/IMG_1735.jpg',
+    image: '/photos/IMG_1735.webp',
     video: '/photos/IMG_1735.mp4',
   },
   {
     id: 'IMG_1815',
-    image: '/photos/IMG_1815.jpg',
+    image: '/photos/IMG_1815.webp',
     video: '/photos/IMG_1815.mp4',
   },
   {
     id: 'IMG_1850',
-    image: '/photos/IMG_1850.jpg',
+    image: '/photos/IMG_1850.webp',
     video: '/photos/IMG_1850.mp4',
   },
   {
     id: 'IMG_2311',
-    image: '/photos/IMG_2311.jpg',
+    image: '/photos/IMG_2311.webp',
     video: '/photos/IMG_2311.mp4',
   },
   {
     id: 'IMG_5600',
-    image: '/photos/IMG_5600.jpg',
+    image: '/photos/IMG_5600.webp',
     video: '/photos/IMG_5600.mp4',
   },
   {
     id: 'IMG_5708',
-    image: '/photos/IMG_5708.jpg',
+    image: '/photos/IMG_5708.webp',
     video: '/photos/IMG_5708.mp4',
   },
   {
     id: 'IMG_5764',
-    image: '/photos/IMG_5764.jpg',
+    image: '/photos/IMG_5764.webp',
     video: '/photos/IMG_5764.mp4',
   },
   {
     id: 'IMG_5851',
-    image: '/photos/IMG_5851.jpg',
+    image: '/photos/IMG_5851.webp',
     video: '/photos/IMG_5851.mp4',
   },
   {
     id: 'IMG_5939',
-    image: '/photos/IMG_5939.jpg',
+    image: '/photos/IMG_5939.webp',
     video: '/photos/IMG_5939.mp4',
   },
   {
     id: 'IMG_5977',
-    image: '/photos/IMG_5977.jpg',
+    image: '/photos/IMG_5977.webp',
     video: '/photos/IMG_5977.mp4',
   },
   {
     id: 'IMG_6242',
-    image: '/photos/IMG_6242.jpg',
+    image: '/photos/IMG_6242.webp',
     video: '/photos/IMG_6242.mp4',
   },
 ] as const;

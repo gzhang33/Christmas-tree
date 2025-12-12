@@ -569,8 +569,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // OPTIMIZED: Initialize material pool before preloading textures
     // This ensures the pool is ready when PolaroidPhoto components mount
     try {
-      initPhotoMaterialPool(masterPhotoMaterial);
-      console.log('[MaterialPool] Initialized with master material');
+      // Pre-warm 120 materials to cover all photos (99) + buffer
+      // This prevents frame drop on first explosion due to synchronous cloning
+      initPhotoMaterialPool(masterPhotoMaterial, 120);
+      console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
     } catch (e) {
       console.warn('[MaterialPool] Initialization failed:', e);
     }

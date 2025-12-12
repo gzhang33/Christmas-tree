@@ -145,7 +145,7 @@ let globalPhotoMaterialPool: MaterialPool | null = null;
  * Initialize the global material pool
  * Should be called once with the master material
  */
-export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial): void {
+export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preWarmCount: number = 0): void {
     if (globalPhotoMaterialPool) {
         const stats = globalPhotoMaterialPool.getStats();
         if (stats.activeCount > 0) {
@@ -157,6 +157,30 @@ export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial): voi
         globalPhotoMaterialPool.dispose();
     }
     globalPhotoMaterialPool = new MaterialPool(masterMaterial);
+
+    // Pre-warm: Create materials ahead of time to avoid lag during animation
+    if (preWarmCount > 0) {
+        const dummyTexture = new THREE.Texture(); // Minimal texture for initialization
+        const preWarmed: THREE.ShaderMaterial[] = [];
+
+        console.log(`[MaterialPool] Pre-warming ${preWarmCount} materials...`);
+        const startTime = performance.now();
+
+        for (let i = 0; i < preWarmCount; i++) {
+            const mat = globalPhotoMaterialPool.acquire(dummyTexture);
+            preWarmed.push(mat);
+        }
+
+        // Release back to pool immediately so they are ready for use
+        for (const mat of preWarmed) {
+            globalPhotoMaterialPool.release(mat);
+        }
+
+        const duration = performance.now() - startTime;
+        console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms`);
+
+        dummyTexture.dispose();
+    }
 }
 
 /**

@@ -161,22 +161,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
 
             // Apply drift when idle (and NOT hovering)
             if (idle.isIdle && !isHovered) {
-                const currentDistance = camera.position.length();
-
-                // Only drift if not too close
-                if (currentDistance > PERFORMANCE_CONFIG.camera.minDistance) {
-                    // Reuse scratch vector to avoid GC
-                    tempDriftVec.copy(camera.position).normalize().negate();
-                    tempDriftVec.multiplyScalar(PERFORMANCE_CONFIG.camera.driftSpeed * delta);
-                    camera.position.add(tempDriftVec);
-                    // Limit camera z position to maximum value
-                    if (camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
-                        camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
-                    }
-
-                    // Update OrbitControls to match new camera position
-                    controlsRef.current?.update();
-                }
+                // Ensure controls update to process auto-rotation and damping
+                controlsRef.current?.update();
             }
         }
     });

@@ -6,6 +6,7 @@ import { Snow } from '../canvas/Snow';
 import { CinematicEffects } from '../canvas/CinematicEffects';
 import { Floor } from '../canvas/Floor';
 import { MagicDust } from '../canvas/MagicDust';
+import { ShaderWarmup } from '../canvas/ShaderWarmup';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
@@ -13,6 +14,7 @@ import { useStore } from '../../store/useStore';
 import { CAMERA_CONFIG, getResponsiveValue, SCENE_CONFIG } from '../../config';
 import { useFrame } from '@react-three/fiber';
 import { Environment, Stars } from '@react-three/drei';
+
 
 interface SceneContainerProps {
     uiState: UIState;
@@ -191,6 +193,8 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                             uiState={uiState}
                             visible={landingPhase === 'tree' || landingPhase === 'morphing'}
                         />
+                        {/* Shader Warmup - MUST be inside Suspense, after shader-using components */}
+                        <ShaderWarmup />
                     </React.Suspense>
                 )}
 
