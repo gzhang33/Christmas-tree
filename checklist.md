@@ -31,7 +31,7 @@
   - **Task:** Implement a dropdown menu or toggle for background music selection.
   - **Implementation:** Created `audio.ts` config with 5 music options, added `selectedAudioId` to store, implemented `BackgroundMusicPlayer.tsx` for playback, and added music selection UI with preview functionality in Controls panel.
 
-- [ ] **[TREE-07] Gift Box Icon Polish**
+- [x] **[TREE-07] Gift Box Icon Polish**
   - **Task:** Optimize the rendering/material of the gift box UI element.
 
 - [x] **[TREE-08] Performance Fix (Particle Count)**
@@ -39,7 +39,7 @@
   - **Fix:** Prevent browser freeze/crash when adjusting the `Particle Count` slider.
   - **Implementation:** Increased debounce delay to 500ms, reduced max particle count from 100k to 50k, increased step to 2500.
 
-  - [x] **[TREE-09] Integrate User 3D Models for Gifts**
+- [x] **[TREE-09] Integrate User 3D Models for Gifts**
   - **Task:** Load .glb files from `public/models` and use them for gift particles.
   - **Strategy:** Use `useGLTF` + `MeshSurfaceSampler` with auto-scaling to fit existing gift dimensions.
   - **Goal:** Replace procedural cubes with user-provided 3D assets while keeping particle effects.
@@ -47,10 +47,11 @@
 
 ## 💥 Part 2: Transition & Morphing
 
-- [ ] **[TRANS-01] Camera Movement (Cinematic)**
+- [x] **[TRANS-01] Camera Movement (Cinematic)**
   - **Task:** Trigger camera animation on "Explosion" event.
   - **Action:** Zoom out slightly or rotate camera while particles disperse.
   - **Goal:** Create an "Epic" transition feel.
+  - **Implementation:** Added explosion camera animation in `CameraController.tsx` that monitors `treeMorphState`. When explosion starts (`morphing-out` state), camera smoothly zooms out by 5 units and rotates 30° around Y-axis over 2 seconds with ease-out cubic easing. Configuration parameters added to `CAMERA_CONFIG.explosionAnimation` in `performance.ts`.
 
 - [ ] **[TRANS-02] Logic Fix (Tree Color)**
   - **Task:** Fix the state conflict between "Tree Color Change" and "Explosion Animation".

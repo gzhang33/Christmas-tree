@@ -28,6 +28,7 @@ const lerpAngle = (current: number, target: number, t: number): number => {
 
 export const CameraController: React.FC = () => {
     const activePhoto = useStore(state => state.activePhoto);
+    const treeMorphState = useStore(state => state.treeMorphState);
     const { camera } = useThree();
 
     // Scratch objects
@@ -55,6 +56,16 @@ export const CameraController: React.FC = () => {
         phase: 'rotating' as 'rotating' | 'zooming', // animation phase
     });
 
+    // Explosion camera animation state
+    const explosionAnimRef = useRef({
+        isAnimating: false,       // whether explosion animation is active
+        startTime: 0,             // animation start time
+        initialPosition: new THREE.Vector3(),  // camera position at explosion start
+        targetPosition: new THREE.Vector3(),   // target camera position
+        initialRotation: 0,       // initial camera rotation angle
+        targetRotation: 0,        // target rotation angle
+    });
+
     // Update default position on window resize to support responsive layout changes
     React.useEffect(() => {
         const handleResize = () => {
@@ -66,6 +77,46 @@ export const CameraController: React.FC = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Track previous treeMorphState to detect transitions
+    const prevTreeMorphStateRef = useRef(treeMorphState);
+
+    // Detect explosion animation trigger
+    React.useEffect(() => {
+        const explosionConfig = CAMERA_CONFIG.explosionAnimation;
+
+        // Detect transition to 'morphing-out' (explosion starts)
+        if (treeMorphState === 'morphing-out' && prevTreeMorphStateRef.current !== 'morphing-out') {
+            if (explosionConfig.enabled && !activePhoto) {
+                console.log('[CameraController] Explosion detected, starting cinematic camera animation');
+
+                const explosionAnim = explosionAnimRef.current;
+
+                // Store initial camera state
+                explosionAnim.initialPosition.copy(camera.position);
+
+                // Calculate target position (zoom out by moving camera back along its current direction)
+                const currentDistance = camera.position.length();
+                const zoomOutFactor = 1.0 + (explosionConfig.zoomOutDistance / currentDistance);
+                explosionAnim.targetPosition.copy(camera.position).multiplyScalar(zoomOutFactor);
+
+                // Calculate rotation angles
+                tempSpherical.setFromVector3(camera.position);
+                explosionAnim.initialRotation = tempSpherical.theta;
+                explosionAnim.targetRotation = tempSpherical.theta + explosionConfig.rotationAngle;
+
+                explosionAnim.isAnimating = true;
+                explosionAnim.startTime = performance.now() / 1000; // Convert to seconds
+            }
+        }
+
+        // Reset animation when explosion completes
+        if (treeMorphState === 'idle' && prevTreeMorphStateRef.current === 'morphing-out') {
+            explosionAnimRef.current.isAnimating = false;
+        }
+
+        prevTreeMorphStateRef.current = treeMorphState;
+    }, [treeMorphState, activePhoto, camera]);
+
     // Track when photo was closed to allow brief return animation
     const photoClosedTime = useRef<number | null>(null);
 
@@ -74,6 +125,51 @@ export const CameraController: React.FC = () => {
 
     useFrame((state, delta) => {
         const sphereAnim = sphericalAnimRef.current;
+        const explosionAnim = explosionAnimRef.current;
+        const explosionConfig = CAMERA_CONFIG.explosionAnimation;
+
+        // === EXPLOSION CAMERA ANIMATION ===
+        // Priority: Execute when explosion animation is active, regardless of activePhoto
+        if (explosionAnim.isAnimating && explosionConfig.enabled) {
+            const currentTime = state.clock.getElapsedTime();
+            const elapsed = currentTime - explosionAnim.startTime;
+            const progress = Math.min(elapsed / explosionConfig.duration, 1.0);
+
+            // Smooth easing function (ease-out cubic)
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+
+            // Interpolate camera position (zoom out)
+            state.camera.position.lerpVectors(
+                explosionAnim.initialPosition,
+                explosionAnim.targetPosition,
+                easedProgress
+            );
+
+            // Interpolate camera rotation (rotate around Y axis)
+            const currentTheta = THREE.MathUtils.lerp(
+                explosionAnim.initialRotation,
+                explosionAnim.targetRotation,
+                easedProgress
+            );
+
+            // Convert spherical coordinates back to cartesian
+            tempSpherical.setFromVector3(state.camera.position);
+            tempSpherical.theta = currentTheta;
+            tempVec3.setFromSpherical(tempSpherical);
+            state.camera.position.copy(tempVec3);
+
+            // Keep camera looking at origin
+            state.camera.lookAt(0, 0, 0);
+
+            // Complete animation when duration is reached
+            if (progress >= 1.0) {
+                explosionAnim.isAnimating = false;
+                console.log('[CameraController] Explosion camera animation complete');
+            }
+
+            // Skip other camera logic while explosion animation is active
+            return;
+        }
 
         if (!activePhoto) {
             // Reset spherical animation state
@@ -196,11 +292,6 @@ export const CameraController: React.FC = () => {
             // Phase 2: Zoom in to photo (original behavior)
             const damp = Math.min(CAMERA_CONFIG.photoView.dampingSpeed * delta, 1.0);
             state.camera.position.lerp(targetPos.current, damp);
-
-            // Limit camera z position to maximum value
-            if (state.camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
-                state.camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
-            }
 
             // Smoothly Interpolate Camera Rotation (look at photo)
             currentQRef.current.copy(state.camera.quaternion);

@@ -4,19 +4,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 // === PERFORMANCE MONITORING PANEL ===
 // Displays:
 // - Real-time FPS
-// - DrawCall count
-// - VRAM usage estimate
-// - Particle count
-// - LOD level
+// - Frame time
 
 export interface PerformanceData {
   fps: number;
   frameTime: number;
-  drawCalls: number;
-  triangles: number;
-  particleCount: number;
-  lodLevel: string;
-  memoryUsage: number;
   cameraPosition?: { x: number; y: number; z: number };
   resolution?: string;
   textureCount?: number;
@@ -26,7 +18,6 @@ export interface PerformanceData {
 
 
 interface PerformanceMonitorProps {
-  particleCount: number;
   visible?: boolean;
 }
 
@@ -59,18 +50,9 @@ const PerformanceTracker: React.FC<{
 
       const info = gl.info;
 
-      // Determine LOD level based on camera distance
-      const distance = camera.position.length();
-      let lodLevel = 'High';
-      if (distance > 35) lodLevel = 'Low';
-      else if (distance > 20) lodLevel = 'Medium';
-
       onUpdate({
         fps: avgFps,
         frameTime: Math.round(delta / frameCount.current * 100) / 100,
-        drawCalls: info.render.calls,
-        triangles: info.render.triangles,
-        lodLevel,
         cameraPosition: {
           x: Number(camera.position.x.toFixed(2)),
           y: Number(camera.position.y.toFixed(2)),
@@ -91,27 +73,16 @@ const PerformanceTracker: React.FC<{
 
 // Overlay UI component
 export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
-  particleCount,
   visible = false,
 }) => {
   const [data, setData] = useState<PerformanceData>({
     fps: 60,
     frameTime: 16.67,
-    drawCalls: 0,
-    triangles: 0,
-    particleCount: 0,
-    lodLevel: 'High',
-    memoryUsage: 0,
   });
 
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Estimate memory usage
-  useEffect(() => {
-    // Rough estimate: each particle uses ~64 bytes (position, color, size, etc.)
-    const memMB = Math.round((particleCount * 64) / (1024 * 1024) * 100) / 100;
-    setData((prev) => ({ ...prev, particleCount, memoryUsage: memMB }));
-  }, [particleCount]);
+
 
   const handleUpdate = useCallback((newData: Partial<PerformanceData>) => {
     setData((prev) => ({ ...prev, ...newData }));
@@ -126,14 +97,9 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     return '#F44336'; // Red
   };
 
-  // Device tier based on FPS
-  const getDeviceTier = (fps: number) => {
-    if (fps >= 55) return { tier: 'High-end', limit: '35,000', color: '#4CAF50' };
-    if (fps >= 40) return { tier: 'Mid-range', limit: '18,000', color: '#FFC107' };
-    return { tier: 'Low-end', limit: '10,000', color: '#F44336' };
-  };
 
-  const deviceInfo = getDeviceTier(data.fps);
+
+
 
   return (
     <>
@@ -160,13 +126,9 @@ export const PerformanceOverlay: React.FC<{
     return '#F44336';
   };
 
-  const getDeviceTier = (fps: number) => {
-    if (fps >= 55) return { tier: 'High-end', limit: '35,000', color: '#4CAF50' };
-    if (fps >= 40) return { tier: 'Mid-range', limit: '18,000', color: '#FFC107' };
-    return { tier: 'Low-end', limit: '10,000', color: '#F44336' };
-  };
 
-  const deviceInfo = getDeviceTier(data.fps);
+
+
 
   return (
     <div
@@ -213,31 +175,7 @@ export const PerformanceOverlay: React.FC<{
 
       {isExpanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px' }}>
-            <Row label="Frame Time" value={`${data.frameTime}ms`} />
-            <Row label="Draw Calls" value={data.drawCalls.toString()} />
-            <Row label="Triangles" value={formatNumber(data.triangles)} />
-            <Row label="Particles" value={formatNumber(data.particleCount)} />
-            <Row label="VRAM Est." value={`~${data.memoryUsage}MB`} />
-            <Row label="LOD Level" value={data.lodLevel} />
-          </div>
 
-          <div
-            style={{
-              marginTop: '4px',
-              padding: '6px 8px',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: '4px',
-              borderLeft: `3px solid ${deviceInfo.color}`,
-            }}
-          >
-            <div style={{ color: deviceInfo.color, fontWeight: 'bold', fontSize: '11px' }}>
-              {deviceInfo.tier} Device
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px' }}>
-              Recommended: ≤{deviceInfo.limit} particles
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -269,11 +207,6 @@ export const usePerformanceMonitor = () => {
   const [data, setData] = useState<PerformanceData>({
     fps: 60,
     frameTime: 16.67,
-    drawCalls: 0,
-    triangles: 0,
-    particleCount: 0,
-    lodLevel: 'High',
-    memoryUsage: 0,
   });
 
   const updateData = useCallback((newData: Partial<PerformanceData>) => {

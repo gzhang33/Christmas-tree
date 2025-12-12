@@ -13,6 +13,7 @@ import { useStore } from './store/useStore.ts';
 import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
 import { SceneContainer } from './components/layout/SceneContainer';
 import { useShareSystem } from './hooks/useShareSystem';
+import { PARTICLE_CONFIG } from './config/particles';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -38,11 +39,6 @@ function App() {
   const [performanceData, setPerformanceData] = useState({
     fps: 60,
     frameTime: 16.67,
-    drawCalls: 0,
-    triangles: 0,
-    particleCount: 0,
-    lodLevel: 'High',
-    memoryUsage: 0,
   });
   const [isHeroTextCompact, setIsHeroTextCompact] = useState(false);
 
@@ -81,6 +77,47 @@ function App() {
     config.snowDensity + // Snow
     1200 // Magic dust
   ), [particleCount, config.snowDensity]);
+
+  // Calculate actual active particle counts for each system
+  const actualSnowCount = useMemo(() =>
+    Math.max(0, Math.floor(config.snowDensity || 0)),
+    [config.snowDensity]
+  );
+
+  const actualMagicDustCount = useMemo(() =>
+    Math.floor(Math.max(
+      estimatedParticleCount * PARTICLE_CONFIG.ratios.magicDust,
+      PARTICLE_CONFIG.minCounts.magicDust
+    )),
+    [estimatedParticleCount]
+  );
+
+  // Update active particle count in store (Tree particles count + Snow + MagicDust)
+  // TreeParticles component updates treeParticleCount, we calculate total active particles here
+  const treeParticleCount = useStore((state) => state.treeParticleCount);
+  const setActiveParticleCount = useStore((state) => state.setActiveParticleCount);
+
+  useEffect(() => {
+    // TreeParticles and MagicDust are only rendered in 'morphing' or 'tree' phase
+    const isTreePhaseActive = landingPhase === 'morphing' || landingPhase === 'tree';
+
+    // Only count tree particles if TreeParticles component is rendered
+    const activeTreeParticles = isTreePhaseActive ? treeParticleCount : 0;
+
+    // Only include MagicDust when in morphing or tree phase
+    const activeMagicDust = isTreePhaseActive ? actualMagicDustCount : 0;
+
+    // Snow is always active in all phases
+
+    // Total = TreeParticles (conditional) + Snow (always) + MagicDust (conditional)
+    const total = activeTreeParticles + actualSnowCount + activeMagicDust;
+
+    // Update the total active particle count
+    setActiveParticleCount(total);
+
+    // Debug log to verify updates
+    console.log('[ActiveParticles] Phase:', landingPhase, '| Tree:', activeTreeParticles, '| Snow:', actualSnowCount, '| MagicDust:', activeMagicDust, '| Total:', total);
+  }, [treeParticleCount, actualSnowCount, actualMagicDustCount, landingPhase, setActiveParticleCount]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -167,8 +204,8 @@ function App() {
   }, []);
 
   const handlePerformanceUpdate = useCallback((data: any) => {
-    setPerformanceData((prev) => ({ ...prev, ...data, particleCount: estimatedParticleCount }));
-  }, [estimatedParticleCount]);
+    setPerformanceData((prev) => ({ ...prev, ...data }));
+  }, []);
 
   // Optimized UI State
   const uiState: UIState = useMemo(() => ({

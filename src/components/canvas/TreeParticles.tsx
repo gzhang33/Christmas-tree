@@ -1585,6 +1585,24 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     prevIsExplodedRef.current = isExploded;
   }, [isExploded]);
 
+  // === UPDATE TREE PARTICLE COUNT ===
+  useEffect(() => {
+    const totalCount =
+      entityLayerData.count +
+      glowLayerData.count +
+      ornamentData.count +
+      giftData.count +
+      treeBaseData.count;
+
+    useStore.getState().setTreeParticleCount(totalCount);
+  }, [
+    entityLayerData.count,
+    glowLayerData.count,
+    ornamentData.count,
+    giftData.count,
+    treeBaseData.count
+  ]);
+
   // === ANIMATION FRAME ===
   const { camera, clock } = useThree(); // Get clock directly
 

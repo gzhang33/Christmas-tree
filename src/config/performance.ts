@@ -156,6 +156,16 @@ export const CAMERA_CONFIG = {
         maxDistance: 43.0,                  // 相机距离场景中心的最大距离
         maxZPosition: 43.0,                 // 相机Z轴的最大位置
     },
+
+    /** 爆炸时的电影感相机动画 */
+    explosionAnimation: {
+        enabled: true,                      // 启用爆炸相机动画
+        zoomOutDistance: 4.5,               // 缩放距离 (相机向后移动的距离)
+        rotationAngle: Math.PI / 4,         // 旋转角度 (弧度，30度)
+        duration: 2.5,                      // 动画持续时间（秒）
+        dampingSpeed: 1.5,                  // 插值速度
+        rotationAxis: 'y' as const,         // 旋转轴 ('x' | 'y' | 'z')
+    },
 } as const;
 
 // ============================================================================
