@@ -18,7 +18,7 @@ export const AUDIO_OPTIONS: AudioOption[] = [
     {
         id: 'all-i-want',
         name: 'All I Want for Christmas',
-        path: '/All-I-Want-for-Christmas-Is-You.flac',
+        path: '/audio/All-I-Want-for-Christmas-Is-You.mp3',
     },
     {
         id: 'jingle-bells',
@@ -37,4 +37,4 @@ export const AUDIO_OPTIONS: AudioOption[] = [
     },
 ] as const;
 
-export const DEFAULT_AUDIO_ID = 'all-i-want';
+export const DEFAULT_AUDIO_ID = 'jingle-bells-classical';

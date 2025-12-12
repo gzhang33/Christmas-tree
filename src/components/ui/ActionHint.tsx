@@ -53,20 +53,22 @@ export const ActionHint: React.FC<ActionHintProps> = ({
                             repeat: Infinity,
                             ease: 'easeInOut',
                         }}
-                        className="flex flex-col items-center gap-0.5"
                     >
-                        {/* Main text */}
-                        <div className="px-4 py-2 rounded-full bg-black/30 backdrop-blur-sm border border-white/10">
-                            <p className="text-sm md:text-base text-white/90 font-medium text-center whitespace-nowrap tracking-wide">
-                                {text}
-                            </p>
+                        {/* Main text container with both English and Chinese */}
+                        <div className="px-5 py-2.5 rounded-full bg-black/30 backdrop-blur-sm border border-white/10">
+                            <div className="flex flex-col items-center gap-0.5">
+                                {/* English text */}
+                                <p className="text-sm md:text-base text-white/90 font-medium text-center whitespace-nowrap tracking-wide">
+                                    {text}
+                                </p>
+                                {/* Chinese text - if provided */}
+                                {subText && (
+                                    <p className="text-xs text-white/50 text-center">
+                                        {subText}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                        {/* Sub text - if provided */}
-                        {subText && (
-                            <p className="text-xs text-white/50 text-center mt-1">
-                                {subText}
-                            </p>
-                        )}
                     </motion.div>
                 </motion.div>
             )}

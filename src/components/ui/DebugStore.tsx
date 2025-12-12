@@ -39,6 +39,7 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
     const activePhoto = useStore((state) => state.activePhoto);
     const landingPhase = useStore((state) => state.landingPhase);
     const treeMorphState = useStore((state) => state.treeMorphState);
+    const treeProgress = useStore((state) => state.treeProgress);
 
     /**
      * Unified state display logic:
@@ -167,6 +168,28 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                 <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${unifiedState.style}`}>
                     {unifiedState.isAnimating && <span className="w-2 h-2 rounded-full bg-current mr-2 animate-pulse"></span>}
                     {unifiedState.text}
+                </div>
+            </div>
+
+            {/* Tree Progress Indicator */}
+            <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                <div className="text-xs text-white/60 uppercase tracking-wider mb-2 font-semibold">Tree Animation Progress</div>
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-white/50">Progress Value</span>
+                        <span className="text-cyan-400 font-bold">{treeProgress.toFixed(3)}</span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-100"
+                            style={{ width: `${Math.min(Math.max(treeProgress * 100, 0), 100)}%` }}
+                        ></div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-white/40 font-mono">
+                        <span>0.0 (Tree)</span>
+                        <span>1.0 (Exploded)</span>
+                    </div>
                 </div>
             </div>
 

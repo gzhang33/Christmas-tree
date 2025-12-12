@@ -481,7 +481,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Start exploded (1.5) if we are in morphing phase (Entrance)
   // Otherwise 0.0 (Tree)
   const isEntrance = useStore.getState().landingPhase === 'morphing';
-  const progressRef = useRef(isEntrance ? 1.2 : 0.0);
+  const progressRef = useRef(isEntrance ? 0.81 : 0.0);
 
   const targetProgressRef = useRef(0.0);
   const rootRef = useRef<THREE.Group>(null);
@@ -1569,23 +1569,21 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   // === UPDATE TARGET PROGRESS & START TIME ===
   const prevIsExplodedRef = useRef(isExploded);
-  const setTreeMorphState = useStore.getState().setTreeMorphState;
 
   useEffect(() => {
-    targetProgressRef.current = isExploded ? 1.0 : 0.0;
-
     // Detect explosion start: transition from tree (false) to photo sea (true)
     if (isExploded && !prevIsExplodedRef.current) {
-      setTreeMorphState('morphing-out');
+      console.log('[TreeParticles] Starting explosion animation (morphing-out)');
+      useStore.getState().setTreeMorphState('morphing-out');
     }
     // Detect reset: transition from photo sea (true) back to tree (false)
-    // Note: This triggers morphing back to tree (similar to morphing-in)
     if (!isExploded && prevIsExplodedRef.current) {
-      setTreeMorphState('morphing-in');
+      console.log('[TreeParticles] Starting reset animation (morphing-in)');
+      useStore.getState().setTreeMorphState('morphing-in');
     }
 
     prevIsExplodedRef.current = isExploded;
-  }, [isExploded, setTreeMorphState]);
+  }, [isExploded]);
 
   // === ANIMATION FRAME ===
   const { camera, clock } = useThree(); // Get clock directly
@@ -1636,62 +1634,117 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Track previous phase to detect transitions
   const prevPhaseRef = useRef(landingPhase);
 
+  // Track animation completion to avoid re-triggering
+  const animationCompletionFlags = useRef({
+    entranceComplete: false,
+    explosionComplete: false,
+    resetComplete: false
+  });
+
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     const delta = state.clock.getDelta();
 
-    // Detect phase change to 'morphing' and reset progress instantly
+    // === ENTRANCE ANIMATION: Detect phase change to 'morphing' ===
     if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {
-      progressRef.current = 1.2;
-      // Reset trigger flag
+      console.log('[TreeParticles] Entrance animation started (morphing phase)');
+      progressRef.current = 0.61; // Start from exploded state
+      targetProgressRef.current = 0.0; // Target is tree form
       (window as any)._morphingCompleteTriggered = false;
-      // Set morphing-in state for entrance animation
+      animationCompletionFlags.current.entranceComplete = false;
       useStore.getState().setTreeMorphState('morphing-in');
     }
     prevPhaseRef.current = landingPhase;
 
-    // === GPU STATE MACHINE: Interpolate uProgress uniform ===
-    // Determine target based on state
-    // If morphing, we target 0.0 (implode to tree)
-    targetProgressRef.current = isExploded ? 1.0 : 0.0;
+    // === DETERMINE TARGET PROGRESS ===
+    // Only update target if NOT in entrance morphing phase (which sets its own target)
+    if (landingPhase !== 'morphing') {
+      targetProgressRef.current = isExploded ? 1.0 : 0.0;
+    }
 
-    // Select damping speed based on phase
+    // === SELECT DAMPING SPEED ===
     let dampingSpeed;
     if (landingPhase === 'morphing') {
+      // Entrance animation
       dampingSpeed = PARTICLE_CONFIG.animation.dampingSpeedEntrance;
     } else {
+      // Tree <-> Photo Sea transitions
       dampingSpeed = isExploded
         ? PARTICLE_CONFIG.animation.dampingSpeedExplosion
         : PARTICLE_CONFIG.animation.dampingSpeedReset;
     }
 
+    // === INTERPOLATE PROGRESS ===
     const diff = targetProgressRef.current - progressRef.current;
     progressRef.current += diff * dampingSpeed;
 
-    // Check animation completion and update morph state accordingly
-    const isAnimationComplete = Math.abs(diff) < 0.005;
+    // === CHECK ANIMATION COMPLETION ===
+    // Use relaxed thresholds and OR logic for faster detection
+    const diffThreshold = 0.01; // More lenient than 0.005
+    const progressNearTarget = Math.abs(diff) < diffThreshold;
     const currentMorphState = useStore.getState().treeMorphState;
 
-    // Check for entrance completion (morphing-in)
-    if (landingPhase === 'morphing' && isAnimationComplete && progressRef.current < 0.01) {
-      // We have effectively reached the tree state
+    // === ENTRANCE ANIMATION COMPLETION (morphing-in during entrance) ===
+    // Complete when: progress is close to 0 OR diff is very small
+    if (
+      landingPhase === 'morphing' &&
+      !animationCompletionFlags.current.entranceComplete &&
+      (progressNearTarget || progressRef.current < 0.1)
+    ) {
       if (!(window as any)._morphingCompleteTriggered) {
         (window as any)._morphingCompleteTriggered = true;
-        // Complete the morphing phase and set idle
+        animationCompletionFlags.current.entranceComplete = true;
+        console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
         useStore.getState().setLandingPhase('tree');
         useStore.getState().setTreeMorphState('idle');
       }
     }
 
-    // Check for explosion completion (morphing-out)
-    if (isExploded && currentMorphState === 'morphing-out' && isAnimationComplete && progressRef.current > 0.99) {
+    // === EXPLOSION ANIMATION COMPLETION (morphing-out) ===
+    // Complete when: progress is close to 1.0 OR diff is very small
+    if (
+      isExploded &&
+      currentMorphState === 'morphing-out' &&
+      !animationCompletionFlags.current.explosionComplete &&
+      (progressNearTarget || progressRef.current > 0.8)
+    ) {
+      animationCompletionFlags.current.explosionComplete = true;
+      console.log('[TreeParticles] Explosion animation complete, setting to idle');
       useStore.getState().setTreeMorphState('idle');
     }
 
-    // Check for reset completion (morphing-in from photo sea back to tree)
-    if (!isExploded && landingPhase === 'tree' && currentMorphState === 'morphing-in' && isAnimationComplete && progressRef.current < 0.01) {
+    // Reset explosion completion flag when starting new explosion
+    if (currentMorphState === 'morphing-out' && animationCompletionFlags.current.explosionComplete === false) {
+      // Already reset, do nothing
+    } else if (currentMorphState !== 'morphing-out' && animationCompletionFlags.current.explosionComplete === true) {
+      // Reset flag when leaving morphing-out state
+      animationCompletionFlags.current.explosionComplete = false;
+    }
+
+    // === RESET ANIMATION COMPLETION (morphing-in from photo sea back to tree) ===
+    // Complete when: progress is close to 0 OR diff is very small
+    if (
+      !isExploded &&
+      landingPhase === 'tree' &&
+      currentMorphState === 'morphing-in' &&
+      !animationCompletionFlags.current.resetComplete &&
+      (progressNearTarget || progressRef.current < 0.1)
+    ) {
+      animationCompletionFlags.current.resetComplete = true;
+      console.log('[TreeParticles] Reset animation complete, setting to idle');
       useStore.getState().setTreeMorphState('idle');
     }
+
+    // Reset reset completion flag when starting new reset
+    if (currentMorphState === 'morphing-in' && landingPhase === 'tree' && animationCompletionFlags.current.resetComplete === false) {
+      // Already reset, do nothing
+    } else if ((currentMorphState !== 'morphing-in' || landingPhase !== 'tree') && animationCompletionFlags.current.resetComplete === true) {
+      // Reset flag when leaving morphing-in state
+      animationCompletionFlags.current.resetComplete = false;
+    }
+
+    // Update progress in store for debug monitoring
+    useStore.getState().setTreeProgress(progressRef.current);
 
     // Update all shader materials with new uniform values
     const materials = [

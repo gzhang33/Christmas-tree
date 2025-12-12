@@ -16,10 +16,12 @@ export interface FlowSlice {
     landingPhase: LandingPhase;
     usernameTransitionComplete: boolean;
     treeMorphState: TreeMorphState;
+    treeProgress: number; // Current animation progress (0.0 = tree, 1.0 = exploded)
     setUserName: (name: string) => void;
     setLandingPhase: (phase: LandingPhase) => void;
     setUsernameTransitionComplete: (complete: boolean) => void;
     setTreeMorphState: (state: TreeMorphState) => void;
+    setTreeProgress: (progress: number) => void;
 }
 
 export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) => ({
@@ -27,9 +29,11 @@ export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) 
     landingPhase: 'input',
     usernameTransitionComplete: false,
     treeMorphState: 'idle',
+    treeProgress: 0.0,
     setUserName: (name) => set({ userName: name }),
     setLandingPhase: (phase) => set({ landingPhase: phase, usernameTransitionComplete: false }),
     setUsernameTransitionComplete: (complete) => set({ usernameTransitionComplete: complete }),
     setTreeMorphState: (state) => set({ treeMorphState: state }),
+    setTreeProgress: (progress) => set({ treeProgress: progress }),
 });
 
