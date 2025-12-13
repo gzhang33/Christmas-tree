@@ -17,6 +17,7 @@ export const UsernameTransition: React.FC = () => {
     const [showTransition, setShowTransition] = useState(false);
     const [animationPhase, setAnimationPhase] = useState<'idle' | 'flying' | 'arrived'>('idle');
     const containerRef = useRef<HTMLDivElement>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Calculate target position - matches LandingTitle layout:
     // paddingTop: 30vh, title container ~200px, username container starts after title
@@ -30,10 +31,6 @@ export const UsernameTransition: React.FC = () => {
             setAnimationPhase('flying');
         }
 
-        // Continue showing during text phase until animation completes
-        if (landingPhase === 'text' && animationPhase === 'flying') {
-            // Animation is ongoing, keep showing
-        }
 
         // Reset when going to other phases
         if (landingPhase === 'input' || landingPhase === 'morphing' || landingPhase === 'tree') {
@@ -42,6 +39,16 @@ export const UsernameTransition: React.FC = () => {
         }
     }, [landingPhase, userName, animationPhase]);
 
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+        };
+    }, []);
+
     // Handle animation completion
     const handleAnimationComplete = () => {
         if (animationPhase === 'flying') {
@@ -49,9 +56,15 @@ export const UsernameTransition: React.FC = () => {
             // Signal to LandingTitle that username transition is complete
             setUsernameTransitionComplete(true);
 
+            // Clear any existing timeout before setting a new one
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+
             // Fade out this overlay after a brief moment
-            setTimeout(() => {
+            timeoutRef.current = setTimeout(() => {
                 setShowTransition(false);
+                timeoutRef.current = null;
             }, 300);
         }
     };

@@ -834,10 +834,11 @@ const parseColor = (color: string) => {
     }
 
     // Fallback to black if parsing fails
-    console.warn("Could not parse color:", color);
+    if (process.env.NODE_ENV === 'development') {
+        console.warn("Could not parse color:", color);
+    }
     return "rgba(0, 0, 0, 1)";
 };
-
 /**
  * Maps a value from one range to another, optionally clamping the result.
  */

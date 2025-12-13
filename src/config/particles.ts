@@ -15,9 +15,9 @@
  */
 export const TREE_SHAPE_CONFIG = {
     // 着色器用参数 (用于 MagicDust 螺旋粒子)
-    maxRadius: 12.0,      // 树底部最大半径
-    radiusScale: 0.9,     // 半径缩放系数
-    minRadius: 1.0,       // 树顶部最小半径
+    maxRadius: 5.5,       // 树底部最大半径 (匹配显示半径 5.5)
+    radiusScale: 1.0,     // 半径缩放系数
+    minRadius: 0.0,       // 树顶部最小半径
 
     // 显示渲染用参数 (用于 getTreeRadius 分层算法)
     layers: 7,            // 分层数量
@@ -39,26 +39,20 @@ export const PARTICLE_CONFIG = {
     // 所有比例之和必须为 1.0
     // ------------------------------------------------------------------------
     ratios: {
-        entity: 0.485,    // 48.5% - 树主体
-        glow: 0.10,       // 10.0% - 光晕效果
-        ornament: 0.16,  // 16.0% - 装饰球
-        gift: 0.23,       // 23.0% - 礼物盒
-        magicDust: 0.01, // 1.0% - 魔法尘埃螺旋光环
+        entity: 0.91,     // 96.0% - 树主体 (增强主体密度)
+        ornament: 0.015,  // 0.5% - 装饰球 (仅保留少量用于特殊装饰)
+        magicDust: 0.005,  // 0.5% - 魔法尘埃螺旋光环
         treeBase: 0.025,  // 2.5% - 树底座
     },
-
     // ------------------------------------------------------------------------
     // 最小粒子数量 (Minimum Counts)
     // 确保在低粒子总数时各元素仍可见
     // ------------------------------------------------------------------------
     minCounts: {
-        entity: 1000,    // 树主体最小粒子数（与 ratios.entity 对应）
-        ornament: 500,   // 装饰球最小粒子数
-        gift: 500,       // 礼物盒最小粒子数
+        entity: 1000,    // 树主体最小粒子数
+        ornament: 100,   // 装饰球最小粒子数
         magicDust: 100,  // 魔法尘埃最小粒子数
-        // 注：glow 和 treeBase 不设最小值，因为...（补充原因）
-    },
-    // ------------------------------------------------------------------------
+    },    // ------------------------------------------------------------------------
     // 消散动画配置 (Dissipation Animation Configuration)
     // 用于 TreeParticles 和 MagicDust 的同步消散效果
     // ------------------------------------------------------------------------
@@ -92,15 +86,15 @@ export const PARTICLE_CONFIG = {
     // ------------------------------------------------------------------------
     magicDust: {
         // 运动参数
-        spiralTurns: 3.5,      // 螺旋圈数 (值越小坡度越陡, >20度)
-        radiusOffset: 0.1,     // 距离树表面的距离 (关键参数)
+        spiralTurns: 2.5,      // 螺旋圈数 (值越小坡度越陡, >20度)
+        radiusOffset: 1.5,     // 距离树表面的距离 (关键参数)
         ascentSpeed: 0.15,      // 垂直上升速度
         rotationSpeed: 0.15,    // 轨道旋转速度
 
         // 视觉效果
         colors: ['#845696', '#b150e4', '#FFFAF0'], // 紫色系
-        minSize: 0.1,          // 最小粒子尺寸
-        maxSize: 0.3,          // 最大粒子尺寸
+        minSize: 0.2,          // 最小粒子尺寸
+        maxSize: 1.7,          // 最大粒子尺寸
         radiusVariation: 0.2,  // 半径随机变化
         angleVariation: 0.5,   // 角度随机变化
     },
@@ -129,7 +123,7 @@ export const PARTICLE_CONFIG = {
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
         dampingSpeedExplosion: 0.002, // 爆炸速度 (High velocity)
         dampingSpeedReset: 0.004,     // 还原速度 (Rapid damping)
-        dampingSpeedEntrance: 0.002,  // 入场速度 (Slower for entrance)
+        dampingSpeedEntrance: 0.003,  // 入场速度 (Slower for entrance)
     },
 
     // ------------------------------------------------------------------------

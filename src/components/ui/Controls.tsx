@@ -126,7 +126,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                         })
                     )
                 );
-                addPhotos(fallbackUrls);
+                addPhotos(fallbackUrls.filter(url => url !== ''));
                 setFailedUploads(Array.from(e.target.files).map(f => f.name));
             } finally {
                 setIsUploading(false);

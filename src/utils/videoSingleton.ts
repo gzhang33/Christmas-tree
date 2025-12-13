@@ -10,6 +10,7 @@ import * as THREE from 'three';
 
 let video: HTMLVideoElement | null = null;
 let texture: THREE.VideoTexture | null = null;
+let currentUrl: string | null = null;
 let isInitialized = false;
 
 export const initVideoSingleton = (): void => {
@@ -27,7 +28,11 @@ export const initVideoSingleton = (): void => {
     video.preload = 'none';
 
     // Append to body (optional, but good for some browser policies)
-    document.body.appendChild(video);
+    if (document.body) {
+        document.body.appendChild(video);
+    } else {
+        console.warn('[VideoSingleton] document.body not ready, video element not appended');
+    }
 
     // Create a single VideoTexture
     texture = new THREE.VideoTexture(video);
@@ -39,27 +44,47 @@ export const initVideoSingleton = (): void => {
     texture.generateMipmaps = false;
 
     isInitialized = true;
+    // currentUrl remains null until a URL is assigned
     console.log('[VideoSingleton] Initialized global video resources');
 };
-
 export const playVideo = (url: string): Promise<void> => {
-    if (!isInitialized || !video) initVideoSingleton();
-
-    // If already playing this URL, just ensure it's playing
-    if (video!.src === url || video!.src.endsWith(url)) {
-        return video!.play().catch(e => console.warn('Video play error:', e));
+    // Ensure initialization
+    if (!isInitialized || !video) {
+        initVideoSingleton();
     }
 
-    video!.src = url;
-    return video!.play().catch(e => {
-        console.warn('Video play failed:', e);
-    });
+    // Guard against null after init (should never happen, but TypeScript safety)
+    const videoElement = video;
+    if (!videoElement) {
+        return Promise.reject(new Error('[VideoSingleton] Video element not initialized'));
+    }
+
+    // Compare incoming url to currentUrl (not video.src) to avoid absolute/relative URL mismatch
+    if (currentUrl === url) {
+        // Already playing this URL, just ensure it's playing
+        return videoElement.play().catch(e => console.warn('[VideoSingleton] Video play error:', e));
+    }
+
+    // Set new URL
+    videoElement.src = url;
+
+    // Start playback and update currentUrl only on success
+    return videoElement.play()
+        .then(() => {
+            currentUrl = url;
+        })
+        .catch(e => {
+            console.warn('[VideoSingleton] Video play failed:', e);
+            // Don't update currentUrl if playback failed
+        });
 };
 
 export const stopVideo = (): void => {
     if (video) {
         video.pause();
-        // clear src to stop buffering? maybe optional.
+        // Clear currentUrl when stopping
+        currentUrl = null;
+        // Optionally clear src to stop buffering
         // video.src = ''; 
     }
 };
@@ -80,5 +105,7 @@ export const disposeVideoSingleton = (): void => {
         texture.dispose();
         texture = null;
     }
+    // Clear currentUrl when disposing
+    currentUrl = null;
     isInitialized = false;
 };

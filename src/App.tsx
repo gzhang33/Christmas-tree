@@ -115,8 +115,10 @@ function App() {
     // Update the total active particle count
     setActiveParticleCount(total);
 
-    // Debug log to verify updates
-    console.log('[ActiveParticles] Phase:', landingPhase, '| Tree:', activeTreeParticles, '| Snow:', actualSnowCount, '| MagicDust:', activeMagicDust, '| Total:', total);
+    // 如果需要调试，可以这样写：
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.log('[ActiveParticles] Phase:', landingPhase, '| Tree:', activeTreeParticles, '| Snow:', actualSnowCount, '| MagicDust:', activeMagicDust, '| Total:', total);
+    // }
   }, [treeParticleCount, actualSnowCount, actualMagicDustCount, landingPhase, setActiveParticleCount]);
 
   useEffect(() => {
@@ -265,13 +267,15 @@ function App() {
 
         {/* Landing Flow Controller - handles name input, click prompts */}
         <LandingFlowController
-          onPhaseChange={(phase) => console.log('[LandingFlow] Phase:', phase)}
+          onPhaseChange={(phase) => {
+            // 如果需要在阶段变化时执行某些逻辑，在这里添加
+            // 否则可以完全移除这个 prop
+          }}
           onAudioResume={async () => {
             // Use the hook's unmute method to sync state and resume playback
             await unmute();
           }}
         />
-
         {/* Username Transition Animation - shown during entrance */}
         <UsernameTransition />
 

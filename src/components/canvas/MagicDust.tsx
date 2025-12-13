@@ -6,58 +6,32 @@ import { useStore } from '../../store/useStore';
 import { calculateErosionFactor } from '../../utils/treeUtils';
 import magicDustVertexShader from '../../shaders/magicDust.vert?raw';
 import magicDustFragmentShader from '../../shaders/magicDust.frag?raw';
+import { useTexture } from '@react-three/drei';
 
 interface MagicDustProps {
   count?: number;
   // Note: isExploded is now read directly from store for synchronization with TreeParticles
 }
 
-// Meteor texture with comet-like glow
-const createMeteorTexture = () => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  ctx.fillStyle = 'rgba(0,0,0,0)';
-  ctx.fillRect(0, 0, 64, 64);
-
-  // Bright core with warm glow
-  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  grad.addColorStop(0.1, 'rgba(255, 240, 200, 0.95)');
-  grad.addColorStop(0.25, 'rgba(255, 215, 0, 0.7)');
-  grad.addColorStop(0.5, 'rgba(255, 180, 100, 0.3)');
-  grad.addColorStop(0.75, 'rgba(255, 150, 80, 0.1)');
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(32, 32, 32, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Small sparkle cross
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(32, 20);
-  ctx.lineTo(32, 44);
-  ctx.moveTo(20, 32);
-  ctx.lineTo(44, 32);
-  ctx.stroke();
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-};
-
-export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
+export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const meteorTexture = useMemo(() => createMeteorTexture(), []);
+  const geometryRef = useRef<THREE.BufferGeometry>(null);
+  const meteorTexture = useTexture('/textures/sparkle.png');
 
   // Get dynamic color from store
   const magicDustColor = useStore((state) => state.magicDustColor);
+
+  // Get global particle count from store for ratio-based calculation
+  const particleCount = useStore((state) => state.particleCount);
+
+  // Calculate count based on global particle budget and configured ratio
+  // If count prop is provided, use it; otherwise calculate from ratio
+  const baseCount = count ?? Math.floor(
+    Math.max(
+      particleCount * PARTICLE_CONFIG.ratios.magicDust,
+      PARTICLE_CONFIG.minCounts.magicDust,
+    )
+  );
 
   // Read isExploded directly from store for perfect synchronization with TreeParticles
   const isExploded = useStore((state) => state.isExploded);
@@ -67,8 +41,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
     ascentSpeed: configAscentSpeed,
     radiusVariation: configRadiusVariation,
     angleVariation: configAngleVariation,
-    minSize: configMinSize,
-    maxSize: configMaxSize,
+    // minSize & maxSize usage reverted to magicDust object until config refactor is complete
     spiralTurns: configSpiralTurns,
     radiusOffset: configRadiusOffset
   } = PARTICLE_CONFIG.magicDust;
@@ -93,10 +66,9 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
   const landingPhase = useStore((state) => state.landingPhase);
 
   // Animation state for smooth transitions
-  // Start exploded (1.5) if we are in morphing phase (Entrance) to sync with tree
+  // Start exploded (1.2) if we are in morphing phase (Entrance) to sync with tree
   const isEntrance = landingPhase === 'morphing';
   const progressRef = useRef(isEntrance ? 1.2 : 0.0);
-
 
   const targetProgressRef = useRef(0.0);
 
@@ -115,7 +87,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
   }, [magicDustColor]);
 
   // Increase particle count to account for trails which are now just more particles
-  const totalParticles = count * 6; // *6 for trail density
+  const totalParticles = baseCount * 6; // *6 for trail density
 
   // Note: calculateErosionFactor is imported from treeUtils for consistency with TreeParticles
 
@@ -150,7 +122,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
       flickerPhase[i] = Math.random() * Math.PI * 2;
       randoms[i] = Math.random();
 
-      // Color Logic - 使用安全的索引访问，防止数组越界
+      // Color Logic - safely access array indices to prevent out-of-bounds errors
       const colorChoice = Math.random();
       let c: THREE.Color;
       // Simple weighted choice based on index with bounds checking
@@ -163,8 +135,8 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
       colorsArray[i * 3 + 2] = c.b;
 
       // Size variation
-      const minS = configMinSize;
-      const maxS = configMaxSize;
+      const minS = PARTICLE_CONFIG.magicDust.minSize;
+      const maxS = PARTICLE_CONFIG.magicDust.maxSize;
       sizes[i] = minS + Math.random() * (maxS - minS);
 
       // Calculate approximate Y for erosion factor
@@ -191,7 +163,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
       erosionFactors,
       randoms
     };
-  }, [totalParticles, colors, configAscentSpeed, configRadiusVariation, configAngleVariation, configMinSize, configMaxSize, treeHeight, treeBottomY]);
+  }, [totalParticles, colors, configAscentSpeed, configRadiusVariation, configAngleVariation, PARTICLE_CONFIG.magicDust.minSize, PARTICLE_CONFIG.magicDust.maxSize, treeHeight, treeBottomY]);
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -250,6 +222,45 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
     configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd
   ]);
 
+  // Update color buffer when magicDustColor changes (avoid full remount)
+  useEffect(() => {
+    if (geometryRef.current) {
+      const geometry = geometryRef.current;
+      const colorAttribute = geometry.getAttribute('aColor') as THREE.BufferAttribute;
+
+      if (colorAttribute) {
+        const colorsArray = colorAttribute.array as Float32Array;
+
+        // Regenerate color variations from new color
+        const baseColor = new THREE.Color(magicDustColor);
+        const hsl = { h: 0, s: 0, l: 0 };
+        baseColor.getHSL(hsl);
+
+        const newColors = [
+          new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 0.8, 1), Math.min(hsl.l + 0.2, 0.95)),
+          baseColor.clone(),
+          new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)),
+        ];
+
+        // Update each particle's color
+        for (let i = 0; i < totalParticles; i++) {
+          const colorChoice = Math.random();
+          let c: THREE.Color;
+          if (colorChoice < 0.3) c = newColors[0] ?? newColors[newColors.length - 1];
+          else if (colorChoice < 0.7) c = newColors[1] ?? newColors[newColors.length - 1];
+          else c = newColors[2] ?? newColors[newColors.length - 1];
+
+          colorsArray[i * 3] = c.r;
+          colorsArray[i * 3 + 1] = c.g;
+          colorsArray[i * 3 + 2] = c.b;
+        }
+
+        // Mark buffer for update
+        colorAttribute.needsUpdate = true;
+      }
+    }
+  }, [magicDustColor, totalParticles]);
+
   // Track previous phase to detect transitions
   const prevPhaseRef = useRef(landingPhase);
 
@@ -263,11 +274,9 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
     }
     prevPhaseRef.current = landingPhase;
 
-    // 1. Interpolate Progress based on Phase & isExploded
-    // Determine target based on state
-    // If morphing, we target 0.0 (implode to tree)
+    // 1. Interpolate Progress based on isExploded state
+    // Determine target: 1.0 if exploded, 0.0 if reset (implode to tree)
     targetProgressRef.current = isExploded ? 1.0 : 0.0;
-
     // Select damping speed based on phase
     let dampingSpeed;
     if (landingPhase === 'morphing') {
@@ -287,10 +296,9 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count = 600 }) => {
     }
   });
 
-  // Force remount when colors change
   return (
-    <points key={magicDustColor}>
-      <bufferGeometry>
+    <points key={`magic-dust-${totalParticles}`}>
+      <bufferGeometry ref={geometryRef}>
         <bufferAttribute
           attach="attributes-position"
           count={totalParticles}

@@ -1,8 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useStore, LandingPhase } from '../../store/useStore';
 import { NameInputModal } from './NameInputModal';
-import { ClickPrompt } from './ClickPrompt';
-
 interface LandingFlowControllerProps {
     onPhaseChange?: (phase: LandingPhase) => void;
     onAudioResume?: () => void;
@@ -39,7 +37,6 @@ export const LandingFlowController: React.FC<LandingFlowControllerProps> = ({
         // Trigger audio resume (user interaction occurred)
         onAudioResume?.();
     }, [setUserName, setLandingPhase, onAudioResume]);
-
     // Handle click to transition from text to morphing
     const handleTreeClick = useCallback(() => {
         if (landingPhase === 'text') {

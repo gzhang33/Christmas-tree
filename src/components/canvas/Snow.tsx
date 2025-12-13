@@ -163,7 +163,7 @@ export const Snow: React.FC<SnowProps> = ({
   const { geometry: gCfg, material: mCfg } = SNOW_CONFIG;
 
   return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
+    <instancedMesh key={`snow-${count}`} ref={mesh} args={[undefined, undefined, count]}>
       <planeGeometry args={[gCfg.planeWidth, gCfg.planeHeight]} />
       <meshBasicMaterial
         map={snowflakeTexture}

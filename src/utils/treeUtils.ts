@@ -38,7 +38,7 @@ export const getTreeRadius = (t: number): number => {
  */
 export const calculateErosionFactor = (yPosition: number): number => {
     const treeTopY = PARTICLE_CONFIG.treeBottomY + PARTICLE_CONFIG.treeHeight;
-    const erosionRange = PARTICLE_CONFIG.treeHeight + Math.abs(PARTICLE_CONFIG.treeBottomY);
+    const erosionRange = PARTICLE_CONFIG.treeHeight;
     const factor = (treeTopY - yPosition) / erosionRange;
     return Math.max(0, Math.min(1, factor)); // Clamp to [0,1]
 };
@@ -47,12 +47,17 @@ export const calculateErosionFactor = (yPosition: number): number => {
  * Simple tree radius calculation for shader use
  * This is a simplified version that matches the shader's getTreeRadius function
  * 
- * @param t - Normalized height (0 = top, 1 = bottom in shader context)
+ * IMPORTANT: Parameter semantics now match getTreeRadius for consistency:
+ * @param t - Normalized height (0 = bottom, 1 = top) - SAME as getTreeRadius
  * @returns Radius at the given height
+ * 
+ * Note: Internally converts to shader coordinate system where t=0 is top, t=1 is bottom
  */
 export const getShaderTreeRadius = (t: number): number => {
     const { maxRadius, radiusScale, minRadius } = TREE_SHAPE_CONFIG;
-    // t=0 is top (small radius), t=1 is bottom (large radius)
-    return maxRadius * t * radiusScale + minRadius;
+    // Convert t to shader semantics: shader expects t=0 (top) to t=1 (bottom)
+    // So we use (1 - t) since our input t goes from 0 (bottom) to 1 (top)
+    const shaderT = 1 - t;
+    return maxRadius * shaderT * radiusScale + minRadius;
 };
 

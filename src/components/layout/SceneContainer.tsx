@@ -186,9 +186,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                 {(landingPhase === 'morphing' || landingPhase === 'tree') && (
                     <React.Suspense fallback={null}>
                         {/* Magic Dust - continuous presence, inside Suspense to sync start time with Tree */}
-                        <MagicDust
-                            count={Math.floor(Math.max(estimatedParticleCount * PARTICLE_CONFIG.ratios.magicDust, PARTICLE_CONFIG.minCounts.magicDust))}
-                        />
+                        <MagicDust />
                         <Experience
                             uiState={uiState}
                             visible={landingPhase === 'tree' || landingPhase === 'morphing'}

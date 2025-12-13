@@ -132,8 +132,8 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         // 停止当前播放
         audio.pause();
 
-        // 更新音频源
-        audio.src = selectedOption.path;
+        // 更新音频源（使用标准化后的路径）
+        audio.src = fullPath;
         ensureVolume(audio);
         audio.load();
 

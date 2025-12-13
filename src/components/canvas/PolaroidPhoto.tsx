@@ -413,9 +413,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         // Disable hover during photo centering animation
         if (activePhoto) return;
 
-        // Support touch and pen input
-        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
-
         setHoveredPhoto(instanceId); // Notify global store with instanceId
 
         const hover = hoverRef.current;
@@ -431,9 +428,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
         // Disable hover during photo centering animation
         if (activePhoto) return;
-
-        // Support touch and pen input
-        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
 
         setHoveredPhoto(null); // Notify global store
 
@@ -457,9 +451,6 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         const hover = hoverRef.current;
 
         if (!hover.isHovered || !groupRef.current) return;
-
-        // Support touch and pen input
-        const isTouchOrPen = e.pointerType === 'touch' || e.pointerType === 'pen';
 
         // Safe fallback if e.uv is undefined
         // Use e.point for 3D position-based tilt calculation

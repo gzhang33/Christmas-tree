@@ -34,9 +34,8 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
     const activePhoto = useStore((state) => state.activePhoto);
     const landingPhase = useStore((state) => state.landingPhase);
     const treeMorphState = useStore((state) => state.treeMorphState);
-    const treeProgress = useStore((state) => state.treeProgress);
-    const activeParticleCount = useStore((state) => state.activeParticleCount);
-
+    const treeProgress = useStore((state) => state.treeProgress) ?? 0;
+    const activeParticleCount = useStore((state) => state.activeParticleCount) ?? 0;
     /**
      * Unified state display logic:
      * - When treeMorphState is active (not idle), show morphing state as priority
@@ -239,6 +238,5 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
 
 
 
-        </div >
-    );
+        </div>);
 };

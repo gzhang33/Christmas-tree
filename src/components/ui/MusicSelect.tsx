@@ -14,7 +14,7 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
 
     const selectedOption = options.find(opt => opt.id === value);
 
-    // Click outside handler
+    // Click outside and Escape key handler
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -22,11 +22,22 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' || event.keyCode === 27) {
+                setIsOpen(false);
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleEscapeKey);
+        }
+
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleEscapeKey);
         };
-    }, []);
+    }, [isOpen]);
 
     return (
         <div className="relative w-full" ref={containerRef}>

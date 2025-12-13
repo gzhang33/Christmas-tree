@@ -94,7 +94,8 @@ export const INTERACTION_CONFIG = {
             tooLong: (max: number) => `名称不能超过 ${max} 个字符 / Name cannot exceed ${max} characters`,
             invalidChars: '名称只能包含中英文、数字、下划线、连字符和空格 / Name can only contain letters, numbers, underscores, hyphens and spaces',
             submitFailed: '提交失败，请重试 / Submit failed, please try again',
-        }, animation: {
+        },
+        animation: {
             modalFadeDuration: 0.5,         // 模态框淡入淡出 (秒)
             contentDelay: 0.2,              // 内容延迟出现 (秒)
             contentDuration: 0.5,           // 内容动画时长 (秒)

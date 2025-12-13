@@ -9,6 +9,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 export interface PerformanceData {
   fps: number;
   frameTime: number;
+  particleCount?: number;
   cameraPosition?: { x: number; y: number; z: number };
   resolution?: string;
   textureCount?: number;
@@ -59,8 +60,7 @@ const PerformanceTracker: React.FC<{
           z: Number(camera.position.z.toFixed(2)),
         },
         resolution: `${gl.domElement.width}x${gl.domElement.height}`,
-        textureCount: info.memory.textures,
-        shaderCount: info.programs?.length ?? 0,
+        textureCount: info.memory?.textures ?? 0, shaderCount: info.programs?.length ?? 0,
       });
 
       frameCount.current = 0;
@@ -175,10 +175,18 @@ export const PerformanceOverlay: React.FC<{
 
       {isExpanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-
+          <Row label="帧时间" value={`${data.frameTime}ms`} />
+          {data.cameraPosition && (
+            <Row
+              label="相机位置"
+              value={`${data.cameraPosition.x}, ${data.cameraPosition.y}, ${data.cameraPosition.z}`}
+            />
+          )}
+          {data.resolution && <Row label="分辨率" value={data.resolution} />}
+          {data.textureCount !== undefined && <Row label="纹理" value={String(data.textureCount)} />}
+          {data.shaderCount !== undefined && <Row label="着色器" value={String(data.shaderCount)} />}
         </div>
-      )}
-    </div>
+      )}    </div>
   );
 };
 

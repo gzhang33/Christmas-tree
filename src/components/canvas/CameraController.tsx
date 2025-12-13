@@ -59,7 +59,7 @@ export const CameraController: React.FC = () => {
     // Explosion camera animation state
     const explosionAnimRef = useRef({
         isAnimating: false,       // whether explosion animation is active
-        startTime: 0,             // animation start time
+        startTime: -1,            // animation start time (from Three.js clock, -1 = not set)
         initialPosition: new THREE.Vector3(),  // camera position at explosion start
         targetPosition: new THREE.Vector3(),   // target camera position
         initialRotation: 0,       // initial camera rotation angle
@@ -100,7 +100,7 @@ export const CameraController: React.FC = () => {
                 explosionAnim.targetRotation = tempSpherical.theta + explosionConfig.rotationAngle;
 
                 explosionAnim.isAnimating = true;
-                explosionAnim.startTime = performance.now() / 1000; // Convert to seconds
+                explosionAnim.startTime = -1; // Will be initialized in useFrame from Three.js clock
             }
         }
 
@@ -126,8 +126,13 @@ export const CameraController: React.FC = () => {
         // === EXPLOSION CAMERA ANIMATION ===
         // Priority: Execute when explosion animation is active, regardless of activePhoto
         if (explosionAnim.isAnimating && explosionConfig.enabled) {
-            const currentTime = state.clock.getElapsedTime();
-            const elapsed = currentTime - explosionAnim.startTime;
+            // Initialize startTime from Three.js clock on first frame
+            if (explosionAnim.startTime < 0) {
+                explosionAnim.startTime = state.clock.getElapsedTime();
+            }
+
+            // Compute elapsed time using the same time source (Three.js clock)
+            const elapsed = state.clock.getElapsedTime() - explosionAnim.startTime;
             const progress = Math.min(elapsed / explosionConfig.duration, 1.0);
 
             // Smooth easing function (ease-out cubic)

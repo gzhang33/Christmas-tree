@@ -3,7 +3,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 export const useAudioController = (initialVolume = 0.35) => {
     // Audio segment configuration: play from 45s to end, then loop
     const LOOP_START_TIME = 45; // Start playback at 45 seconds
-
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 

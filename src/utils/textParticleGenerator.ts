@@ -69,7 +69,12 @@ export function generateTextParticles(options: Partial<TextParticleOptions>): Te
         ...options,
         text: options.text || '',
     } as TextParticleOptions;
-    if (!config.text) {
+
+    // 验证关键参数
+    if (config.fontSize <= 0 || config.density <= 0 || config.worldWidth <= 0) {
+        console.error('[TextParticleGenerator] Invalid parameters');
+        return { positions: new Float32Array(0), count: 0, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 } };
+    } if (!config.text) {
         return { positions: new Float32Array(0), count: 0, bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 } };
     }
 
