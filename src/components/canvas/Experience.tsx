@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useEffect, useCallback } from 'react';
 import { OrbitControls as DreiOrbitControls } from '@react-three/drei';
+// Force HMR refresh for ReferenceError fix
 
 import { useFrame, useThree } from '@react-three/fiber';
 import { TreeParticles } from './TreeParticles.tsx';
@@ -8,10 +9,11 @@ import { CameraController } from './CameraController.tsx';
 import { useStore } from '../../store/useStore';
 
 import { UIState } from '../../types.ts';
-import { MEMORIES } from '../../config/assets.ts';
+import { ASSET_CONFIG } from '../../config/assets.ts';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { GlobalVideoController } from './GlobalVideoController'; // NEW
-import { PERFORMANCE_CONFIG, CAMERA_CONFIG, SCENE_CONFIG, getResponsiveValue } from '../../config';
+import { PERFORMANCE_CONFIG, CAMERA_CONFIG, SCENE_CONFIG } from '../../config';
+import { getResponsiveValue } from '../../utils/responsiveUtils';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
@@ -35,6 +37,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
     const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId); // Consume hover state
     const activePhoto = useStore((state) => state.activePhoto);
     const setActivePhoto = useStore((state) => state.setActivePhoto);
+    const playingVideoInHover = useStore((state) => state.playingVideoInHover); // NEW: Hover video state
     const { camera } = useThree();
 
     // OrbitControls ref for idle detection
@@ -172,11 +175,11 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
         <>
             <DreiOrbitControls
                 ref={controlsRef}
-                enabled={visible && !activePhoto} // Disable controls when hidden or looking at a photo
+                enabled={visible && !activePhoto && !playingVideoInHover} // Disable controls when hidden, looking at photo, or playing hover video
                 enablePan={SCENE_CONFIG.orbitControls.enablePan}
                 minDistance={SCENE_CONFIG.orbitControls.minDistance}
                 maxDistance={CAMERA_CONFIG.limits.maxDistance}
-                autoRotate={isExploded && !hoveredPhotoInstanceId && !activePhoto} // Stop rotation on hover or when photo active
+                autoRotate={isExploded && !hoveredPhotoInstanceId && !activePhoto && !playingVideoInHover} // Stop rotation on hover, active, or hover video
                 autoRotateSpeed={SCENE_CONFIG.orbitControls.autoRotateSpeed}
                 enableZoom={SCENE_CONFIG.orbitControls.enableZoom}
                 maxPolarAngle={SCENE_CONFIG.orbitControls.maxPolarAngle}

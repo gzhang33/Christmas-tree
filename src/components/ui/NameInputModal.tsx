@@ -73,6 +73,10 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
         setIsSubmitting(true);
         const trimmedName = inputValue.trim();
 
+        // Give React a moment to render the "Shared Element" source (text overlay)
+        // before unmounting the modal via onSubmit -> phase change.
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         try {
             await onSubmit(trimmedName);
             // Don't reset submitting here as component will likely unmount or transition
@@ -128,24 +132,39 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                         </div>
 
                         {/* Input Field */}
-                        <div className="w-full">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={inputValue}
-                                onChange={handleInputChange}
-                                onKeyDown={handleKeyDown}
-                                placeholder="Your name..."
-                                maxLength={validation.maxLength}
-                                aria-invalid={!!error}
-                                aria-describedby={error ? "name-error" : undefined}
-                                className="w-full px-6 py-4 text-xl text-center text-white bg-white/10 
-                                         border-2 border-white/30 rounded-xl
-                                         placeholder-white/40 outline-none
-                                         focus:border-amber-400/70 focus:bg-white/15
-                                         transition-all duration-300"
-                                disabled={isSubmitting}
-                            />
+                        <div className="w-full relative h-[64px] flex items-center justify-center">
+                            {!isSubmitting ? (
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={inputValue}
+                                    onChange={handleInputChange}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Your name..."
+                                    maxLength={validation.maxLength}
+                                    aria-invalid={!!error}
+                                    aria-describedby={error ? "name-error" : undefined}
+                                    className="w-full px-6 py-4 text-xl text-center text-white bg-white/10 
+                                             border-2 border-white/30 rounded-xl
+                                             placeholder-white/40 outline-none
+                                             focus:border-amber-400/70 focus:bg-white/15
+                                             transition-all duration-300"
+                                    style={{ fontFamily: "'Courier New', monospace" }}
+                                    disabled={isSubmitting}
+                                />
+                            ) : (
+                                /* Shared Element Transition Source */
+                                <motion.div
+                                    layoutId="username-hero"
+                                    className="text-xl text-white font-bold"
+                                    style={{
+                                        fontFamily: "'Courier New', monospace",
+                                        textShadow: '0 0 20px rgba(255, 255, 255, 0.5)'
+                                    }}
+                                >
+                                    {inputValue}
+                                </motion.div>
+                            )}
 
                             {/* Error Message */}
                             <AnimatePresence>
@@ -153,7 +172,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                                     <motion.p
                                         id="name-error"
                                         role="alert"
-                                        className="mt-3 text-center text-red-400 text-sm"
+                                        className="absolute top-full left-0 right-0 mt-3 text-center text-red-400 text-sm"
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}

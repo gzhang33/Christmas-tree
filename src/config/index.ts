@@ -11,8 +11,7 @@
 export {
     PERFORMANCE_CONFIG,
     RESPONSIVE_BREAKPOINTS,
-    isMobileDevice,
-    getResponsiveValue,
+
     CAMERA_CONFIG,              // 相机配置
     SCENE_CONFIG,               // 场景配置
     POST_PROCESSING_CONFIG      // 后期处理配置
@@ -26,22 +25,13 @@ export { PARTICLE_CONFIG } from './particles';
 // ============================================================================
 // 落地页配置 (Landing Page Configuration)
 // ============================================================================
-export {
-    TITLE_COLORS,
-    USERNAME_COLORS,
-    TITLE_CONFIG,
-    LANDING_CONFIG
-} from './landing';
+export { LANDING_CONFIG } from './landing';
 
 // ============================================================================
 // 颜色配置 (Color Configuration)
 // ============================================================================
 export {
-    DEFAULT_TREE_COLOR,
-    TREE_COLOR_PRESETS,
-    TREE_COLORS,
-    TREE_COLOR_NAMES,
-    STATIC_COLORS,
+    COLOR_CONFIG,
     type ColorPreset
 } from './colors';
 
@@ -49,12 +39,7 @@ export {
 // 照片墙配置 (Photo Wall Configuration)
 // ============================================================================
 export {
-    PHOTO_COUNT,
-    PHOTO_DISTRIBUTION,
-    PHOTO_DIMENSIONS,
-    MORPH_TIMING,
-    generatePhotoPositions,
-    gaussianRandom,
+    PHOTO_WALL_CONFIG,
     type PhotoPosition
 } from './photoConfig';
 
@@ -69,7 +54,7 @@ export {
 // ============================================================================
 // 资源配置 (Asset Configuration)
 // ============================================================================
-export { MEMORIES } from './assets';
+export { ASSET_CONFIG } from './assets';
 
 // ============================================================================
 // 雪花效果配置 (Snow Effect Configuration)

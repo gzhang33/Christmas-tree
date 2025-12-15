@@ -34,6 +34,13 @@ export const useStore = create<AppState>()(
                 magicDustColor: state.magicDustColor,
                 selectedAudioId: state.selectedAudioId,
             }),
+            // Ensure consistent state after rehydration
+            onRehydrateStorage: () => (state) => {
+                // If userName is cleared (null or empty), reset to input phase
+                if (state && !state.userName) {
+                    state.landingPhase = 'input';
+                }
+            },
         }
     )
 );

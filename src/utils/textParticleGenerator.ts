@@ -218,6 +218,15 @@ export function generateMultiLineTextParticles(
         overallMaxY = Math.max(overallMaxY, result.bounds.maxY);
     });
 
+    // 处理所有行都为空的情况
+    if (allPositions.length === 0) {
+        return {
+            positions: new Float32Array(0),
+            count: 0,
+            bounds: { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+        };
+    }
+
     return {
         positions: new Float32Array(allPositions),
         count: allPositions.length / 3,

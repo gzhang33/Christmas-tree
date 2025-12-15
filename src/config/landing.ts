@@ -11,23 +11,7 @@ import { PERFORMANCE_CONFIG } from './performance';
 // 1. 颜色配置 (Color Palettes)
 // ============================================================================
 
-/** 标题粒子的圣诞色彩方案 */
-export const TITLE_COLORS = [
-    '#C41E3A', // 圣诞红 (Christmas Red)
-    '#228B22', // 森林绿 (Forest Green)
-    '#FFD700', // 金色 (Gold)
-    '#FFFFFF', // 白色 (White)
-    '#DC143C', // 深红 (Crimson)
-    '#006400', // 深绿 (Dark Green)
-];
-
-/** 用户名粒子色彩方案（暖色调） */
-export const USERNAME_COLORS = [
-    '#FFD700', // 金色 (Gold)
-    '#FFA500', // 橙色 (Orange)
-    '#FFFAF0', // 花白色 (Floral White)
-    '#F5DEB3', // 小麦色 (Wheat)
-];
+// Moved colors to LANDING_CONFIG.colors
 
 // ============================================================================
 // 2. 标题粒子系统配置 (Title Particle System)
@@ -150,7 +134,27 @@ export const TITLE_CONFIG = {
 
 export const LANDING_CONFIG = {
     // ------------------------------------------------------------------------
-    // 标题布局与响应式 (Title Layout & Responsive)
+    // 1. 颜色配置 (Color Palettes)
+    // ------------------------------------------------------------------------
+    colors: {
+        title: [
+            '#C41E3A', // 圣诞红 (Christmas Red)
+            '#228B22', // 森林绿 (Forest Green)
+            '#FFD700', // 金色 (Gold)
+            '#FFFFFF', // 白色 (White)
+            '#DC143C', // 深红 (Crimson)
+            '#006400', // 深绿 (Dark Green)
+        ],
+        username: [
+            '#FFD700', // 金色 (Gold)
+            '#FFA500', // 橙色 (Orange)
+            '#FFFAF0', // 花白色 (Floral White)
+            '#F5DEB3', // 小麦色 (Wheat)
+        ],
+    },
+
+    // ------------------------------------------------------------------------
+    // 2. 标题布局与响应式 (Title Layout & Responsive)
     // ------------------------------------------------------------------------
     title: {
         // 全局缩放与密度
@@ -192,15 +196,15 @@ export const LANDING_CONFIG = {
         // 垂直偏移量 (Vertical Offset)
         // 百分比相对于视口高度
         verticalOffset: {
-            normal: -3,  // 桌面：略偏上
-            compact: -18, // 移动：上移（较高位置）
+            normal: -3,  // 
+            compact: -18, // 
         },
 
         // 水平偏移量 (Horizontal Offset)
         // 倍率值，基于 fontSize * lineSpacing 进行缩放
         horizontalOffset: {
-            normal: 1.5,   // 桌面：无水平偏移（左对齐已通过 leftPadding 控制）
-            compact: 0.15,  // 移动：无水平偏移（居中对齐）
+            normal: 1.5,   // 
+            compact: 0.15,  // 
         },
 
         // 粒子生成参数（用于3D场景，防止文本截断）

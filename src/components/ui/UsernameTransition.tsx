@@ -61,11 +61,12 @@ export const UsernameTransition: React.FC = () => {
                 clearTimeout(timeoutRef.current);
             }
 
-            // Fade out this overlay after a brief moment
+            // Hold this overlay visible longer to allow LandingTitle's VaporizeTextCycle
+            // to fully initialize its canvas and render particles (fadeInDuration: 1s)
             timeoutRef.current = setTimeout(() => {
                 setShowTransition(false);
                 timeoutRef.current = null;
-            }, 300);
+            }, 1000);
         }
     };
 
@@ -78,38 +79,42 @@ export const UsernameTransition: React.FC = () => {
             {showTransition && (
                 <motion.div
                     ref={containerRef}
-                    className="fixed inset-0 z-45 pointer-events-none flex items-center justify-center"
+                    className="fixed inset-0 z-45 pointer-events-none flex flex-col items-center"
+                    style={{ paddingTop: '30vh' }}
                     initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.5 } }}
                 >
-                    {/* Flying username text */}
-                    <motion.div
-                        className="text-4xl md:text-5xl text-white"
-                        style={{
-                            fontFamily: "'Courier New', monospace",
-                            fontWeight: 400,
-                            textShadow: '0 0 20px rgba(244, 227, 178, 0.6)',
-                            color: 'rgb(244, 227, 178)' // Light Gold #F4E3B2
-                        }}
-                        initial={{
-                            y: 0,
-                            scale: 1,
-                            opacity: 1
-                        }}
-                        animate={{
-                            y: targetY,
-                            scale: 0.72, // Scale down to match text phase font size (36px vs ~50px)
-                            opacity: 1
-                        }}
-                        onAnimationComplete={handleAnimationComplete}
-                        transition={{
-                            duration: 1.8,
-                            ease: [0.43, 0.13, 0.23, 0.96] // Custom easing for smooth deceleration
-                        }}
-                    >
-                        {displayName}
-                    </motion.div>
+                    {/* Spacer for Title (200px) + Gap (space-y-4 = 16px) */}
+                    <div style={{ height: '200px', flexShrink: 0 }} />
+                    <div style={{ height: '16px', flexShrink: 0 }} />
+
+                    {/* Target Container - matches LandingTitle username section */}
+                    <div className="w-full h-[100px] flex justify-center items-center">
+                        {/* Flying username text - Shared Element Target */}
+                        <motion.div
+                            layoutId="username-hero"
+                            className="text-4xl md:text-5xl text-white"
+                            style={{
+                                fontFamily: "'Courier New', monospace",
+                                fontWeight: 400,
+                                textShadow: '0 0 20px rgba(244, 227, 178, 0.6)',
+                                color: 'rgb(244, 227, 178)', // Light Gold #F4E3B2
+                            }}
+                            initial={{ opacity: 1, scale: 0.72 }}
+                            animate={{
+                                opacity: 1,
+                                scale: 0.72,
+                                transition: {
+                                    duration: 1.5,
+                                    ease: [0.43, 0.13, 0.23, 0.96]
+                                }
+                            }}
+                            onLayoutAnimationComplete={handleAnimationComplete}
+                        >
+                            {displayName}
+                        </motion.div>
+                    </div>
                 </motion.div>
             )}
         </AnimatePresence>

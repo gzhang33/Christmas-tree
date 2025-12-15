@@ -59,16 +59,32 @@
 
 ## 🖼️ Part 3: Photo Wall (Interaction & Physics)
 
-- [ ] **[PHOTO-01] Hover Depth Effect (Z-Axis)**
+- [x] **[PHOTO-01] Hover Depth Effect (Z-Axis)**
   - **Task:** On mouse hover:
     1.  Target Photo: Move Z-index forward (Highlight).
     2.  Neighbor Photos: Move Z-index backward (Recede).
   - **Constraint:** Active photo must have `max-z-index` to prevent occlusion by snow/particles.
+  - **Implementation:** 
+    - Added depth effect configuration in `interactions.ts` (`depthEffect` with `forwardDistance: 0.5`, `backwardDistance: 0.3`, `neighborRadius: 2.5`, `maxRenderOrder: 9999`)
+    - Extended `hoverRef` in `PolaroidPhoto.tsx` with `currentZOffset`, `targetZOffset`, and `isNeighbor` fields
+    - Implemented Z-axis offset animation in both `PolaroidPhoto.tsx` and `PhotoManager.tsx` using exponential lerp for smooth transitions
+    - Added neighbor detection logic in `PhotoManager.tsx` that calculates 3D distance between photos and sets backward offset for neighbors within radius
+    - Set `renderOrder = 9999` for hovered/active photos to prevent occlusion by particles
+    - Applied Z-offset by calculating normalized direction from center and adding offset along that direction
 
-- [ ] **[PHOTO-02] Focus Mode Visuals (Blur)**
-  - **Task:** On click (Active State):
-    1.  Apply `Gaussian Blur` filter to the background layer (Snow, other photos).
-    2.  Reduce background `Opacity` or `Brightness`.
+- [x] **[PHOTO-02] Hover Video Playback (In-Place)**
+  - **Task:** On click (while hovering):
+    1.  Play video at hover position (maintain hover visual effects).
+    2.  **No camera movement** - seamless texture swap from image to video.
+  - **Implementation:**
+    - Added `PlayingVideoInHover` state in `createInteractionSlice.ts` with `instanceId`, `videoUrl`
+    - Modified `GlobalVideoController.tsx` to prioritize `playingVideoInHover` state over `activePhoto`
+    - Updated click handler in `PolaroidPhoto.tsx` with 3-step mobile interaction (hover → video → exit)
+    - Added background click exit in `Floor.tsx`
+    - Fixed `handlePointerOut` to preserve hover state while video is playing
+    - Video plays in-place maintaining: 1.5x scale, Z+0.5 offset, neighbor photos receded, photo completely frozen
+    - Removed close button per requirements - exit via: click same photo / other photo / background
+    - Camera stays static - no movement or animation when clicking to play video
 
 - [ ] **[PHOTO-03] Anti-Clipping Physics (Repulsion)**
   - **Task:** Implement a simple force-directed graph or repulsion algorithm.
@@ -89,6 +105,9 @@
 
 - [ ] **[PHOTO-06] Mobile Gyroscope**
   - **Task:** Add `DeviceOrientation` event listener.
-  - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.
+  - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.54tr4e4w
+  - **Goal:**实现手机端的陀螺仪效果，
+
 - [ ] **[PHOTO-07] Focus mode visuals effect**
-  - **Task** update camera move logic, currently click on a image will 向  - [ ] **Action:** 照片方向实现偏移后会再执行居中的效果。 更改逻辑以实现点击后直接居中的效果。
+  - **Task** update camera move logic,   
+  - [ ] **Action:** 现在点击照片时，会先向照片方向实现偏移后会再执行居中的效果。 更改逻辑以实现点击后直接居中的效果。

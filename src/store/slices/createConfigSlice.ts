@@ -1,9 +1,10 @@
 import { StateCreator } from 'zustand';
 import { AppState } from '../useStore';
-import { DEFAULT_TREE_COLOR } from '../../config/colors';
-import { PERFORMANCE_CONFIG, getResponsiveValue } from '../../config/performance';
+import { COLOR_CONFIG } from '../../config/colors';
+import { PERFORMANCE_CONFIG } from '../../config/performance';
+import { getResponsiveValue } from '../../utils/responsiveUtils';
 import { PARTICLE_CONFIG } from '../../config/particles';
-import { DEFAULT_AUDIO_ID } from '../../config/audio';
+import { AUDIO_CONFIG } from '../../config/audio';
 
 export interface ConfigSlice {
     treeColor: string;
@@ -17,12 +18,12 @@ export interface ConfigSlice {
 }
 
 export const createConfigSlice: StateCreator<AppState, [], [], ConfigSlice> = (set) => ({
-    treeColor: DEFAULT_TREE_COLOR,
+    treeColor: COLOR_CONFIG.tree.default,
     // 使用响应式配置：桌面端 12000，移动端 10000
     particleCount: getResponsiveValue(PERFORMANCE_CONFIG.particles.defaultCount),
     // 魔法尘埃颜色默认使用配置文件中的第一个颜色
     magicDustColor: PARTICLE_CONFIG.magicDust.colors[0] ?? '#ffffff',    // 默认不播放音乐
-    selectedAudioId: DEFAULT_AUDIO_ID,
+    selectedAudioId: AUDIO_CONFIG.defaultId,
     setTreeColor: (color) => set({ treeColor: color }),
     setParticleCount: (count) => set({ particleCount: count }),
     setMagicDustColor: (color) => set({ magicDustColor: color }),

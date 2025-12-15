@@ -11,9 +11,11 @@ import { PARTICLE_CONFIG } from '../../config/particles';
 import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
 import { useStore } from '../../store/useStore';
-import { CAMERA_CONFIG, getResponsiveValue, SCENE_CONFIG } from '../../config';
+import { CAMERA_CONFIG, SCENE_CONFIG } from '../../config';
+import { getResponsiveValue } from '../../utils/responsiveUtils';
 import { useFrame } from '@react-three/fiber';
 import { Environment, Stars } from '@react-three/drei';
+import { ErrorBoundary } from '../utils/ErrorBoundary';
 
 
 interface SceneContainerProps {
@@ -141,70 +143,72 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
 
     return (
         <div className="absolute inset-0 z-40">
-            <Canvas
-                camera={{
-                    position: getResponsiveValue(CAMERA_CONFIG.default.position) as [number, number, number],
-                    fov: CAMERA_CONFIG.default.fov
-                }}
-                dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
-                gl={{
-                    antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
-                    toneMappingExposure: 1.08,
-                    alpha: false,
-                    powerPreference: 'high-performance',
-                    stencil: false,
-                    depth: true
-                }}
-                onCreated={({ scene }) => {
-                    scene.background = new THREE.Color('#030002');
-                }}
-                onPointerMissed={() => {
-                    // Clear active photo and hover preview when clicking outside any object
-                    const { setActivePhoto, setHoveredPhoto } = useStore.getState();
-                    setActivePhoto(null);
-                    setHoveredPhoto(null);
-                }}
-            >
-                {/* Global Environment & Lighting - Persistent across phases */}
-                <SceneEnvironment />
+            <ErrorBoundary name="SceneCanvas">
+                <Canvas
+                    camera={{
+                        position: getResponsiveValue(CAMERA_CONFIG.default.position) as [number, number, number],
+                        fov: CAMERA_CONFIG.default.fov
+                    }}
+                    dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
+                    gl={{
+                        antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
+                        toneMappingExposure: 1.08,
+                        alpha: false,
+                        powerPreference: 'high-performance',
+                        stencil: false,
+                        depth: true
+                    }}
+                    onCreated={({ scene }) => {
+                        scene.background = new THREE.Color('#030002');
+                    }}
+                    onPointerMissed={() => {
+                        // Clear active photo and hover preview when clicking outside any object
+                        const { setActivePhoto, setHoveredPhoto } = useStore.getState();
+                        setActivePhoto(null);
+                        setHoveredPhoto(null);
+                    }}
+                >
+                    {/* Global Environment & Lighting - Persistent across phases */}
+                    <SceneEnvironment />
 
-                {/* Snow - shown in all phases */}
-                <Snow
-                    count={Math.max(0, Math.floor(config.snowDensity || 0))}
-                    speed={config.snowSpeed}
-                    wind={config.windStrength}
-                />
+                    {/* Snow - shown in all phases */}
+                    <Snow
+                        count={Math.max(0, Math.floor(config.snowDensity || 0))}
+                        speed={config.snowSpeed}
+                        wind={config.windStrength}
+                    />
 
 
 
-                {/* Persistent Environment Elements (Floor & Dust) - Visible in both phases to prevent pop */}
-                {/* Floor */}
-                {(landingPhase === 'morphing' || landingPhase === 'tree') && <Floor />}
+                    {/* Persistent Environment Elements (Floor & Dust) - Visible in both phases to prevent pop */}
+                    {/* Floor */}
+                    {(landingPhase === 'morphing' || landingPhase === 'tree') && <Floor />}
 
-                {/* Magic Dust - continuous presence */}
-                {/* Tree Experience & Magic Dust - Grouped in Suspense for synchronized loading */}
-                {(landingPhase === 'morphing' || landingPhase === 'tree') && (
-                    <React.Suspense fallback={null}>
-                        {/* Magic Dust - continuous presence, inside Suspense to sync start time with Tree */}
-                        <MagicDust />
-                        <Experience
-                            uiState={uiState}
-                            visible={landingPhase === 'tree' || landingPhase === 'morphing'}
-                        />
-                        {/* Shader Warmup - MUST be inside Suspense, after shader-using components */}
-                        <ShaderWarmup />
-                    </React.Suspense>
-                )}
+                    {/* Magic Dust - continuous presence */}
+                    {/* Tree Experience & Magic Dust - Grouped in Suspense for synchronized loading */}
+                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                        <React.Suspense fallback={null}>
+                            {/* Magic Dust - continuous presence, inside Suspense to sync start time with Tree */}
+                            <MagicDust />
+                            <Experience
+                                uiState={uiState}
+                                visible={landingPhase === 'tree' || landingPhase === 'morphing'}
+                            />
+                            {/* Shader Warmup - MUST be inside Suspense, after shader-using components */}
+                            <ShaderWarmup />
+                        </React.Suspense>
+                    )}
 
-                {/* Performance Tracker */}
-                <PerformanceMonitorWrapper
-                    particleCount={estimatedParticleCount}
-                    onUpdate={onPerformanceUpdate}
-                />
+                    {/* Performance Tracker */}
+                    <PerformanceMonitorWrapper
+                        particleCount={estimatedParticleCount}
+                        onUpdate={onPerformanceUpdate}
+                    />
 
-                {/* Consolidated Post-Processing Effects */}
-                <CinematicEffects />
-            </Canvas>
+                    {/* Consolidated Post-Processing Effects */}
+                    <CinematicEffects />
+                </Canvas>
+            </ErrorBoundary>
         </div>
     );
 });

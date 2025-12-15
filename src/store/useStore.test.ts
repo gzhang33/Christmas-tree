@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStore } from './useStore';
-import { DEFAULT_TREE_COLOR } from '../config/colors';
+import { COLOR_CONFIG } from '../config/colors';
 
 describe('useStore', () => {
   beforeEach(() => {
@@ -8,7 +8,7 @@ describe('useStore', () => {
     localStorage.clear();
     // Reset store to initial state
     useStore.setState({
-      treeColor: DEFAULT_TREE_COLOR,
+      treeColor: COLOR_CONFIG.tree.default,
       particleCount: 18000,
       isExploded: false,
       activePhoto: null,
@@ -17,7 +17,7 @@ describe('useStore', () => {
   describe('Initial State', () => {
     it('should initialize with default treeColor', () => {
       const treeColor = useStore.getState().treeColor;
-      expect(treeColor).toBe(DEFAULT_TREE_COLOR);
+      expect(treeColor).toBe(COLOR_CONFIG.tree.default);
     });
 
     it('should initialize with default particleCount', () => {

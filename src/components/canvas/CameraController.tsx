@@ -1,8 +1,10 @@
+
 import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
-import { CAMERA_CONFIG, getResponsiveValue } from '../../config';
+import { CAMERA_CONFIG, PERFORMANCE_CONFIG } from '../../config/performance';
+import { isMobileDevice, getResponsiveValue } from '../../utils/responsiveUtils';
 
 // Scratch objects for spherical coordinate calculations
 const tempVec3 = new THREE.Vector3();

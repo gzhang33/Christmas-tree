@@ -102,48 +102,18 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                 >
                     {/* Title & Username Section */}
                     <div className="flex flex-col items-center text-center space-y-4 pointer-events-auto relative w-full h-[400px]">
-                        {/* Merry Christmas Title with Christmas entrance animation */}
+                        {/* Merry Christmas Title with stroke-like particle fade-in animation */}
                         <motion.div
                             className="w-full h-[200px] flex justify-center items-center"
-                            initial={{
-                                scale: 0.85,
-                                opacity: 0,
-                                filter: 'blur(8px)'
-                            }}
-                            animate={{
-                                scale: 1,
-                                opacity: 1,
-                                filter: 'blur(0px)'
-                            }}
-                            transition={{
-                                duration: 1.5,
-                                ease: [0.25, 0.46, 0.45, 0.94],
-                                delay: 0.2
-                            }}
-                            onAnimationComplete={() => setTitleEntranceComplete(true)}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3 }}
                         >
-                            {/* Glow layer behind the title */}
-                            <motion.div
-                                className="absolute inset-0 flex justify-center items-center pointer-events-none"
-                                initial={{ opacity: 0 }}
-                                animate={{
-                                    opacity: [0, 0.6, 0.4],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    ease: "easeOut",
-                                    delay: 0.5
-                                }}
-                                style={{
-                                    filter: 'blur(30px)',
-                                    background: 'radial-gradient(ellipse at center, rgba(212, 175, 55, 0.3) 0%, transparent 70%)'
-                                }}
-                            />
                             <VaporizeTextCycle
                                 texts={["Merry Christmas"]}
                                 font={{
                                     fontFamily: "'Merry Christmas Star', 'Mountains of Christmas', cursive",
-                                    fontSize: "96px", // MD/LG sizes roughly
+                                    fontSize: "96px",
                                     fontWeight: 700
                                 }}
                                 color="rgb(212, 175, 55)" // Gold #D4AF37
@@ -151,10 +121,11 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                                 density={5}
                                 animation={{
                                     vaporizeDuration: 2.0,
-                                    fadeInDuration: 1,
-                                    waitDuration: 0.5
+                                    fadeInDuration: 1.5, // 延长淡入时间以模拟渐进stroke效果
+                                    waitDuration: 1.0 // 等待1秒后触发退场
                                 }}
-                                direction="right-to-left"
+                                direction="right-to-left" // 退场：从右到左消散
+                                entranceDirection="left-to-right" // 入场：从左到右渐进显现
                                 alignment="center"
                                 tag={Tag.H1}
                                 manualTrigger={isExiting}
@@ -163,14 +134,14 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                             />
                         </motion.div>
 
-                        {/* Username - only show after transition animation completes */}
+                        {/* Username - show after transition completes (entrance) or always (text phase) */}
                         <motion.div
                             className="w-full h-[100px] flex justify-center items-center"
                             initial={{ opacity: 0 }}
                             animate={{
-                                opacity: usernameTransitionComplete ? 1 : 0
+                                opacity: (landingPhase === 'text' || usernameTransitionComplete) ? 1 : 0
                             }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            transition={{ duration: 0, ease: "easeOut" }}
                         >
                             <VaporizeTextCycle
                                 texts={[userName]}
@@ -195,40 +166,6 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
                             />
                         </motion.div>
                     </div>
-
-                    {/* Interaction Button */}
-                    <AnimatePresence>
-                        {!isExiting && (
-                            <motion.button
-                                key="light-up-button"
-                                className="pointer-events-auto px-8 py-3 rounded-full border border-[#D4AF37] text-[#D4AF37] bg-black/20 backdrop-blur-sm hover:bg-[#D4AF37]/10 transition-colors duration-300"
-                                style={{
-                                    fontFamily: "'Inter', sans-serif",
-                                    fontSize: '1rem',
-                                    letterSpacing: '1px',
-                                    boxShadow: '0 0 15px rgba(212, 175, 55, 0.2)'
-                                }}
-                                onClick={handleClick}
-                                whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(212, 175, 55, 0.4)' }}
-                                whileTap={{ scale: 0.95 }}
-                                animate={{
-                                    opacity: [0.8, 1, 0.8],
-                                    boxShadow: [
-                                        '0 0 15px rgba(212, 175, 55, 0.2)',
-                                        '0 0 25px rgba(212, 175, 55, 0.4)',
-                                        '0 0 15px rgba(212, 175, 55, 0.2)'
-                                    ]
-                                }}
-                                transition={{
-                                    opacity: { repeat: Infinity, duration: 3, ease: "easeInOut" },
-                                    boxShadow: { repeat: Infinity, duration: 3, ease: "easeInOut" }
-                                }}
-                                exit={{ opacity: 0, transition: { duration: 0.5 } }}
-                            >
-                                Click to light up the tree
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
 
                 </motion.div>
             )}

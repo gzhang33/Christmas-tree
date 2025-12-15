@@ -11,7 +11,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { MORPH_TIMING } from '../../config/photoConfig';
+import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { useStore } from '../../store/useStore';
 
@@ -55,6 +55,11 @@ export interface PhotoAnimationData {
         tiltY: number;
         targetTiltX: number;
         targetTiltY: number;
+
+        // NEW: Z-Axis Depth Effect
+        currentZOffset: number;
+        targetZOffset: number;
+        isNeighbor: boolean;
     };
 
     // Photo properties
@@ -84,8 +89,59 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
         const time = state.clock.elapsedTime;
         const isAnyHovered = hoveredPhotoInstanceId !== null;
 
-        // DYNAMIC: Read activePhoto from store each frame
+        // DYNAMIC: Read activePhoto and playingVideoInHover from store each frame
         const currentActivePhoto = useStore.getState().activePhoto;
+        const currentPlayingVideo = useStore.getState().playingVideoInHover; // NEW
+
+        // === NEW: NEIGHBOR DETECTION FOR DEPTH EFFECT ===
+        // Find the hovered photo and calculate neighbors
+        let hoveredPhoto: PhotoAnimationData | null = null;
+        if (hoveredPhotoInstanceId !== null) {
+            hoveredPhoto = photos.find(p => p.instanceId === hoveredPhotoInstanceId) || null;
+        }
+
+        // Reset neighbor flags and set Z-offsets
+        for (const photo of photos) {
+            const hover = photo.hoverState;
+
+            // Check if this photo is playing video
+            const isThisPlayingVideo = currentPlayingVideo?.instanceId === photo.instanceId;
+
+            // Reset neighbor flag (unless playing video)
+            if (!isThisPlayingVideo) {
+                hover.isNeighbor = false;
+            }
+
+            // If this is the hovered photo, set forward offset
+            if (hoveredPhoto && photo.instanceId === hoveredPhotoInstanceId) {
+                hover.targetZOffset = HOVER_CONFIG.depthEffect.forwardDistance;
+            }
+            // If there's a hovered photo and this is not it, check if it's a neighbor
+            else if (hoveredPhoto && photo.groupRef.current && hoveredPhoto.groupRef.current) {
+                const photoPos = photo.groupRef.current.position;
+                const hoveredPos = hoveredPhoto.groupRef.current.position;
+
+                // Calculate 3D distance
+                const distance = photoPos.distanceTo(hoveredPos);
+
+                // If within neighbor radius, mark as neighbor and set backward offset
+                if (distance < HOVER_CONFIG.depthEffect.neighborRadius) {
+                    hover.isNeighbor = true;
+                    hover.targetZOffset = -HOVER_CONFIG.depthEffect.backwardDistance;
+                } else {
+                    // Only reset if not playing video
+                    if (!isThisPlayingVideo) {
+                        hover.targetZOffset = 0;
+                    }
+                }
+            }
+            // No hovered photo - only reset offset if not playing video
+            else {
+                if (!isThisPlayingVideo) {
+                    hover.targetZOffset = 0;
+                }
+            }
+        }
 
         // Iterate through all photos and update their animations
         for (const photo of photos) {
@@ -106,24 +162,45 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                     hover.isHovered = true;
                     hover.targetScale = HOVER_CONFIG.scaleTarget;
                     hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
+
+                    // NEW: Set max renderOrder for hovered photo
+                    if (group) {
+                        group.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+                    }
                 }
             } else if (hover.isHovered) {
-                // Deactivate hover for non-hovered photos
-                hover.isHovered = false;
-                hover.targetScale = 1.0;
-                hover.targetRotationMultiplier = 1.0;
-                hover.targetTiltX = 0;
-                hover.targetTiltY = 0;
+                // Check if this photo is playing video - if so, DON'T deactivate hover
+                const isThisPlayingVideo = currentPlayingVideo?.instanceId === photo.instanceId;
+
+                if (!isThisPlayingVideo) {
+                    // Deactivate hover for non-hovered, non-playing photos
+                    hover.isHovered = false;
+                    hover.targetScale = 1.0;
+                    hover.targetRotationMultiplier = 1.0;
+                    hover.targetTiltX = 0;
+                    hover.targetTiltY = 0;
+
+                    // NEW: Reset renderOrder
+                    if (group) {
+                        group.renderOrder = 0;
+                    }
+                }
             }
 
             // === HOVER INTERPOLATION ===
             const lerpFactor = 1 - Math.exp(-HOVER_CONFIG.transitionSpeed * delta);
             const tiltLerpFactor = 1 - Math.exp(-HOVER_CONFIG.tiltSmoothing * delta);
 
+            // NEW: Depth effect lerp factor
+            const depthLerpFactor = 1 - Math.exp(-HOVER_CONFIG.depthEffect.transitionSpeed * delta);
+
             hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
             hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
             hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
             hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
+
+            // NEW: Smooth Z-axis offset transition
+            hover.currentZOffset = THREE.MathUtils.lerp(hover.currentZOffset, hover.targetZOffset, depthLerpFactor);
 
             if (anim.isAnimating) {
                 // === MORPH ANIMATION ===
@@ -249,11 +326,21 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                         const finalScale = photo.scale * hover.currentScale;
                         group.scale.setScalar(finalScale);
 
+                        // NEW: Ensure active photo has max renderOrder
+                        group.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+
                         // No glow for active
                         if (photo.frameMaterial) photo.frameMaterial.emissiveIntensity = 0;
                     } else {
                         // NON-ACTIVE: Continue orbit and float
-                        anim.simulatedTime += delta * hover.rotationMultiplier;
+
+                        // Check if THIS photo is playing video
+                        const isThisPlayingVideo = currentPlayingVideo?.instanceId === photo.instanceId;
+
+                        // FREEZE simulated time when playing video
+                        if (!isThisPlayingVideo) {
+                            anim.simulatedTime += delta * hover.rotationMultiplier;
+                        }
                         const hoverTime = anim.simulatedTime;
                         const idx = photo.morphIndex * 0.5;
 
@@ -262,19 +349,28 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                         const initialZ = photo.position[2];
                         const radius = Math.sqrt(initialX * initialX + initialZ * initialZ);
 
-                        const effectiveSpeed = isAnyHovered ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
+                        // FREEZE orbit when playing video
+                        const effectiveSpeed = (isAnyHovered || isThisPlayingVideo) ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
                         anim.orbitAngle += effectiveSpeed * delta;
 
                         const baseX = Math.cos(anim.orbitAngle) * radius;
                         const baseZ = Math.sin(anim.orbitAngle) * radius;
-                        const yBob = Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
-                        group.position.set(baseX, photo.position[1] + yBob, baseZ);
+                        // FREEZE bobbing when playing video
+                        const yBob = isThisPlayingVideo ? 0 : Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
-                        // Rotation
-                        const spinY = photo.rotation[1] + hoverTime * 0.15;
-                        const spinX = photo.rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05;
-                        const spinZ = photo.rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05;
+                        // NEW: Apply Z-axis depth offset for hover effect
+                        // Calculate direction from center to photo for consistent Z-offset direction
+                        const directionZ = baseZ / (radius || 1); // Normalized Z direction
+                        const zWithOffset = baseZ + (directionZ * hover.currentZOffset);
+
+                        group.position.set(baseX, photo.position[1] + yBob, zWithOffset);
+
+                        // Rotation - freeze when playing video
+                        const shouldFreezeRotation = isThisPlayingVideo;
+                        const spinY = shouldFreezeRotation ? photo.rotation[1] : (photo.rotation[1] + hoverTime * 0.15);
+                        const spinX = shouldFreezeRotation ? photo.rotation[0] : (photo.rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
+                        const spinZ = shouldFreezeRotation ? photo.rotation[2] : (photo.rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
 
                         group.rotation.set(0, 0, 0);
                         reusableEuler.set(spinX, spinY, spinZ);
@@ -302,6 +398,11 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                         // Scale
                         const finalScale = photo.scale * hover.currentScale;
                         group.scale.setScalar(finalScale);
+
+                        // Set max renderOrder for photo playing video
+                        if (isThisPlayingVideo) {
+                            group.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+                        }
 
                         // Adaptive pop & glow (ONLY for the hovered photo)
                         if (hover.isHovered && hover.currentScale > 1.01) {

@@ -51,6 +51,7 @@ type VaporizeTextCycleProps = {
         waitDuration?: number;
     };
     direction?: "left-to-right" | "right-to-left";
+    entranceDirection?: "left-to-right" | "right-to-left" | "none"; // Direction for fade-in animation
     alignment?: "left" | "center" | "right";
     tag?: Tag;
     manualTrigger?: boolean;
@@ -64,6 +65,9 @@ type Particle = {
     originalX: number;
     originalY: number;
     color: string;
+    r: number; // Raw Red channel
+    g: number; // Raw Green channel
+    b: number; // Raw Blue channel
     opacity: number;
     originalAlpha: number;
     velocityX: number;
@@ -101,6 +105,7 @@ export default function VaporizeTextCycle({
         waitDuration: 0.5,
     },
     direction = "left-to-right",
+    entranceDirection = "left-to-right", // Default: directional fade-in from left
     alignment = "center",
     tag = Tag.P,
     manualTrigger,
@@ -119,6 +124,7 @@ export default function VaporizeTextCycle({
     const [, forceUpdate] = useState(0); // For triggering re-renders when needed
     const vaporizeProgressRef = useRef(0);
     const fadeOpacityRef = useRef(0);
+    const entranceProgressRef = useRef(0); // Progress for directional entrance (0-100)
     const [wrapperSize, setWrapperSize] = useState({ width: 0, height: 0 });
     const transformedDensity = transformValue(density, [0, 10], [0.3, 1], true);
     const onCompleteRef = useRef(onComplete);
@@ -182,19 +188,32 @@ export default function VaporizeTextCycle({
 
     // Memoize render function
     const memoizedRenderParticles = useCallback((ctx: CanvasRenderingContext2D, particles: Particle[]) => {
-        renderParticles(ctx, particles, globalDpr);
-    }, [globalDpr]);
+        const canvas = ctx.canvas;
+        renderParticles(ctx, particles, canvas.width, canvas.height);
+    }, []);
 
     // Start animation cycle when triggered
     useEffect(() => {
-        if (manualTrigger === true && animationStateRef.current === "static") {
+        if (manualTrigger === true && (animationStateRef.current === "static" || animationStateRef.current === "waiting")) {
+            // Manual trigger ON: start vaporizing (exit animation)
             vaporizeProgressRef.current = 0;
             animationStateRef.current = "vaporizing";
             isAnimatingRef.current = true; // Lock particle regeneration
-        } else if (manualTrigger === undefined && isInView && animationStateRef.current === "static") {
+        } else if (manualTrigger === false && isInView && animationStateRef.current === "static") {
+            // Manual trigger OFF (controlled mode): start with entrance animation
             const timer = setTimeout(() => {
-                vaporizeProgressRef.current = 0;
-                animationStateRef.current = "vaporizing";
+                fadeOpacityRef.current = 0;
+                entranceProgressRef.current = 0;
+                animationStateRef.current = "fadingIn"; // Start with entrance animation
+                isAnimatingRef.current = true;
+            }, 0);
+            return () => clearTimeout(timer);
+        } else if (manualTrigger === undefined && isInView && animationStateRef.current === "static") {
+            // Auto mode (uncontrolled): start with entrance animation
+            const timer = setTimeout(() => {
+                fadeOpacityRef.current = 0;
+                entranceProgressRef.current = 0;
+                animationStateRef.current = "fadingIn"; // Start with entrance animation
                 isAnimatingRef.current = true;
             }, 0);
             return () => clearTimeout(timer);
@@ -265,27 +284,87 @@ export default function VaporizeTextCycle({
                     break;
                 }
                 case "fadingIn": {
-                    fadeOpacityRef.current += deltaTime * 1000 / animationDurations.FADE_IN_DURATION;
+                    const textBoundaries = canvas.textBoundaries;
+                    const particles = particlesRef.current;
 
-                    ctx.save();
-                    ctx.scale(globalDpr, globalDpr);
-                    particlesRef.current.forEach(particle => {
-                        particle.x = particle.originalX;
-                        particle.y = particle.originalY;
-                        const opacity = Math.min(fadeOpacityRef.current, 1) * particle.originalAlpha;
-                        const pColor = particle.color.replace(/[\d.]+\)$/, `${opacity})`);
-                        ctx.fillStyle = pColor;
-                        ctx.fillRect(particle.x / globalDpr, particle.y / globalDpr, 1, 1);
-                    });
-                    ctx.restore();
+                    if (entranceDirection === "none" || !textBoundaries) {
+                        // Original behavior: uniform fade-in
+                        fadeOpacityRef.current += deltaTime * 1000 / animationDurations.FADE_IN_DURATION;
+                        const opacity = Math.min(fadeOpacityRef.current, 1);
 
-                    if (fadeOpacityRef.current >= 1) {
-                        animationStateRef.current = "waiting";
-                        setTimeout(() => {
-                            animationStateRef.current = "vaporizing";
-                            vaporizeProgressRef.current = 0;
-                            resetParticles(particlesRef.current);
-                        }, animationDurations.WAIT_DURATION);
+                        for (let i = 0; i < particles.length; i++) {
+                            const particle = particles[i];
+                            particle.x = particle.originalX;
+                            particle.y = particle.originalY;
+                            particle.opacity = opacity * particle.originalAlpha;
+                        }
+
+                        memoizedRenderParticles(ctx, particles);
+
+                        if (fadeOpacityRef.current >= 1) {
+                            animationStateRef.current = "waiting";
+                            if (loop) {
+                                // Only auto-trigger vaporize in loop mode
+                                setTimeout(() => {
+                                    animationStateRef.current = "vaporizing";
+                                    vaporizeProgressRef.current = 0;
+                                    resetParticles(particlesRef.current);
+                                }, animationDurations.WAIT_DURATION);
+                            }
+                            // In non-loop mode with manualTrigger, wait for manualTrigger=true
+                        }
+                    } else {
+                        // Directional fade-in: particles appear progressively
+                        entranceProgressRef.current += deltaTime * 100 / (animationDurations.FADE_IN_DURATION / 1000);
+                        const progress = Math.min(100, entranceProgressRef.current);
+
+                        // Calculate the reveal position based on direction
+                        const revealX = entranceDirection === "left-to-right"
+                            ? textBoundaries.left + textBoundaries.width * progress / 100
+                            : textBoundaries.right - textBoundaries.width * progress / 100;
+
+                        for (let i = 0; i < particles.length; i++) {
+                            const particle = particles[i];
+                            particle.x = particle.originalX;
+                            particle.y = particle.originalY;
+
+                            // Determine if this particle should be visible based on position
+                            const shouldBeVisible = entranceDirection === "left-to-right"
+                                ? particle.originalX <= revealX
+                                : particle.originalX >= revealX;
+
+                            if (shouldBeVisible) {
+                                // Calculate fade based on distance from reveal edge
+                                const distanceFromEdge = entranceDirection === "left-to-right"
+                                    ? revealX - particle.originalX
+                                    : particle.originalX - revealX;
+                                const fadeZone = textBoundaries.width * 0.1; // 10% fade zone
+                                const particleFade = Math.min(1, distanceFromEdge / fadeZone);
+                                particle.opacity = particleFade * particle.originalAlpha;
+                            } else {
+                                particle.opacity = 0;
+                            }
+                        }
+
+                        memoizedRenderParticles(ctx, particles);
+
+                        if (entranceProgressRef.current >= 100) {
+                            // Ensure all particles are fully visible
+                            for (let i = 0; i < particles.length; i++) {
+                                particles[i].opacity = particles[i].originalAlpha;
+                            }
+                            entranceProgressRef.current = 0; // Reset for next cycle
+                            animationStateRef.current = "waiting";
+                            if (loop) {
+                                // Only auto-trigger vaporize in loop mode
+                                setTimeout(() => {
+                                    animationStateRef.current = "vaporizing";
+                                    vaporizeProgressRef.current = 0;
+                                    resetParticles(particlesRef.current);
+                                }, animationDurations.WAIT_DURATION);
+                            }
+                            // In non-loop mode with manualTrigger, wait for manualTrigger=true
+                        }
                     }
                     break;
                 }
@@ -567,6 +646,9 @@ const renderCanvas = ({
 // ------------------------------------------------------------ //
 // PARTICLE SYSTEM
 // ------------------------------------------------------------ //
+// ------------------------------------------------------------ //
+// PARTICLE SYSTEM
+// ------------------------------------------------------------ //
 const createParticles = (
     ctx: CanvasRenderingContext2D,
     canvas: HTMLCanvasElement,
@@ -577,7 +659,7 @@ const createParticles = (
     color: string,
     alignment: "left" | "center" | "right"
 ) => {
-    const particles = [];
+    const particles: Particle[] = [];
 
     // Clear any previous content
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -625,7 +707,10 @@ const createParticles = (
     const data = imageData.data;
 
     // Calculate sampling rate based on DPR and density to maintain consistent particle density
-    const baseDPR = 3; // Base DPR we're optimizing for
+    // Calculate sampling rate based on DPR and density to maintain consistent particle density
+    // Optimized: Increased baseDPR to significantly reduce particle count on high-res screens
+    const baseDPR = 1.5; // Lower base for coarser sampling, drastically improving performance
+
     const currentDPR = canvas.width / parseInt(canvas.style.width);
     const baseSampleRate = Math.max(1, Math.round(currentDPR / baseDPR));
     const sampleRate = Math.max(1, Math.round(baseSampleRate)); // Adjust sample rate by density
@@ -639,12 +724,19 @@ const createParticles = (
             if (alpha > 0) {
                 // Remove density from opacity calculation
                 const originalAlpha = alpha / 255 * (sampleRate / currentDPR);
-                const particle = {
+                const r = data[index];
+                const g = data[index + 1];
+                const b = data[index + 2];
+
+                const particle: Particle = {
                     x,
                     y,
                     originalX: x,
                     originalY: y,
-                    color: `rgba(${data[index]}, ${data[index + 1]}, ${data[index + 2]}, ${originalAlpha})`,
+                    color: `rgba(${r}, ${g}, ${b}, ${originalAlpha})`,
+                    r, // Store raw RGB values for performance
+                    g,
+                    b,
                     opacity: originalAlpha,
                     originalAlpha,
                     // Animation properties
@@ -677,7 +769,10 @@ const updateParticles = (
 ) => {
     let allParticlesVaporized = true;
 
-    particles.forEach(particle => {
+    // Optimization: Use for loop instead of forEach for hot path
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+
         // Only animate particles that have been "vaporized"
         const shouldVaporize = direction === "left-to-right"
             ? particle.originalX <= vaporizeX
@@ -693,8 +788,6 @@ const updateParticles = (
                 particle.velocityY = Math.sin(particle.angle) * particle.speed;
 
                 // Determine if particle should fade quickly based on density
-                // density of 1 means all particles animate normally
-                // density of 0.5 means 50% of particles fade quickly
                 particle.shouldFadeQuickly = Math.random() > density;
             }
 
@@ -750,35 +843,49 @@ const updateParticles = (
             // If there are any particles not yet reached by the vaporize wave
             allParticlesVaporized = false;
         }
-    });
+    }
 
     return allParticlesVaporized;
 };
 
-const renderParticles = (ctx: CanvasRenderingContext2D, particles: Particle[], globalDpr: number) => {
-    ctx.save();
-    ctx.scale(globalDpr, globalDpr);
+const renderParticles = (ctx: CanvasRenderingContext2D, particles: Particle[], width: number, height: number) => {
+    // Optimization: Direct pixel manipulation (ImageData)
+    // This is 10-100x faster than fillRect for thousands of 1x1 particles
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
 
-    particles.forEach(particle => {
-        if (particle.opacity > 0) {
-            const color = particle.color.replace(/[\d.]+\)$/, `${particle.opacity})`);
-            ctx.fillStyle = color;
-            ctx.fillRect(particle.x / globalDpr, particle.y / globalDpr, 1, 1);
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+        const opacity = particle.opacity;
+
+        if (opacity > 0) {
+            const x = Math.floor(particle.x);
+            const y = Math.floor(particle.y);
+
+            // Bounds check
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+                const index = (y * width + x) * 4;
+                data[index] = particle.r;
+                data[index + 1] = particle.g;
+                data[index + 2] = particle.b;
+                data[index + 3] = Math.floor(opacity * 255);
+            }
         }
-    });
+    }
 
-    ctx.restore();
+    ctx.putImageData(imageData, 0, 0);
 };
 
 const resetParticles = (particles: Particle[]) => {
-    particles.forEach(particle => {
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
         particle.x = particle.originalX;
         particle.y = particle.originalY;
         particle.opacity = particle.originalAlpha;
         particle.speed = 0;
         particle.velocityX = 0;
         particle.velocityY = 0;
-    });
+    }
 };
 
 // ------------------------------------------------------------ //

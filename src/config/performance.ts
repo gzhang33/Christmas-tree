@@ -102,22 +102,7 @@ export const PERFORMANCE_CONFIG = {
     },
 } as const;
 
-/**
- * 工具函数：根据窗口宽度判断是否为移动端
- */
-export const isMobileDevice = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth < RESPONSIVE_BREAKPOINTS.mobile;
-};
 
-/**
- * 工具函数：获取响应式配置值
- * @param config 响应式配置对象 { normal: T, compact: T }
- * @returns 当前设备对应的配置值
- */
-export const getResponsiveValue = <T>(config: { normal: T; compact: T }): T => {
-    return isMobileDevice() ? config.compact : config.normal;
-};
 
 // ============================================================================
 // 3. 相机配置 (Camera Configuration)
@@ -165,6 +150,13 @@ export const CAMERA_CONFIG = {
         duration: 4.5,                      // 动画持续时间（秒）
         dampingSpeed: 1.5,                  // 插值速度
         rotationAxis: 'y' as const,         // 旋转轴 ('x' | 'y' | 'z')
+    },
+
+    /** 悬停视频播放时的相机控制 */
+    hoverVideo: {
+        cameraDistance: 6.0,                // 相机到照片的距离（沿径向）
+        cameraHeightOffset: 0.5,            // 相机高度偏移（相对于照片）
+        transitionSpeed: 3.0,               // 过渡动画速度（lerp factor）
     },
 } as const;
 

@@ -17,11 +17,11 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
 import { getVideoTexture } from '../../utils/videoSingleton'; // NEW: Singleton
-import { MORPH_TIMING } from '../../config/photoConfig';
+import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
-import { MEMORIES } from '../../config/assets';
+import { ASSET_CONFIG } from '../../config/assets';
 import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
 import { getFrameMaterialPool } from '../../utils/frameMaterialPool'; // NEW: Frame material pool
 
@@ -202,12 +202,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
     const setActivePhoto = useStore(state => state.setActivePhoto);
+    const setPlayingVideoInHover = useStore(state => state.setPlayingVideoInHover); // NEW
     const activePhoto = useStore(state => state.activePhoto);
     const hoveredPhotoInstanceId = useStore(state => state.hoveredPhotoInstanceId); // Need current hover state for click logic
+    const playingVideoInHover = useStore(state => state.playingVideoInHover); // NEW
 
     // Identify memory ID from URL
     const memoryId = useMemo(() => {
-        return MEMORIES.find(m => m.image === url)?.id || url;
+        return ASSET_CONFIG.memories.find(m => m.image === url)?.id || url;
     }, [url]);
 
     // Check exact instance ID for uniqueness
@@ -239,6 +241,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         tiltY: 0,                    // Current Y tilt angle
         targetTiltX: 0,              // Target X tilt (from mouse)
         targetTiltY: 0,              // Target Y tilt (from mouse)
+
+        // NEW: Z-Axis Depth Effect
+        currentZOffset: 0,           // Current Z-axis offset
+        targetZOffset: 0,            // Target Z-axis offset (forward/backward)
+        isNeighbor: false,           // Whether this photo is a neighbor of hovered photo
     });
 
     // Get shared geometries
@@ -419,6 +426,15 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.isHovered = true;
         hover.targetScale = HOVER_CONFIG.scaleTarget;
         hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
+
+        // NEW: Set forward Z-offset for depth effect
+        hover.targetZOffset = HOVER_CONFIG.depthEffect.forwardDistance;
+
+        // NEW: Set max renderOrder to prevent occlusion by snow/particles
+        if (groupRef.current) {
+            groupRef.current.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+        }
+
         // Standard pointer cursor (no custom icon per AC:3)
         document.body.style.cursor = 'pointer';
     }, [instanceId, memoryId, setHoveredPhoto, activePhoto]);
@@ -429,6 +445,15 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         // Disable hover during photo centering animation
         if (activePhoto) return;
 
+        // NEW: Don't clear hover if this photo is playing video
+        // Keep the hover effects while video is playing
+        const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+        if (isThisPlayingVideo) {
+            // Keep hover state active, just update cursor
+            document.body.style.cursor = 'auto';
+            return;
+        }
+
         setHoveredPhoto(null); // Notify global store
 
         const hover = hoverRef.current;
@@ -437,8 +462,17 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetRotationMultiplier = 1.0;
         hover.targetTiltX = 0;
         hover.targetTiltY = 0;
+
+        // NEW: Reset Z-offset
+        hover.targetZOffset = 0;
+
+        // NEW: Reset renderOrder
+        if (groupRef.current) {
+            groupRef.current.renderOrder = 0;
+        }
+
         document.body.style.cursor = 'auto';
-    }, [memoryId, setHoveredPhoto, activePhoto]);
+    }, [memoryId, setHoveredPhoto, activePhoto, playingVideoInHover, instanceId]);
 
     // === 3D TILT INTERACTION (AC: 2) ===
 
@@ -503,10 +537,16 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         const lerpFactor = 1 - Math.exp(-HOVER_CONFIG.transitionSpeed * delta);
         const tiltLerpFactor = 1 - Math.exp(-HOVER_CONFIG.tiltSmoothing * delta);
 
+        // NEW: Depth effect lerp factor
+        const depthLerpFactor = 1 - Math.exp(-HOVER_CONFIG.depthEffect.transitionSpeed * delta);
+
         hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
         hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
         hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
         hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
+
+        // NEW: Smooth Z-axis offset transition
+        hover.currentZOffset = THREE.MathUtils.lerp(hover.currentZOffset, hover.targetZOffset, depthLerpFactor);
 
         if (anim.isAnimating) {
             // Initialize start time on first frame
@@ -630,8 +670,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                     anim.simulatedTime = 0; // Start simulated time
                 }
 
+                // Check if THIS photo is playing video
+                const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+
                 // Advance simulated time based on rotation multiplier (handling slowdown)
-                anim.simulatedTime += delta * hover.rotationMultiplier;
+                // FREEZE when playing video
+                if (!isThisPlayingVideo) {
+                    anim.simulatedTime += delta * hover.rotationMultiplier;
+                }
                 const hoverTime = anim.simulatedTime;
 
                 const idx = morphIndex * 0.5;
@@ -643,7 +689,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
                 // Global Hover Check
                 const isAnyHovered = useStore.getState().hoveredPhotoInstanceId !== null;
-                const effectiveSpeed = isAnyHovered ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
+
+                // FREEZE orbit when playing video
+                const effectiveSpeed = (isAnyHovered || isThisPlayingVideo) ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
 
                 // Accumulate angle
                 anim.orbitAngle += effectiveSpeed * delta;
@@ -651,15 +699,23 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // 1. Calculate Base Position (Orbit + Bobbing)
                 const baseX = Math.cos(anim.orbitAngle) * radius;
                 const baseZ = Math.sin(anim.orbitAngle) * radius;
-                const yBob = Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
-                group.position.set(baseX, position[1] + yBob, baseZ);
+                // FREEZE bobbing when playing video
+                const yBob = isThisPlayingVideo ? 0 : Math.sin(hoverTime * 0.5 + idx) * 0.3;
+
+                // NEW: Apply Z-axis depth offset for hover effect
+                // Calculate direction from center to photo for consistent Z-offset direction
+                const directionZ = baseZ / (radius || 1); // Normalized Z direction
+                const zWithOffset = baseZ + (directionZ * hover.currentZOffset);
+
+                group.position.set(baseX, position[1] + yBob, zWithOffset);
 
                 // 2. Calculate Base Rotation (Spinning) & Convert to Quaternion
-                // Stop spinning if Active
-                const spinY = isThisActive ? rotation[1] : (rotation[1] + hoverTime * 0.15);
-                const spinX = isThisActive ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
-                const spinZ = isThisActive ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
+                // Stop spinning if Active or Playing Video
+                const shouldFreezeRotation = isThisActive || isThisPlayingVideo;
+                const spinY = shouldFreezeRotation ? rotation[1] : (rotation[1] + hoverTime * 0.15);
+                const spinX = shouldFreezeRotation ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
+                const spinZ = shouldFreezeRotation ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
 
                 // Reset rotation to ensure FromEuler works cleanly on base state
                 group.rotation.set(0, 0, 0);
@@ -696,6 +752,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // If Active, override scale to 2.5x (ZOOM_SCALE)
                 if (isThisActive) {
                     hover.targetScale = 2.5;
+
+                    // NEW: Ensure active photo has max renderOrder
+                    if (groupRef.current) {
+                        groupRef.current.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+                    }
                 }
 
                 const finalScale = scale * hover.currentScale;
@@ -733,7 +794,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     // Check for video
     const videoUrl = useMemo(() => {
-        const memory = MEMORIES.find(m => m.image === url);
+        const memory = ASSET_CONFIG.memories.find(m => m.image === url);
         return memory?.video || null;
     }, [url]);
 
@@ -756,71 +817,73 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 e.stopPropagation();
                 if (!isExploded || !groupRef.current) return;
 
-                // === MOBILE INTERACTION: Tap-to-Preview ===
-                // Check if user is on a touch device or using touch input
-                // If not currently hovered (previewing), set hover first.
-                // This creates a 2-step process: Tap 1 -> Preview, Tap 2 -> Open.
                 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
+                // === CHECK CURRENT PLAYING STATE ===
+                const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+
+                // === EXIT LOGIC: Click same photo again → Exit video/hover mode ===
+                if (isThisPlayingVideo) {
+                    setPlayingVideoInHover(null);
+                    setHoveredPhoto(null);
+                    return;
+                }
+
+                // === MOBILE INTERACTION: 3-step process ===
+                // Tap 1 → Preview (Hover)
+                // Tap 2 → Play Video (if has video) or stay in hover
+                // Tap 3 → Exit
                 if (isTouch && hoveredPhotoInstanceId !== instanceId) {
+                    // First tap: Set hover preview
                     setHoveredPhoto(instanceId);
-                    return; // Stop here, do not open
+                    return;
                 }
 
-                // Toggle Logic:
-                // If this photo is already active, clicking it again de-selects it (Return to Sea).
-                if (isThisActive) {
-                    setActivePhoto(null);
-                } else {
-                    // Activate this photo
-                    const pos = groupRef.current.position;
-                    const rot = groupRef.current.rotation;
+                // === SWITCH LOGIC: Click other photo while one is playing ===
+                if (playingVideoInHover && playingVideoInHover.instanceId !== instanceId) {
+                    // Switch to this photo (if has video)
+                    if (videoUrl) {
+                        setPlayingVideoInHover({
+                            instanceId,
+                            videoUrl,
+                            photoPosition: position
+                        });
+                    } else {
+                        // No video, just switch hover
+                        setPlayingVideoInHover(null);
+                        setHoveredPhoto(instanceId);
+                    }
+                    return;
+                }
 
-                    setActivePhoto({
-                        id: memoryId,
+                // === PLAY VIDEO: Click hovered photo with video ===
+                if (videoUrl && hoveredPhotoInstanceId === instanceId) {
+                    setPlayingVideoInHover({
                         instanceId,
-                        position: [pos.x, pos.y, pos.z],
-                        rotation: [rot.x, rot.y, rot.z]
+                        videoUrl,
+                        photoPosition: position
                     });
+                    return;
                 }
+
+                // === LEGACY: No video, keep old active behavior (optional) ===
+                // If you want to remove the centering behavior entirely, comment this out
+                // For now, photos without video can still be "activated" for viewing
+                // But this is optional - per requirements, we can skip this
             }}
         >
-            {/* Singleton Video Logic Side Effect */}
-            {isThisActive && videoUrl && materials.photoMat && (
+            {/* Singleton Video Logic Side Effect - Now triggered by playingVideoInHover */}
+            {playingVideoInHover?.instanceId === instanceId && videoUrl && materials.photoMat && (
                 <VideoTextureSwap material={materials.photoMat} />
             )}
 
-            {/* Close Button UI */}
-            {isThisActive && (
-                <Html position={[0.6, 0.6, 0]} center zIndexRange={[100, 0]}>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePhoto(null);
-                        }}
-                        aria-label="关闭照片"
-                        style={{
-                            background: 'rgba(0, 0, 0, 0.5)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            borderRadius: '50%',
-                            width: '40px',
-                            height: '40px',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'auto',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'}
-                    >
-                        ✕
-                    </button>
-                </Html>
+            {/* Legacy: Active photo video (kept for compatibility, but new mode uses playingVideoInHover) */}
+            {isThisActive && !playingVideoInHover && videoUrl && materials.photoMat && (
+                <VideoTextureSwap material={materials.photoMat} />
             )}
+
+            {/* Close Button UI - REMOVED per user requirements */}
+            {/* The exit mechanism is now: click same photo again, click other photo, or click background */}
 
             {/* Polaroid Frame */}
             <mesh geometry={frameGeometry}>

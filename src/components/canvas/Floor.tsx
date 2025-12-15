@@ -6,6 +6,8 @@ export const Floor: React.FC = () => {
     const activePhoto = useStore((state) => state.activePhoto);
     const setActivePhoto = useStore((state) => state.setActivePhoto);
     const setHoveredPhoto = useStore((state) => state.setHoveredPhoto);
+    const playingVideoInHover = useStore((state) => state.playingVideoInHover); // NEW
+    const setPlayingVideoInHover = useStore((state) => state.setPlayingVideoInHover); // NEW
 
     return (
         <mesh
@@ -14,6 +16,14 @@ export const Floor: React.FC = () => {
             receiveShadow
             onClick={(e) => {
                 e.stopPropagation();
+
+                // NEW: Exit hover video playback mode
+                if (playingVideoInHover) {
+                    setPlayingVideoInHover(null);
+                    setHoveredPhoto(null);
+                    return;
+                }
+
                 // Close active photo if open
                 if (activePhoto) {
                     setActivePhoto(null);
@@ -32,3 +42,4 @@ export const Floor: React.FC = () => {
         </mesh>
     );
 };
+

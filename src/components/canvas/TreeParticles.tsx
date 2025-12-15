@@ -5,23 +5,23 @@ import * as THREE from "three";
 import { AppConfig } from "../../types.ts";
 import { useStore } from "../../store/useStore";
 import { getOptimizedCloudinaryUrl } from "../../utils/cloudinaryUtils"; // NEW: Cloudinary Optimization
-import { STATIC_COLORS, DEFAULT_TREE_COLOR } from "../../config/colors";
+import { COLOR_CONFIG } from "../../config/colors";
 import { PARTICLE_CONFIG } from "../../config/particles";
 import PhotoWorker from '../../workers/photoPositions.worker?worker'; // Import Worker
 import {
-  PHOTO_COUNT,
-  generatePhotoPositions,
+  PHOTO_WALL_CONFIG,
   PhotoPosition,
 } from "../../config/photoConfig";
+import { generatePhotoPositions } from "../../utils/photoUtils";
 import { getTreeRadius, calculateErosionFactor } from "../../utils/treeUtils";
 
 import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
 import { PolaroidPhoto, masterPhotoMaterial } from "./PolaroidPhoto"; // NEW: Import masterPhotoMaterial for pool init
 import { PhotoManager, PhotoAnimationData } from "./PhotoManager"; // NEW: Import PhotoManager
-import { MEMORIES } from "../../config/assets";
+import { ASSET_CONFIG } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
-import { distributePhotos } from "../../utils/photoDistribution";
+
 import { PhotoData } from "../../types.ts";
 import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/materialPool"; // NEW: Material pool
 import { initFrameMaterialPool, disposeFrameMaterialPool } from "../../utils/frameMaterialPool"; // NEW: Frame material pool
@@ -465,7 +465,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // OPTIMIZED: Apply Cloudinary transformations if applicable
     const sourceUrls = (photos.length > 0
       ? photos.map((p) => p.url)
-      : MEMORIES.map((m) => m.image)
+      : ASSET_CONFIG.memories.map((m) => m.image)
     ).map(url => getOptimizedCloudinaryUrl(url, 512)); // Optimize to 512px width
 
     let cancelled = false;
@@ -495,7 +495,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       worker.terminate();
     };
     worker.postMessage({
-      count: PHOTO_COUNT,
+      count: PHOTO_WALL_CONFIG.count,
       aspectRatio,
       sourceUrls
     });
@@ -719,25 +719,25 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       if (isTip) {
         // Tips: mostly cream/light, with 8% warm gold accent
         if (colorRoll < 0.08) {
-          c = STATIC_COLORS.warmGold;
+          c = COLOR_CONFIG.static.warmGold;
         } else if (colorRoll < 0.48) {
-          c = STATIC_COLORS.cream;
+          c = COLOR_CONFIG.static.cream;
         } else {
           c = colorVariants.light;
         }
       } else if (isInner) {
         // Inner: mostly deep, with 5% deep red accent
         if (colorRoll < 0.05) {
-          c = STATIC_COLORS.deepRed;
+          c = COLOR_CONFIG.static.deepRed;
         } else {
           c = colorVariants.deep;
         }
       } else {
         // Middle: base gradient with 3% warm gold and 2% deep red
         if (colorRoll < 0.03) {
-          c = STATIC_COLORS.warmGold;
+          c = COLOR_CONFIG.static.warmGold;
         } else if (colorRoll < 0.05) {
-          c = STATIC_COLORS.deepRed;
+          c = COLOR_CONFIG.static.deepRed;
         } else {
           c = colorVariants.base
             .clone()
@@ -945,27 +945,27 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         let c: THREE.Color;
         switch (cluster.type) {
           case "BUS":
-            c = STATIC_COLORS.londonRed;
+            c = COLOR_CONFIG.static.londonRed;
             break;
           case "FLAG":
             c =
               p % 3 === 0
-                ? STATIC_COLORS.ukRed
+                ? COLOR_CONFIG.static.ukRed
                 : p % 3 === 1
-                  ? STATIC_COLORS.ukBlue
-                  : STATIC_COLORS.white;
+                  ? COLOR_CONFIG.static.ukBlue
+                  : COLOR_CONFIG.static.white;
             break;
           case "CORGI":
-            c = STATIC_COLORS.corgiTan;
+            c = COLOR_CONFIG.static.corgiTan;
             break;
           case "BIG_BEN":
-            c = STATIC_COLORS.silver;
+            c = COLOR_CONFIG.static.silver;
             break;
           case "GIFT":
-            c = Math.random() > 0.5 ? colorVariants.base : STATIC_COLORS.white;
+            c = Math.random() > 0.5 ? colorVariants.base : COLOR_CONFIG.static.white;
             break;
           default:
-            c = STATIC_COLORS.silver;
+            c = COLOR_CONFIG.static.silver;
         }
 
         col[idx * 3] = c.r;
@@ -1001,14 +1001,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       w: 2.2,
       h: 2.0,
       c: colorVariants.base,
-      rib: STATIC_COLORS.white,
+      rib: COLOR_CONFIG.static.white,
     },
     {
       r: 2.3,
       ang: 1.2,
       w: 1.8,
       h: 1.6,
-      c: STATIC_COLORS.silver,
+      c: COLOR_CONFIG.static.silver,
       rib: colorVariants.dark,
     },
     {
@@ -1017,23 +1017,23 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       w: 2.5,
       h: 1.8,
       c: colorVariants.dark,
-      rib: STATIC_COLORS.gold,
+      rib: COLOR_CONFIG.static.gold,
     },
     {
       r: 2.4,
       ang: 3.8,
       w: 1.6,
       h: 2.2,
-      c: STATIC_COLORS.white,
-      rib: STATIC_COLORS.ukRed,
+      c: COLOR_CONFIG.static.white,
+      rib: COLOR_CONFIG.static.ukRed,
     },
     {
       r: 2.2,
       ang: 5.0,
       w: 2.0,
       h: 1.5,
-      c: STATIC_COLORS.cream,
-      rib: STATIC_COLORS.silver,
+      c: COLOR_CONFIG.static.cream,
+      rib: COLOR_CONFIG.static.silver,
     },
     {
       r: 3.2,
@@ -1041,14 +1041,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       w: 1.4,
       h: 1.2,
       c: colorVariants.light,
-      rib: STATIC_COLORS.silver,
+      rib: COLOR_CONFIG.static.silver,
     },
     {
       r: 3.5,
       ang: 2.0,
       w: 1.6,
       h: 1.4,
-      c: STATIC_COLORS.white,
+      c: COLOR_CONFIG.static.white,
       rib: colorVariants.base,
     },
     {
@@ -1056,8 +1056,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       ang: 3.5,
       w: 1.3,
       h: 1.1,
-      c: STATIC_COLORS.silver,
-      rib: STATIC_COLORS.gold,
+      c: COLOR_CONFIG.static.silver,
+      rib: COLOR_CONFIG.static.gold,
     },
     {
       r: 3.6,
@@ -1065,15 +1065,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       w: 1.5,
       h: 1.3,
       c: colorVariants.dark,
-      rib: STATIC_COLORS.white,
+      rib: COLOR_CONFIG.static.white,
     },
     {
       r: 3.8,
       ang: 5.8,
       w: 1.2,
       h: 1.0,
-      c: STATIC_COLORS.ukBlue,
-      rib: STATIC_COLORS.white,
+      c: COLOR_CONFIG.static.ukBlue,
+      rib: COLOR_CONFIG.static.white,
     },
   ], [colorVariants]);
 
@@ -1211,11 +1211,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       let c: THREE.Color;
       if (colorChoice < 0.4) {
         // White/Silver - snow effect
-        c = STATIC_COLORS.white;
+        c = COLOR_CONFIG.static.white;
       } else if (colorChoice < 0.6) {
-        c = STATIC_COLORS.silver;
+        c = COLOR_CONFIG.static.silver;
       } else if (colorChoice < 0.75) {
-        c = STATIC_COLORS.cream;
+        c = COLOR_CONFIG.static.cream;
       } else {
         // Tree color accent to tie into the tree
         c = colorVariants.light;
@@ -1596,7 +1596,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Gifts should remain solid while photos are printing.
     // Printing duration = (Total Photos * Stagger Delay) + Individual Animation Time
     // 99 photos * 0.05s = 4.95s. Plus 1.5s buffer.
-    const printingDuration = PHOTO_COUNT * 0.05 + 1.5;
+    const printingDuration = PHOTO_WALL_CONFIG.count * 0.05 + 1.5;
 
     if (
       giftMaterialRef.current &&

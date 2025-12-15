@@ -4,7 +4,7 @@
  * Offloads the heavy initial calculation of photo positions to a background thread
  * to prevent blocking the main thread during component mounting.
  */
-import { generatePhotoPositions } from '../config/photoConfig';
+import { generatePhotoPositions } from '../utils/photoUtils';
 
 // Handle messages from the main thread
 self.onmessage = (e: MessageEvent) => {

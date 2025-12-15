@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
-import { AUDIO_OPTIONS } from '../../config/audio';
+import { AUDIO_CONFIG } from '../../config/audio';
 
 interface BackgroundMusicPlayerProps {
     isMuted?: boolean;
@@ -102,7 +102,7 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         if (!audioRef.current) return;
 
         const audio = audioRef.current;
-        const selectedOption = AUDIO_OPTIONS.find(option => option.id === selectedAudioId);
+        const selectedOption = AUDIO_CONFIG.options.find(option => option.id === selectedAudioId);
 
         // 如果选择了"No Music"或找不到对应选项，停止播放
         if (!selectedOption || !selectedOption.path) {

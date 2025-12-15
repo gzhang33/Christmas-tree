@@ -19,6 +19,17 @@ export const INTERACTION_CONFIG = {
         idealDistance: 8.0,        // 悬停时与相机的理想距离 (自适应弹出)
         emissiveIntensity: 0.5,    // 发光强度
         autoFaceSpeed: 0.1,        // 自动面向相机的速度 (四元数 slerp)
+
+        // ========================================================================
+        // Z轴深度效果 (Depth Effect on Z-Axis)
+        // ========================================================================
+        depthEffect: {
+            forwardDistance: 0.5,      // 目标照片 Z 轴前移距离
+            backwardDistance: 0.3,     // 相邻照片 Z 轴后移距离
+            neighborRadius: 2.5,       // 相邻照片检测半径（3D 空间距离）
+            transitionSpeed: 8,        // 深度过渡速度 (lerp factor)
+            maxRenderOrder: 9999,      // 激活/悬停照片的最大渲染顺序
+        },
     },
 
     // ========================================================================
