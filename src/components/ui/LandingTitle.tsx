@@ -42,9 +42,10 @@ export const LandingTitle: React.FC<LandingTitleProps> = () => {
     // Trigger next sequence when fade out completes
     const handleExitComplete = () => {
         // Transition to morphing phase (which triggers 3D particles)
-        // We add a slight delay to ensure particles have cleared screen visually if needed, 
-        // though the callback is called when all vaporized.
-        setLandingPhase('morphing');
+        // Add a delay to ensure particles have cleared screen visually
+        setTimeout(() => {
+            setLandingPhase('morphing');
+        }, 500);
     };
 
     // User interaction handler

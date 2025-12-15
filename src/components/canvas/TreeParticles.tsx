@@ -1247,6 +1247,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   }, [particleCount, config.explosionRadius, colorVariants, PARTICLE_CONFIG]);
 
   // === SHADER MATERIAL CREATION ===
+  // === MATERIALS INITIALIZATION ===
+  const [materialsReady, setMaterialsReady] = useState(false);
+
   useEffect(() => {
     const treeColorThree = new THREE.Color(treeColor);
 
@@ -1260,9 +1263,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         0.55,
       );
       entityMaterialRef.current.depthWrite = true;
-
-      // Glow layer: size 0.45, additive blending
-
 
       // Ornaments: size 0.5, additive blending
       ornamentMaterialRef.current = createParticleShaderMaterial(
@@ -1287,6 +1287,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         0.5,
       );
       treeBaseMaterialRef.current.blending = THREE.AdditiveBlending;
+
+      // Mark materials as ready to prevent white cone flash
+      setMaterialsReady(true);
+
     } catch (error) {
       console.error(
         "Shader compilation failed, falling back to safe ShaderMaterial",
@@ -1345,8 +1349,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       );
       entityMaterialRef.current.depthWrite = true;
 
-
-
       ornamentMaterialRef.current = createFallbackShaderMaterial(
         0.5,
         null,
@@ -1364,10 +1366,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         null,
       );
       treeBaseMaterialRef.current.blending = THREE.AdditiveBlending;
+
+      // Mark materials as ready even in fallback
+      setMaterialsReady(true);
     }
 
     // Cleanup
     return () => {
+      setMaterialsReady(false);
       entityMaterialRef.current?.dispose();
       ornamentMaterialRef.current?.dispose();
       giftMaterialRef.current?.dispose();
@@ -1652,315 +1658,317 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         }
       }}
     >
-      {/* === ENTITY LAYER (Normal Blending + Depth Write) === */}
-      <points key={`entity-${treeKey}`} ref={entityLayerRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={entityLayerData.count}
-            array={entityLayerData.positions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionStart"
-            count={entityLayerData.count}
-            array={entityLayerData.positionStart}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionEnd"
-            count={entityLayerData.count}
-            array={entityLayerData.positionEnd}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-controlPoint"
-            count={entityLayerData.count}
-            array={entityLayerData.controlPoints}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aColor"
-            count={entityLayerData.count}
-            array={entityLayerData.colors}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aScale"
-            count={entityLayerData.count}
-            array={entityLayerData.sizes}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aRandom"
-            count={entityLayerData.count}
-            array={entityLayerData.random}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aBranchAngle"
-            count={entityLayerData.count}
-            array={entityLayerData.branchAngles}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aIsPhotoParticle"
-            count={entityLayerData.count}
-            array={entityLayerData.isPhotoParticle}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aErosionFactor"
-            count={entityLayerData.count}
-            array={entityLayerData.erosionFactors}
-            itemSize={1}
-          />
-        </bufferGeometry>
-        {entityMaterialRef.current && (
-          <primitive object={entityMaterialRef.current} attach="material" />
-        )}
-      </points>
+      {materialsReady && (
+        <>
+          {/* === ENTITY LAYER (Normal Blending + Depth Write) === */}
+          <points key={`entity-${treeKey}`} ref={entityLayerRef}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={entityLayerData.count}
+                array={entityLayerData.positions}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionStart"
+                count={entityLayerData.count}
+                array={entityLayerData.positionStart}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionEnd"
+                count={entityLayerData.count}
+                array={entityLayerData.positionEnd}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-controlPoint"
+                count={entityLayerData.count}
+                array={entityLayerData.controlPoints}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aColor"
+                count={entityLayerData.count}
+                array={entityLayerData.colors}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aScale"
+                count={entityLayerData.count}
+                array={entityLayerData.sizes}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aRandom"
+                count={entityLayerData.count}
+                array={entityLayerData.random}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aBranchAngle"
+                count={entityLayerData.count}
+                array={entityLayerData.branchAngles}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aIsPhotoParticle"
+                count={entityLayerData.count}
+                array={entityLayerData.isPhotoParticle}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aErosionFactor"
+                count={entityLayerData.count}
+                array={entityLayerData.erosionFactors}
+                itemSize={1}
+              />
+            </bufferGeometry>
+            {entityMaterialRef.current && (
+              <primitive object={entityMaterialRef.current} attach="material" />
+            )}
+          </points>
 
+          {/* Tree Base Layer */}
+          <points ref={treeBaseRef}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={treeBaseData.count}
+                array={treeBaseData.positions}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionStart"
+                count={treeBaseData.count}
+                array={treeBaseData.positionStart}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionEnd"
+                count={treeBaseData.count}
+                array={treeBaseData.positionEnd}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-controlPoint"
+                count={treeBaseData.count}
+                array={treeBaseData.controlPoints}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aColor"
+                count={treeBaseData.count}
+                array={treeBaseData.colors}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aScale"
+                count={treeBaseData.count}
+                array={treeBaseData.sizes}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aRandom"
+                count={treeBaseData.count}
+                array={treeBaseData.random}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aBranchAngle"
+                count={treeBaseData.count}
+                array={treeBaseData.branchAngles}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aIsPhotoParticle"
+                count={treeBaseData.count}
+                array={treeBaseData.isPhotoParticle}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aErosionFactor"
+                count={treeBaseData.count}
+                array={treeBaseData.erosionFactors}
+                itemSize={1}
+              />
+            </bufferGeometry>
+            {treeBaseMaterialRef.current && (
+              <primitive object={treeBaseMaterialRef.current} attach="material" />
+            )}
+          </points>
 
+          {/* Real 3D Gift Models */}
+          <group>
+            {gifts.map((gift, i) => {
+              // Deterministically pick a model based on index
+              const modelIndex = i % giftGltfs.length;
+              const cx = Math.cos(gift.ang) * gift.r;
+              const cz = Math.sin(gift.ang) * gift.r;
+              const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3; // Match previous particle logic
 
-      {/* Tree Base Layer */}
-      <points ref={treeBaseRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={treeBaseData.count}
-            array={treeBaseData.positions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionStart"
-            count={treeBaseData.count}
-            array={treeBaseData.positionStart}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionEnd"
-            count={treeBaseData.count}
-            array={treeBaseData.positionEnd}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-controlPoint"
-            count={treeBaseData.count}
-            array={treeBaseData.controlPoints}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aColor"
-            count={treeBaseData.count}
-            array={treeBaseData.colors}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aScale"
-            count={treeBaseData.count}
-            array={treeBaseData.sizes}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aRandom"
-            count={treeBaseData.count}
-            array={treeBaseData.random}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aBranchAngle"
-            count={treeBaseData.count}
-            array={treeBaseData.branchAngles}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aIsPhotoParticle"
-            count={treeBaseData.count}
-            array={treeBaseData.isPhotoParticle}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aErosionFactor"
-            count={treeBaseData.count}
-            array={treeBaseData.erosionFactors}
-            itemSize={1}
-          />
-        </bufferGeometry>
-        {treeBaseMaterialRef.current && (
-          <primitive object={treeBaseMaterialRef.current} attach="material" />
-        )}
-      </points>
+              return (
+                <GiftMesh
+                  key={i}
+                  scene={giftGltfs[modelIndex].scene}
+                  width={gift.w}
+                  height={gift.h}
+                  position={[cx, cy, cz]}
+                  rotation={gift.ang} // Face outward
+                  visible={true} // Gifts stay visible during/after explosion
+                />
+              );
+            })}
+          </group>
 
-      {/* Real 3D Gift Models */}
-      <group>
-        {gifts.map((gift, i) => {
-          // Deterministically pick a model based on index
-          const modelIndex = i % giftGltfs.length;
-          const cx = Math.cos(gift.ang) * gift.r;
-          const cz = Math.sin(gift.ang) * gift.r;
-          const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3; // Match previous particle logic
+          {/* Ornaments and pearls */}
+          <points ref={ornamentsRef}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={ornamentData.count}
+                array={ornamentData.positions}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionStart"
+                count={ornamentData.count}
+                array={ornamentData.positionStart}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionEnd"
+                count={ornamentData.count}
+                array={ornamentData.positionEnd}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-controlPoint"
+                count={ornamentData.count}
+                array={ornamentData.controlPoints}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aColor"
+                count={ornamentData.count}
+                array={ornamentData.colors}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aScale"
+                count={ornamentData.count}
+                array={ornamentData.sizes}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aRandom"
+                count={ornamentData.count}
+                array={ornamentData.random}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aBranchAngle"
+                count={ornamentData.count}
+                array={ornamentData.branchAngles}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aIsPhotoParticle"
+                count={ornamentData.count}
+                array={ornamentData.isPhotoParticle}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aErosionFactor"
+                count={ornamentData.count}
+                array={ornamentData.erosionFactors}
+                itemSize={1}
+              />
+            </bufferGeometry>
+            {ornamentMaterialRef.current && (
+              <primitive object={ornamentMaterialRef.current} attach="material" />
+            )}
+          </points>
 
-          return (
-            <GiftMesh
-              key={i}
-              scene={giftGltfs[modelIndex].scene}
-              width={gift.w}
-              height={gift.h}
-              position={[cx, cy, cz]}
-              rotation={gift.ang} // Face outward
-              visible={true} // Gifts stay visible during/after explosion
-            />
-          );
-        })}
-      </group>
+          {/* Image Ornaments Group */}
+          <group ref={imageOrnamentsRef}>
+            {ornamentData.imageItems.map((item, i) => (
+              <DissolvingImage
+                key={i}
+                url={ORNAMENT_IMAGE_MAP[item.type]!}
+                position={item.position}
+                scale={item.scale}
+                rotation={[0, item.rotation + Math.PI / 2, 0]}
+                progressRef={progressRef}
+                erosionFactor={item.erosionFactor}
+              />
+            ))}
+          </group>
 
-      {/* Ornaments and pearls */}
-      <points ref={ornamentsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={ornamentData.count}
-            array={ornamentData.positions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionStart"
-            count={ornamentData.count}
-            array={ornamentData.positionStart}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionEnd"
-            count={ornamentData.count}
-            array={ornamentData.positionEnd}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-controlPoint"
-            count={ornamentData.count}
-            array={ornamentData.controlPoints}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aColor"
-            count={ornamentData.count}
-            array={ornamentData.colors}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aScale"
-            count={ornamentData.count}
-            array={ornamentData.sizes}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aRandom"
-            count={ornamentData.count}
-            array={ornamentData.random}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aBranchAngle"
-            count={ornamentData.count}
-            array={ornamentData.branchAngles}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aIsPhotoParticle"
-            count={ornamentData.count}
-            array={ornamentData.isPhotoParticle}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aErosionFactor"
-            count={ornamentData.count}
-            array={ornamentData.erosionFactors}
-            itemSize={1}
-          />
-        </bufferGeometry>
-        {ornamentMaterialRef.current && (
-          <primitive object={ornamentMaterialRef.current} attach="material" />
-        )}
-      </points>
-
-      {/* Image Ornaments Group */}
-      <group ref={imageOrnamentsRef}>
-        {ornamentData.imageItems.map((item, i) => (
-          <DissolvingImage
-            key={i}
-            url={ORNAMENT_IMAGE_MAP[item.type]!}
-            position={item.position}
-            scale={item.scale}
-            rotation={[0, item.rotation + Math.PI / 2, 0]}
-            progressRef={progressRef}
-            erosionFactor={item.erosionFactor}
-          />
-        ))}
-      </group>
-
-      {/* Gift boxes */}
-      <points ref={giftsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={giftData.count}
-            array={giftData.positions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionStart"
-            count={giftData.count}
-            array={giftData.positionStart}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-positionEnd"
-            count={giftData.count}
-            array={giftData.positionEnd}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-controlPoint"
-            count={giftData.count}
-            array={giftData.controlPoints}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aColor"
-            count={giftData.count}
-            array={giftData.colors}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-aScale"
-            count={giftData.count}
-            array={giftData.sizes}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aRandom"
-            count={giftData.count}
-            array={giftData.random}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aBranchAngle"
-            count={giftData.count}
-            array={giftData.branchAngles}
-            itemSize={1}
-          />
-          <bufferAttribute
-            attach="attributes-aIsPhotoParticle"
-            count={giftData.count}
-            array={giftData.isPhotoParticle}
-            itemSize={1}
-          />
-        </bufferGeometry>
-        {giftMaterialRef.current && (
-          <primitive object={giftMaterialRef.current} attach="material" />
-        )}
-      </points>
+          {/* Gift boxes */}
+          <points ref={giftsRef}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={giftData.count}
+                array={giftData.positions}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionStart"
+                count={giftData.count}
+                array={giftData.positionStart}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-positionEnd"
+                count={giftData.count}
+                array={giftData.positionEnd}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-controlPoint"
+                count={giftData.count}
+                array={giftData.controlPoints}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aColor"
+                count={giftData.count}
+                array={giftData.colors}
+                itemSize={3}
+              />
+              <bufferAttribute
+                attach="attributes-aScale"
+                count={giftData.count}
+                array={giftData.sizes}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aRandom"
+                count={giftData.count}
+                array={giftData.random}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aBranchAngle"
+                count={giftData.count}
+                array={giftData.branchAngles}
+                itemSize={1}
+              />
+              <bufferAttribute
+                attach="attributes-aIsPhotoParticle"
+                count={giftData.count}
+                array={giftData.isPhotoParticle}
+                itemSize={1}
+              />
+            </bufferGeometry>
+            {giftMaterialRef.current && (
+              <primitive object={giftMaterialRef.current} attach="material" />
+            )}
+          </points>
+        </>
+      )}
 
       {/* === POLAROID PHOTOS === */}
       {/* Mounted always to avoid render lag on click, but hidden until needed */}
