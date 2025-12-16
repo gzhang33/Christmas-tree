@@ -316,6 +316,13 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
                     array={attributes.flickerPhases}
                     itemSize={1}
                 />
+                {/* Particle type (1.0 = text, 0.0 = dust only) */}
+                <bufferAttribute
+                    attach="attributes-aIsText"
+                    count={attributes.count}
+                    array={attributes.types}
+                    itemSize={1}
+                />
             </bufferGeometry>
             <shaderMaterial
                 ref={materialRef}

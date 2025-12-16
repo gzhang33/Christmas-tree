@@ -52,6 +52,7 @@ attribute float aSpiralT;         // T parameter for spiral calculation (0-1)
 attribute float aFlickerPhase;    // Flicker phase offset for dust animation
 attribute vec3 aColor;            // Per-particle color (for dust phase)
 attribute float aSize;            // Per-particle size variation
+attribute float aIsText;          // 1.0 = text particle, 0.0 = pure dust particle
 
 // === VARYINGS ===
 varying vec3 vColor;
@@ -231,7 +232,7 @@ void main() {
         );
         
         finalPos = mix(startPos, aPositionText, progress);
-        alpha = progress;
+        alpha = progress * aIsText; // Hide extra particles during formation
         color = uTextColor;
     }
     // === PHASE 1: VISIBLE ===
@@ -245,7 +246,7 @@ void main() {
         finalPos.x += breathe * 0.5 * sin(aRandom * 10.0);
         
         // Twinkle
-        alpha = 0.85 + 0.15 * sin(uTime * 3.5 + aRandom * 12.0);
+        alpha = (0.85 + 0.15 * sin(uTime * 3.5 + aRandom * 12.0)) * aIsText; // Hide extra particles
         color = uTextColor;
     }
     // === PHASE 2: DISPERSING ===
@@ -270,7 +271,7 @@ void main() {
         finalPos = aPositionText + scatterOffset;
         
         // Fade out partially during scatter (keep visible for drifting)
-        alpha = 1.0 - smoothstep(uDisperseFadeStart, uDisperseFadeEnd, progress) * 0.5;
+        alpha = (1.0 - smoothstep(uDisperseFadeStart, uDisperseFadeEnd, progress) * 0.5) * aIsText; // Extra particles remain hidden
         
         // Size variation during scatter
         size *= 1.0 + progress * 0.3 - progress * progress * 0.5;
@@ -293,7 +294,7 @@ void main() {
         finalPos = scatteredPos + floatOffset;
         
         // Maintain partial visibility with gentle twinkle
-        alpha = 0.5 + 0.15 * sin(uTime * 2.0 + aRandom * 10.0);
+        alpha = (0.5 + 0.15 * sin(uTime * 2.0 + aRandom * 10.0)) * aIsText; // Extra particles remain hidden
         size *= 0.9;
         color = uTextColor;
     }
@@ -322,7 +323,10 @@ void main() {
         finalPos = mix(scatteredPos, spiralPos, progress);
         
         // Fade back in fully and transition color
-        alpha = 0.5 + 0.5 * smoothstep(0.0, 0.3, progress);
+        // For text particles: start at 0.5, fade to 1.0
+        // For extra particles: start at 0.0, fade to 1.0
+        float startAlpha = mix(0.0, 0.5, aIsText);
+        alpha = mix(startAlpha, 1.0, smoothstep(0.0, 0.3, progress));
         
         // Smooth color transition from text to dust color
         color = mix(uTextColor, aColor, smoothstep(0.3, 0.8, progress));
