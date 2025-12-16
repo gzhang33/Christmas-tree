@@ -8,7 +8,7 @@ interface SvgTitleProps {
 
 // Helper to replace anime.setDashoffset which was removed/moved in v4
 // Sets the stroke-dasharray to the total length of the path and returns the length
-const setDashoffset = (el: HTMLElement | SVGElement | null | any): number => {
+const setDashoffset = (el: HTMLElement | SVGElement | null): number => {
     const path = el as SVGPathElement;
     if (path && typeof path.getTotalLength === 'function') {
         const length = path.getTotalLength();
@@ -30,7 +30,7 @@ export const SvgTitle: React.FC<SvgTitleProps> = ({ onExitComplete, isExiting })
         // Initial setup for dashoffset - manual call to ensure hidden state if needed
         paths.forEach(p => setDashoffset(p));
 
-        animate(paths, {
+        const animation = animate(paths, {
             loop: true,
             direction: 'alternate',
             strokeDashoffset: [setDashoffset, 0],
@@ -39,8 +39,13 @@ export const SvgTitle: React.FC<SvgTitleProps> = ({ onExitComplete, isExiting })
             delay: stagger(500)
         });
 
+        return () => {
+            // 停止动画，释放资源
+            if (animation && typeof animation.pause === 'function') {
+                animation.pause();
+            }
+        };
     }, []);
-
     // Handle Exit Logic
     useEffect(() => {
         if (isExiting) {

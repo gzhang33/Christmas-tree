@@ -5,6 +5,8 @@ export const useAudioController = (initialVolume = 0.35) => {
     const LOOP_START_TIME = 45; // Start playback at 45 seconds
     const [isMuted, setIsMuted] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
+    // Track if audio is muted due to browser autoplay restrictions (not user choice)
+    const autoplayMutedRef = useRef(false);
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -29,7 +31,7 @@ export const useAudioController = (initialVolume = 0.35) => {
         // Handle loop: when audio ends, restart from 45 seconds
         const handleTimeUpdate = () => {
             // When audio reaches the end, loop back to 45 seconds
-            if (!isNaN(audio.duration) && audio.duration > 0 && audio.currentTime >= audio.duration - 0.5) {
+            if (!isNaN(audio.duration) && audio.duration > LOOP_START_TIME && audio.currentTime >= audio.duration - 0.5) {
                 console.log('[Audio] Looping back to 45s');
                 audio.currentTime = LOOP_START_TIME;
                 audio.play().catch(e => console.warn('Loop play failed:', e));
@@ -45,29 +47,31 @@ export const useAudioController = (initialVolume = 0.35) => {
                     audio.currentTime = LOOP_START_TIME;
                 }
                 await audio.play();
-                if (audioRef.current) audioRef.current.muted = false;
-                setIsMuted(false);
+                audio.muted = false;
+                autoplayMutedRef.current = false;
+                // Don't change isMuted here - it reflects user preference, not autoplay state
+                // Remove listeners only after successful play
+                document.removeEventListener('click', handleInteraction);
+                document.removeEventListener('keydown', handleInteraction);
             } catch (e) {
                 console.warn('Audio playback failed after interaction:', e);
+                // Keep listeners in place so user can retry
             }
-            // Remove listeners after successful interaction
-            document.removeEventListener('click', handleInteraction);
-            document.removeEventListener('keydown', handleInteraction);
         };
 
         const attemptPlay = async () => {
             try {
-                // Wait for audio to be ready, then set time and play
                 // Wait for audio to be ready, then play
                 // Initial time is handled by handleCanPlay listener
-
                 await audio.play();
-                if (audioRef.current) audioRef.current.muted = false;
-                setIsMuted(false);
+                audio.muted = false;
+                autoplayMutedRef.current = false;
+                // Don't set isMuted to false here - respect user's explicit mute preference
             } catch (err) {
                 console.log('Audio autoplay prevented. Waiting for user interaction.');
-                if (audioRef.current) audioRef.current.muted = true;
-                setIsMuted(true);
+                // Set browser mute flag but don't update user-facing isMuted state
+                audio.muted = true;
+                autoplayMutedRef.current = true;
 
                 document.addEventListener('click', handleInteraction);
                 document.addEventListener('keydown', handleInteraction);
@@ -103,21 +107,22 @@ export const useAudioController = (initialVolume = 0.35) => {
     }, []);
 
     const unmute = useCallback(async () => {
-        if (audioRef.current) {
+        const audio = audioRef.current;
+        if (audio) {
             try {
-                audioRef.current.muted = false;
+                audio.muted = false;
+                autoplayMutedRef.current = false;
                 // Ensure we start from 45 seconds if audio is at the beginning
-                if (audioRef.current.currentTime < LOOP_START_TIME) {
-                    audioRef.current.currentTime = LOOP_START_TIME;
+                if (audio.currentTime < LOOP_START_TIME) {
+                    audio.currentTime = LOOP_START_TIME;
                 }
-                await audioRef.current.play();
+                await audio.play();
                 setIsMuted(false);
             } catch (e) {
                 console.warn('Unmute failed:', e);
             }
         }
     }, [LOOP_START_TIME]);
-
     return {
         audioRef,
         isMuted,

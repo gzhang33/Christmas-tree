@@ -36,7 +36,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 if (data) {
                     // Restore Photos
                     if (data.p && Array.isArray(data.p)) {
-                        // 验证 URL 格式是否正确
+                        // Validate URL format
                         const validUrls = data.p.filter((url: any) => {
                             if (typeof url !== 'string') return false;
                             try {
@@ -104,7 +104,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 }
             }
         }
-    }, []); // 只在首次加载时执行
+    }, [setPhotos, setConfig, setTreeColor, setSelectedAudioId]); // 依赖所有 setter 函数
 
     return { generateShareUrl };
 };

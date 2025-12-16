@@ -41,11 +41,6 @@ canvas {
     .festive-cursor {
         cursor: url('/cursor/christmas.cur'), pointer;
     }
-
-    /* Override Tailwind's cursor-pointer with festive cursor */
-    .cursor-pointer {
-        cursor: url('/cursor/christmas.cur'), pointer;
-    }
 }
 
 * {

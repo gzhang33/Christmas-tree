@@ -255,17 +255,26 @@ export function padParticlePositions(
         return result.positions;
     }
 
-    // If original result is empty, return random positions near origin
-    if (result.count === 0) {
-        const padded = new Float32Array(targetCount * 3);
-        for (let i = 0; i < targetCount; i++) {
-            padded[i * 3] = (Math.random() - 0.5) * 10;
-            padded[i * 3 + 1] = (Math.random() - 0.5) * 10;
-            padded[i * 3 + 2] = 5 + Math.random() * 2;
+    export function padParticlePositions(
+        result: TextParticleResult,
+        targetCount: number,
+        zOffset: number = 5
+    ): Float32Array {
+        if (result.count >= targetCount) {
+            return result.positions;
         }
-        return padded;
-    }
 
+        // If original result is empty, return random positions near origin
+        if (result.count === 0) {
+            const padded = new Float32Array(targetCount * 3);
+            for (let i = 0; i < targetCount; i++) {
+                padded[i * 3] = (Math.random() - 0.5) * 10;
+                padded[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                padded[i * 3 + 2] = zOffset + Math.random() * 2;
+            }
+            return padded;
+        }
+    }
     const padded = new Float32Array(targetCount * 3);
 
     // Copy existing positions
@@ -281,9 +290,8 @@ export function padParticlePositions(
         // These will be made transparent in the shader
         padded[i * 3] = minX + Math.random() * rangeX;
         padded[i * 3 + 1] = minY + Math.random() * rangeY;
-        padded[i * 3 + 2] = 5 + Math.random() * 2; // Slight Z variation
+        padded[i * 3 + 2] = zOffset + Math.random() * 2; // Slight Z variation
     }
-
     return padded;
 }
 

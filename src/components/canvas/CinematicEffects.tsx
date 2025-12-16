@@ -12,15 +12,14 @@ export const CinematicEffects: React.FC = () => {
 
     const chromaticRef = useRef<any>(null);
 
-    // Calculate initial offset to avoid jump on first load
-    // 计算初始偏移值，避免首次加载时的跳动
+    // Calculate initial offset ONCE on mount to avoid jump on first load
+    // 只在挂载时计算一次初始偏移值，避免状态变化时重新创建 Vector2
     const initialOffset = useMemo(() => {
-        // 修复逻辑：聚焦时完全清晰（0色差），其他情况使用正常值
-        const offset = isExploded && hoveredPhotoInstanceId !== null
-            ? 0.0  // 聚焦照片时：完全清晰，无色差
-            : POST_PROCESSING_CONFIG.chromaticAberration.normal;  // 其他情况：正常色差
+        // Start with normal chromatic aberration value
+        // Always use normal value as initial - the useFrame will handle transitions
+        const offset = POST_PROCESSING_CONFIG.chromaticAberration.normal;
         return new THREE.Vector2(offset, offset);
-    }, [isExploded, hoveredPhotoInstanceId]);
+    }, []); // Empty deps - compute only once on mount
 
     // Animation for Chromatic Aberration
     useFrame((state, delta) => {

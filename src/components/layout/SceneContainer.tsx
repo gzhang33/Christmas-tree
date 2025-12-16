@@ -1,13 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from '../canvas/Experience';
 import { Snow } from '../canvas/Snow';
 import { CinematicEffects } from '../canvas/CinematicEffects';
 import { Floor } from '../canvas/Floor';
-import { MagicDust } from '../canvas/MagicDust';
+import { SnowFloor } from '../canvas/SnowFloor';
 import { ShaderWarmup } from '../canvas/ShaderWarmup';
+import { UniversalParticleSystemComponent } from '../canvas/UniversalParticleSystem';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { LANDING_CONFIG } from '../../config/landing';
 import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
 import { useStore } from '../../store/useStore';
@@ -140,6 +142,25 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
     onPerformanceUpdate
 }) => {
     const landingPhase = useStore((state) => state.landingPhase);
+    const userName = useStore((state) => state.userName);
+
+    // Responsive title detection based on breakpoint
+    const [isMobile, setIsMobile] = useState(() =>
+        typeof window !== 'undefined' && window.innerWidth < LANDING_CONFIG.title.breakpoints.mobile
+    );
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < LANDING_CONFIG.title.breakpoints.mobile);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Responsive title: array for mobile (two lines), string for desktop (single line)
+    const responsiveTitle = isMobile
+        ? LANDING_CONFIG.textParticle.text.compact
+        : LANDING_CONFIG.textParticle.text.normal;
 
     return (
         <div className="absolute inset-0 z-40">
@@ -178,18 +199,34 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         wind={config.windStrength}
                     />
 
+                    {/* Universal Particle System - Permanent background element
+                        Mounts at entrance phase and never unmounts.
+                        Handles text intro → dispersion → dust loop as seamless animation. */}
+                    {(landingPhase === 'entrance' || landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
+                        <React.Suspense fallback={null}>
+                            <UniversalParticleSystemComponent
+                                title={responsiveTitle}
+                                username={userName || 'Friend'}
+                            />
+                        </React.Suspense>
+                    )}
 
 
-                    {/* Persistent Environment Elements (Floor & Dust) - Visible in both phases to prevent pop */}
+
+
+                    {/* Persistent Environment Elements (Floor) - Visible in both phases to prevent pop */}
                     {/* Floor */}
-                    {(landingPhase === 'morphing' || landingPhase === 'tree') && <Floor />}
+                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                        <>
+                            <Floor />
+                            {/* Layered accumulated snow on top of the reflective floor */}
+                            <SnowFloor count={3000} opacity={0.3} />
+                        </>
+                    )}
 
-                    {/* Magic Dust - continuous presence */}
-                    {/* Tree Experience & Magic Dust - Grouped in Suspense for synchronized loading */}
+                    {/* Tree Experience - Grouped in Suspense for synchronized loading */}
                     {(landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <React.Suspense fallback={null}>
-                            {/* Magic Dust - continuous presence, inside Suspense to sync start time with Tree */}
-                            <MagicDust />
                             <Experience
                                 uiState={uiState}
                                 visible={landingPhase === 'tree' || landingPhase === 'morphing'}

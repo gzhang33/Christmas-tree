@@ -11,7 +11,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { useStore } from '../../store/useStore';
 
@@ -359,12 +358,13 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                         // FREEZE bobbing when playing video
                         const yBob = isThisPlayingVideo ? 0 : Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
-                        // NEW: Apply Z-axis depth offset for hover effect
-                        // Calculate direction from center to photo for consistent Z-offset direction
-                        const directionZ = baseZ / (radius || 1); // Normalized Z direction
-                        const zWithOffset = baseZ + (directionZ * hover.currentZOffset);
+                        // 使用完整的径向方向
+                        const dirX = baseX / (radius || 1);
+                        const dirZ = baseZ / (radius || 1);
+                        const xWithOffset = baseX + (dirX * hover.currentZOffset);
+                        const zWithOffset = baseZ + (dirZ * hover.currentZOffset);
 
-                        group.position.set(baseX, photo.position[1] + yBob, zWithOffset);
+                        group.position.set(xWithOffset, photo.position[1] + yBob, zWithOffset);
 
                         // Rotation - freeze when playing video
                         const shouldFreezeRotation = isThisPlayingVideo;

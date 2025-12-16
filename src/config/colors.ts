@@ -42,6 +42,8 @@ export const COLOR_CONFIG = {
       { hex: '#00CED1', name: 'Turquoise' },
       { hex: '#FF6347', name: 'Tomato' },
     ] as readonly ColorPreset[],
+
+    default: '#845696',
   },
 
   static: {

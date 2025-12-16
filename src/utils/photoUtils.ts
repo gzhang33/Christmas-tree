@@ -71,7 +71,11 @@ export const generatePhotoPositions = (
         // Check for overlap with existing positions (angular distance)
         let hasOverlap = false;
         for (const spot of occupiedSpots) {
-            const dTheta = Math.abs(theta - spot.theta);
+            let dTheta = Math.abs(theta - spot.theta);
+            // 处理角度环绕：如果差值超过 π，说明从另一边绕过去更近
+            if (dTheta > Math.PI) {
+                dTheta = 2 * Math.PI - dTheta;
+            }
             const dPhi = Math.abs(phi - spot.phi);
             // Simple angular distance check
             const angularDist = Math.sqrt(dTheta * dTheta + dPhi * dPhi);
@@ -80,7 +84,6 @@ export const generatePhotoPositions = (
                 break;
             }
         }
-
         if (hasOverlap) continue;
 
         // Convert spherical to Cartesian coordinates

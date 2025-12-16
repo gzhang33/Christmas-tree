@@ -23,7 +23,26 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({
     subText = "点击屏幕点亮圣诞树 ✨",
     showArrow = true
 }) => {
-    const { animation, breathe, pulse, arrow } = INTERACTION_CONFIG.clickPrompt;
+    // Safe destructure with defaults to prevent crashes if config is missing
+    const {
+        animation = {
+            fadeDuration: 0.5,
+            breatheDuration: 2,
+            pulseDuration: 1.5,
+            arrowBounceDuration: 1
+        },
+        breathe = {
+            opacity: [0.7, 1, 0.7],
+            scale: [1, 1.05, 1]
+        },
+        pulse = {
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0, 0.3]
+        },
+        arrow = {
+            bounce: [0, 5, 0]
+        }
+    } = INTERACTION_CONFIG?.clickPrompt ?? {};
 
     return (
         <AnimatePresence>
@@ -35,19 +54,18 @@ export const ClickPrompt: React.FC<ClickPromptProps> = ({
                     exit={{ opacity: 0, y: 20 }}
                     transition={{ duration: animation.fadeDuration }}
                     onClick={onClick}
-                    aria-label="Click to light up the Christmas tree"
-                >
-                    <motion.div animate={{
-                        opacity: breathe.opacity,
-                        scale: breathe.scale,
+                    aria-label="Click to light up the Christmas tree - 点击屏幕点亮圣诞树"
+                >                    <motion.div animate={{
+                    opacity: breathe.opacity,
+                    scale: breathe.scale,
+                }}
+                    transition={{
+                        duration: animation.breatheDuration,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
                     }}
-                        transition={{
-                            duration: animation.breatheDuration,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                        }}
-                        className="relative flex flex-col items-center gap-2"
-                    >
+                    className="relative flex flex-col items-center gap-2"
+                >
                         {/* Content Container (Ring + Text) */}
                         <div className="relative">
                             {/* Pulsing ring effect - Now scoped to text box */}

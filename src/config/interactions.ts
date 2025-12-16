@@ -43,15 +43,15 @@ export const INTERACTION_CONFIG = {
             arrowBounceDuration: 1.5,   // 箭头弹跳周期 (秒)
         },
         breathe: {
-            opacity: [0.7, 1, 0.7] as number[],     // 不透明度关键帧
-            scale: [1, 1.02, 1] as number[],        // 缩放关键帧
+            opacity: [0.7, 1, 0.7],     // 不透明度关键帧
+            scale: [1, 1.02, 1],        // 缩放关键帧
         },
         pulse: {
-            scale: [1, 1.3, 1] as number[],         // 脉冲环缩放
-            opacity: [0.5, 0, 0.5] as number[],     // 脉冲环透明度
+            scale: [1, 1.3, 1],         // 脉冲环缩放
+            opacity: [0.5, 0, 0.5],     // 脉冲环透明度
         },
         arrow: {
-            bounce: [0, 5, 0] as number[],          // 箭头上下弹跳距离 (px)
+            bounce: [0, 5, 0],          // 箭头上下弹跳距离 (px)
         },
     },
 

@@ -100,6 +100,10 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             if (dataUrl) {
                                 uploadedUrls.push(dataUrl);
                             }
+                            // Update progress for failed file to ensure total reaches 100%
+                            progressMap.set(index, 100);
+                            const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
+                            setUploadProgress(Math.round(total / totalFiles));
                         }
                     }));
                 }

@@ -81,9 +81,6 @@ vec3 quadraticBezier(vec3 p0, vec3 p1, vec3 p2, float t) {
        + t * t * p2;
 }
 
-float easeOutCubic(float x) {
-  return 1.0 - pow(1.0 - x, 3.0);
-}
 
 void main() {
   // === DUAL-LAYER PARTICLE SYSTEM (双层粒子系统) ===

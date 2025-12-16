@@ -76,8 +76,9 @@ export class FrameMaterialPool {
         this.pooledMaterials.clear();
         this.ownedMaterials.clear();
         this.activeCount = 0;
+        this.totalCreated = 0;
+        this.totalAcquired = 0;
     }
-
     getStats() {
         return {
             poolSize: this.pool.length,
@@ -133,9 +134,26 @@ export function getFrameMaterialPool(): FrameMaterialPool {
     return globalFrameMaterialPool;
 }
 
-export function disposeFrameMaterialPool(): void {
+export function disposeFrameMaterialPool(force: boolean = false): void {
     if (globalFrameMaterialPool) {
-        globalFrameMaterialPool.dispose();
+        const stats = globalFrameMaterialPool.getStats();
+
+        // Check for active materials before disposing
+        if (stats.activeCount > 0 && !force) {
+            console.error(
+                `[FrameMaterialPool] Cannot dispose pool with ${stats.activeCount} active materials. ` +
+                `Pass force=true to override this check.`
+            );
+            return;
+        }
+
+        if (stats.activeCount > 0 && force) {
+            console.warn(
+                `[FrameMaterialPool] Force disposing pool with ${stats.activeCount} active materials!`
+            );
+        }
+
+        globalFrameMaterialPool.dispose(force);
         globalFrameMaterialPool = null;
     }
 }

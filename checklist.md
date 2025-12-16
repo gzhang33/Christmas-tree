@@ -105,9 +105,9 @@
 
 - [ ] **[PHOTO-06] Mobile Gyroscope**
   - **Task:** Add `DeviceOrientation` event listener.
-  - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.54tr4e4w
-  - **Goal:**实现手机端的陀螺仪效果，
+  - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.  - **Goal:**Implement the gyroscope effect on the mobile phone side,
 
 - [ ] **[PHOTO-07] Focus mode visuals effect**
-  - **Task** update camera move logic,   
-  - [ ] **Action:** 现在点击照片时，会先向照片方向实现偏移后会再执行居中的效果。 更改逻辑以实现点击后直接居中的效果。
+  - **Task:** Update camera movement logic.
+  - **Action:** When clicking a photo, move camera directly to center (remove intermediate offset step).
+  - **Implementation:** Update camera move logic in [relevant file].
