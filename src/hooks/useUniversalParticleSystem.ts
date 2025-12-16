@@ -386,8 +386,7 @@ export function useUniversalParticleSystem({
 
         // Calculate total particle count: max of text particles and dust requirements
         // Use the ratio-based dust count for proper density matching MagicDust
-        // Calculate total particle count: max of text particles and dust requirements
-        // Use the ratio-based dust count for proper density matching MagicDust
+
         const textParticleCount = titleData.count;
 
         const totalCount = Math.max(textParticleCount, dustParticleCount);
@@ -404,48 +403,41 @@ export function useUniversalParticleSystem({
         allRandoms.set(titleData.randoms, 0);
         allTypes.set(titleData.types, 0);
 
-// Copy username particles - REMOVED
-/*
-allPositions.set(usernameData.positions, titleData.count * 3);
-allSpiralT.set(usernameData.spiralT, titleData.count);
-allRandoms.set(usernameData.randoms, titleData.count);
+        // Fill extra particles (if totalCount > textParticleCount)
+        // These particles must start "hidden" in the cloud area to prevent bottom-up artifact
+        for (let i = textParticleCount; i < totalCount; i++) {
+            // Random position generally matching text area (scattered cloud)
+            // Instead of -100, we place them around the visible center
+            allPositions[i * 3] = (Math.random() - 0.5) * 20;      // X: +/- 10
+            allPositions[i * 3 + 1] = (Math.random() - 0.5) * 10;  // Y: +/- 5 (Center screen)
+            allPositions[i * 3 + 2] = (Math.random() - 0.5) * 10;  // Z: +/- 5
 
-// Fill extra particles (if totalCount > textParticleCount)
-// These particles must start "hidden" in the cloud area to prevent bottom-up artifact
-for (let i = textParticleCount; i < totalCount; i++) {
-    // Random position generally matching text area (scattered cloud)
-    // Instead of -100, we place them around the visible center
-    allPositions[i * 3] = (Math.random() - 0.5) * 20;      // X: +/- 10
-    allPositions[i * 3 + 1] = (Math.random() - 0.5) * 10;  // Y: +/- 5 (Center screen)
-    allPositions[i * 3 + 2] = (Math.random() - 0.5) * 10;  // Z: +/- 5
+            // Uniform spiralT distribution for even dust coverage
+            allSpiralT[i] = i / totalCount;
+            allRandoms[i] = Math.random();
+            allTypes[i] = 0.0; // Extra particle
+        }
 
-    // Uniform spiralT distribution for even dust coverage
-    allSpiralT[i] = i / totalCount;
-    allRandoms[i] = Math.random();
-    allTypes[i] = 0.0; // Extra particle
-}
+        // Generate dust colors and sizes for all particles
+        const dustColor = dustColors[1] || dustColors[0] || PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4';
+        const { colors, sizes, flickerPhases } = generateDustColors(totalCount, dustColor);
 
-// Generate dust colors and sizes for all particles
-const dustColor = dustColors[1] || dustColors[0] || PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4';
-const { colors, sizes, flickerPhases } = generateDustColors(totalCount, dustColor);
+        console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, dust budget: ${dustParticleCount})`);
 
-console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, dust budget: ${dustParticleCount})`);
+        return {
+            positions: allPositions,
+            spiralT: allSpiralT,
+            randoms: allRandoms,
+            colors,
+            sizes,
+            flickerPhases,
+            types: allTypes,
+            count: totalCount,
+            textParticleCount, // Track how many are from text (vs extra dust particles)
+        };
+    }, [title, density, worldWidth, config.layout.titleY, dustColors, dustParticleCount]);
 
-
-return {
-    positions: allPositions,
-    spiralT: allSpiralT,
-    randoms: allRandoms,
-    colors,
-    sizes,
-    flickerPhases,
-    types: allTypes,
-    count: totalCount,
-    textParticleCount, // Track how many are from text (vs extra dust particles)
-};
-}, [title, density, worldWidth, config.layout.titleY, dustColors, dustParticleCount]);
-
-return attributes;
+    return attributes;
 }
 
 export type UniversalParticleAttributes = ReturnType<typeof useUniversalParticleSystem>;
