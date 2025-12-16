@@ -211,9 +211,6 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         </React.Suspense>
                     )}
 
-
-
-
                     {/* Persistent Environment Elements (Floor) - Visible in both phases to prevent pop */}
                     {/* Floor */}
                     {(landingPhase === 'morphing' || landingPhase === 'tree') && (
