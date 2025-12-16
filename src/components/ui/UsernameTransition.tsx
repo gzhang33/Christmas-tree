@@ -24,9 +24,15 @@ export const UsernameTransition: React.FC = () => {
     // Title section is flex with h-[400px], title takes first 200px, username at ~200px offset from title top
     const targetY = -100; // Move up from center toward the text phase position
 
+    const textParticlePhase = useStore((state) => state.textParticlePhase);
+
     useEffect(() => {
-        // Start transition animation when moving from input to entrance
-        if (landingPhase === 'entrance' && userName && animationPhase === 'idle') {
+        // Start transition animation when title particles are fully visible
+        // This ensures the username appears AFTER the "Merry Christmas" title is formed
+        if ((landingPhase === 'entrance' || landingPhase === 'text') &&
+            textParticlePhase === 'visible' &&
+            userName &&
+            animationPhase === 'idle') {
             setShowTransition(true);
             setAnimationPhase('flying');
         }
@@ -37,7 +43,7 @@ export const UsernameTransition: React.FC = () => {
             setShowTransition(false);
             setAnimationPhase('idle');
         }
-    }, [landingPhase, userName, animationPhase]);
+    }, [landingPhase, textParticlePhase, userName, animationPhase]);
 
     // Cleanup timeout on unmount
     useEffect(() => {

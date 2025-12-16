@@ -314,9 +314,9 @@ export const LANDING_CONFIG = {
         },
         // 动画时长 (秒)
         animation: {
-            formDuration: 1.5,      // 粒子聚合成文字时长
+            formDuration: 2,      // 粒子聚合成文字时长
             displayDuration: 2.0,   // 文字静态展示时长
-            disperseDuration: 1.5,  // 粒子飘散时长
+            disperseDuration: 3,  // 粒子飘散时长
             reformDuration: 3.0,    // 重构为 MagicDust 时长
         },
         // 飘散动画参数
