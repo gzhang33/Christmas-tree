@@ -18,10 +18,9 @@ export const getOptimizedCloudinaryUrl = (
     }
 
     // Check if distinct upload param already exists to avoid double optimization
-    if (url.includes('/q_') || url.includes('/f_')) {
+    if (url.includes('/w_') || url.includes('/q_') || url.includes('/f_')) {
         return url;
     }
-
     // Typical Cloudinary URL format: 
     // https://res.cloudinary.com/<cloud_name>/image/upload/<version>/<public_id>
     // We want to insert transformations after "/upload/"
@@ -47,6 +46,18 @@ export const uploadToCloudinary = async (
     file: File,
     onProgress?: (progress: number) => void
 ): Promise<string> => {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        throw new Error(`File type ${file.type} is not supported. Please upload an image file.`);
+    }
+
+    // Validate file size (e.g., max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+        throw new Error(`File size exceeds the maximum limit of ${maxSize / (1024 * 1024)}MB`);
+    }
+
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
@@ -65,34 +76,40 @@ export const uploadToCloudinary = async (
         const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
         xhr.open('POST', url, true);
-        xhr.timeout = 15000; // 15秒超时
+        xhr.timeout = 15000; // 15 seconds timeout
 
+        // Register event handlers at the top level (only once)
         xhr.ontimeout = () => {
-            reject(new Error('上传超时，请检查网络连接后重试'));
+            reject(new Error('Upload timeout, please check your network connection and try again'));
         };
-        // Track progress
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable && onProgress) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            resolve(response.secure_url);
-                        } catch (error) {
-                            reject(new Error('Failed to parse server response'));
-                        }
-                    } else {
-                        reject(new Error(`Upload failed: ${xhr.statusText}`));
+
+        xhr.onerror = () => {
+            reject(new Error('Network error occurred during upload'));
+        };
+
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (!response || !response.secure_url) {
+                        reject(new Error('Invalid response format from server')); return;
                     }
-                };
+                    resolve(response.secure_url);
+                } catch (error) {
+                    reject(new Error('Failed to parse server response'));
+                }
             } else {
                 reject(new Error(`Upload failed: ${xhr.statusText}`));
             }
         };
 
-        xhr.onerror = () => {
-            reject(new Error('Network error occurred during upload'));
+        // Only used for progress tracking, does not handle success/failure
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable && onProgress) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                onProgress(percentComplete);
+            }
+            // lengthComputable is false when it cannot be computed, wait for onload/onerror
         };
 
         xhr.send(formData);

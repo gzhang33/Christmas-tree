@@ -1,10 +1,39 @@
+/**
+ * Magic Dust Vertex Shader
+ * 
+ * Creates a spiral particle effect around the Christmas tree.
+ * Synchronized with TreeParticles dissipation animation using shared config uniforms.
+ * 
+ * All animation parameters are received from PARTICLE_CONFIG.dissipation
+ * and TREE_SHAPE_CONFIG in treeUtils.ts to ensure perfect synchronization.
+ */
+
+// === UNIFORMS ===
 uniform float uTime;
 uniform float uTreeHeight;
 uniform float uTreeBottomY;
 uniform float uSpiralTurns;
 uniform float uRadiusOffset;
-uniform float uProgress; // NEW: Animation progress
+uniform float uProgress; // Animation progress: 0.0 (Tree) -> 1.0 (Exploded)
 
+// Tree shape uniforms (from TREE_SHAPE_CONFIG in treeUtils.ts)
+uniform float uMaxRadius;    // Base tree radius at bottom
+uniform float uRadiusScale;  // Scale factor for radius tapering
+uniform float uMinRadius;    // Minimum radius at the top
+
+// Dissipation animation uniforms (synchronized with TreeParticles)
+uniform float uProgressMultiplier;  // Scale factor for uProgress
+uniform float uNoiseInfluence;      // Random noise influence on trigger time
+uniform float uHeightInfluence;     // Height delay influence (top-down dissipation)
+uniform float uUpForce;             // Upward buoyancy force
+uniform float uDriftAmplitude;      // Drift/turbulence amplitude
+uniform float uGrowPeakProgress;    // Peak progress for size growth
+uniform float uGrowAmount;          // Size growth amount
+uniform float uShrinkAmount;        // Size shrink amount
+uniform float uFadeStart;           // Progress to start fading out
+uniform float uFadeEnd;             // Progress to be fully faded
+
+// === ATTRIBUTES ===
 attribute float aSpiralT;
 attribute float aAscentSpeed;
 attribute float aRadiusOffset;
@@ -12,24 +41,20 @@ attribute float aAngleOffset;
 attribute float aFlickerPhase;
 attribute vec3 aColor;
 attribute float aSize;
-attribute float aErosionFactor; // NEW: For dissipation timing
-attribute float aRandom;        // NEW: For noise
+attribute float aErosionFactor; // For dissipation timing
+attribute float aRandom;        // For noise
 
-
+// === VARYINGS ===
 varying vec3 vColor;
 varying float vAlpha;
 
-// Function to calculate tree radius at a given normalized height (0 to 1)
-// Tiered shape logic mimicking treeUtils.ts
+/**
+ * Calculate tree radius at a given normalized height (0 to 1)
+ * Uses uniform parameters from TREE_SHAPE_CONFIG for consistency
+ */
 float getTreeRadius(float t) {
-  float maxRadius = 12.0; // Base tree radius
-  // Simple cone approximation for shader efficiency, or tiered if needed.
-  // Using a cone shape: radius is largest at bottom (t=0) and smallest at top (t=1).
-  // Note: t here implies 0 at bottom, 1 at top? 
-  // In MagicDust.tsx logic: y = topY - t * treeHeight. So t=0 is TOP, t=1 is BOTTOM.
-  // So radius should be larger when t is larger.
-  
-  return maxRadius * t * 0.9 + 1.0; 
+  // t=0 is top (small radius), t=1 is bottom (large radius)
+  return uMaxRadius * t * uRadiusScale + uMinRadius; 
 }
 
 void main() {
@@ -63,19 +88,20 @@ void main() {
   );
   
   // === DISSIPATION ANIMATION (Synced with TreeParticles) ===
+  // Uses shared config uniforms for perfect synchronization
   
   // Erosion Threshold
   float erosionNoise = aRandom; 
   float heightDelay = aErosionFactor; 
   
-  // Trigger logic matching TreeParticles: (uProgress * 2.6) - offsets
-  float trigger = (uProgress * 2.6) - (erosionNoise * 0.3 + heightDelay * 1.0);
+  // Trigger logic matching TreeParticles: (uProgress * multiplier) - offsets
+  float trigger = (uProgress * uProgressMultiplier) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
   float localProgress = clamp(trigger, 0.0, 1.0);
   float easedProgress = smoothstep(0.0, 1.0, localProgress);
   
   // Movement Physics (Dissipation)
-  // Upward force
-  vec3 upForce = vec3(0.0, 15.0, 0.0) * easedProgress * easedProgress;
+  // Upward force (buoyancy)
+  vec3 upForce = vec3(0.0, uUpForce, 0.0) * easedProgress * easedProgress;
   
   // Turbulent Drift
   float timeOffset = uTime * 0.5;
@@ -86,7 +112,7 @@ void main() {
     sin(noisePhaseX),
     0.0,
     cos(noisePhaseZ)
-  ) * 4.0 * easedProgress;
+  ) * uDriftAmplitude * easedProgress;
   
   vec3 currentPos = spiralPos;
   
@@ -100,10 +126,10 @@ void main() {
   // 4. Size & Fade
   float dist = -mvPosition.z;
   
-  // Size behavior during explosion
-  float growPhase = smoothstep(0.0, 0.3, easedProgress);
-  float shrinkPhase = smoothstep(0.3, 1.0, easedProgress);
-  float sizeProgress = 1.0 + growPhase * 0.3 - shrinkPhase * 0.6;
+  // Size behavior during explosion (using config uniforms)
+  float growPhase = smoothstep(0.0, uGrowPeakProgress, easedProgress);
+  float shrinkPhase = smoothstep(uGrowPeakProgress, 1.0, easedProgress);
+  float sizeProgress = 1.0 + growPhase * uGrowAmount - shrinkPhase * uShrinkAmount;
   
   gl_PointSize = aSize * (300.0 / dist) * sizeProgress;
   
@@ -116,16 +142,14 @@ void main() {
   float fadeOutBase = (currentT < 0.1) ? currentT * 10.0 : 1.0;
   float baseFade = fadeIn * fadeOutBase;
   
-  // Fade out for dissipation
-  float fadeStart = 0.3;
-  float fadeEnd = 0.85;
-  float dissipate = 1.0 - smoothstep(fadeStart, fadeEnd, easedProgress);
+  // Fade out for dissipation (using config uniforms)
+  float dissipate = 1.0 - smoothstep(uFadeStart, uFadeEnd, easedProgress);
   
   vColor = aColor * (1.0 + flicker * 0.3); // Brighten on flicker
   vAlpha = baseFade * dissipate;
   
   // Early discard optimization
   if (vAlpha <= 0.01) {
-    gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+    gl_PointSize = 0.0;
   }
 }

@@ -17,6 +17,8 @@ import * as THREE from 'three';
 
 export class MaterialPool {
     private pool: THREE.ShaderMaterial[] = [];
+    private pooledMaterials: Set<THREE.ShaderMaterial> = new Set(); // 追踪当前在池中的材质（O(1) 查找）
+    private ownedMaterials: Set<THREE.ShaderMaterial> = new Set(); // 追踪池子拥有的所有材质
     private masterMaterial: THREE.ShaderMaterial;
     private activeCount: number = 0;
     private totalCreated: number = 0;
@@ -39,61 +41,85 @@ export class MaterialPool {
         if (this.pool.length > 0) {
             // Reuse from pool
             material = this.pool.pop()!;
-            if (material.uniforms.map) material.uniforms.map.value = texture;
-            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+            this.pooledMaterials.delete(material); // 从池中 Set 移除
+            if (material.uniforms?.map) material.uniforms.map.value = texture;
+            if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
         } else {
             // Create new material
             material = this.masterMaterial.clone();
-            if (material.uniforms.map) material.uniforms.map.value = texture;
-            if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-            if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+            if (material.uniforms?.map) material.uniforms.map.value = texture;
+            if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+            if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
             this.totalCreated++;
+            // 新创建的材质加入所有权追踪
+            this.ownedMaterials.add(material);
         }
         this.activeCount++;
         return material;
     }
-
     /**
      * Release a material back to the pool
      */
     release(material: THREE.ShaderMaterial): void {
         if (!material) return;
 
-        // Prevent double release
-        if (this.pool.includes(material)) {
+        // 验证材质是否属于此池子（防止外部材质导致计数错误）
+        if (!this.ownedMaterials.has(material)) {
+            console.warn('Attempting to release a material not owned by this pool. Ignoring.');
+            return;
+        }
+
+        // 防止重复释放（O(1) Set 查找）
+        if (this.pooledMaterials.has(material)) {
             console.warn('Material already released to pool');
             return;
         }
 
         // Reset material state
-        if (material.uniforms.opacity) material.uniforms.opacity.value = 0;
-        if (material.uniforms.uDevelop) material.uniforms.uDevelop.value = 0;
+        if (material.uniforms?.map) material.uniforms.map.value = null;
+        if (material.uniforms?.opacity) material.uniforms.opacity.value = 0;
+        if (material.uniforms?.uDevelop) material.uniforms.uDevelop.value = 0;
 
         // Add back to pool
         this.pool.push(material);
+        this.pooledMaterials.add(material); // 加入池中 Set
         this.activeCount--;
     }
-
     /**
      * Dispose all materials in the pool
      * Call this when cleaning up
+     * 
+     * @param force - If true, force disposal even when active materials exist (use with caution)
+     * @throws Error if activeCount > 0 and force is false
      */
-    dispose(): void {
-        // Warning if active materials exist
-        if (this.activeCount > 0) {
-            console.warn(`Disposing pool with ${this.activeCount} active materials. This may cause memory leaks.`);
-            // 不重置 activeCount，让它继续反映实际情况
+    dispose(force: boolean = false): void {
+        // Refuse to dispose if active materials exist (unless forced)
+        if (this.activeCount > 0 && !force) {
+            const errorMsg =
+                `Cannot dispose pool with ${this.activeCount} active materials. ` +
+                `Please release all materials first, or call dispose(true) to force cleanup.`;
+            console.error('[MaterialPool]', errorMsg);
+            throw new Error(errorMsg);
         }
 
-        for (const material of this.pool) {
+        // Warning if force-disposing with active materials
+        if (this.activeCount > 0 && force) {
+            console.warn(
+                `[MaterialPool] Force-disposing pool with ${this.activeCount} active materials. ` +
+                `This may cause rendering issues for materials still in use.`
+            );
+        }
+
+        // Dispose all materials owned by this pool, not just pooled ones
+        for (const material of this.ownedMaterials) {
             material.dispose();
         }
         this.pool = [];
-        // 只清理池子，保留统计信息以便调试
-        // 如果确定要完全重置，可以保持原样
+        this.pooledMaterials.clear();
+        this.ownedMaterials.clear();
+        this.activeCount = 0;
     }
-
     /**
      * Get pool statistics for debugging
      */
@@ -119,7 +145,7 @@ let globalPhotoMaterialPool: MaterialPool | null = null;
  * Initialize the global material pool
  * Should be called once with the master material
  */
-export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial): void {
+export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preWarmCount: number = 0): void {
     if (globalPhotoMaterialPool) {
         const stats = globalPhotoMaterialPool.getStats();
         if (stats.activeCount > 0) {
@@ -131,6 +157,30 @@ export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial): voi
         globalPhotoMaterialPool.dispose();
     }
     globalPhotoMaterialPool = new MaterialPool(masterMaterial);
+
+    // Pre-warm: Create materials ahead of time to avoid lag during animation
+    if (preWarmCount > 0) {
+        const dummyTexture = new THREE.Texture(); // Minimal texture for initialization
+        const preWarmed: THREE.ShaderMaterial[] = [];
+
+        console.log(`[MaterialPool] Pre-warming ${preWarmCount} materials...`);
+        const startTime = performance.now();
+
+        for (let i = 0; i < preWarmCount; i++) {
+            const mat = globalPhotoMaterialPool.acquire(dummyTexture);
+            preWarmed.push(mat);
+        }
+
+        // Release back to pool immediately so they are ready for use
+        for (const mat of preWarmed) {
+            globalPhotoMaterialPool.release(mat);
+        }
+
+        const duration = performance.now() - startTime;
+        console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms`);
+
+        dummyTexture.dispose();
+    }
 }
 
 /**

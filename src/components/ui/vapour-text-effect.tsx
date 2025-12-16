@@ -1,0 +1,1014 @@
+"use client";
+
+import React, { useRef, useEffect, useState, createElement, useMemo, useCallback, memo } from "react";
+
+export const Component = () => {
+    return (
+        <div className='bg-black h-screen w-screen flex justify-center items-center'>
+            <VaporizeTextCycle
+                texts={["21st.dev", "Is", "Cool"]}
+                font={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "70px",
+                    fontWeight: 600
+                }}
+                color="rgb(255,255, 255)"
+                spread={5}
+                density={5}
+                animation={{
+                    vaporizeDuration: 2,
+                    fadeInDuration: 1,
+                    waitDuration: 0.5
+                }}
+                direction="left-to-right"
+                alignment="center"
+                tag={Tag.H1}
+            />
+        </div>
+    )
+}
+
+export enum Tag {
+    H1 = "h1",
+    H2 = "h2",
+    H3 = "h3",
+    P = "p",
+}
+
+type VaporizeTextCycleProps = {
+    texts: string[];
+    font?: {
+        fontFamily?: string;
+        fontSize?: string;
+        fontWeight?: number;
+    };
+    color?: string;
+    spread?: number;
+    density?: number;
+    animation?: {
+        vaporizeDuration?: number;
+        fadeInDuration?: number;
+        waitDuration?: number;
+    };
+    direction?: "left-to-right" | "right-to-left";
+    entranceDirection?: "left-to-right" | "right-to-left" | "none"; // Direction for fade-in animation
+    alignment?: "left" | "center" | "right";
+    tag?: Tag;
+    manualTrigger?: boolean;
+    onComplete?: () => void;
+    loop?: boolean;
+};
+
+type Particle = {
+    x: number;
+    y: number;
+    originalX: number;
+    originalY: number;
+    color: string;
+    r: number; // Raw Red channel
+    g: number; // Raw Green channel
+    b: number; // Raw Blue channel
+    opacity: number;
+    originalAlpha: number;
+    velocityX: number;
+    velocityY: number;
+    angle: number;
+    speed: number;
+    shouldFadeQuickly?: boolean;
+};
+
+type TextBoundaries = {
+    left: number;
+    right: number;
+    width: number;
+};
+
+declare global {
+    interface HTMLCanvasElement {
+        textBoundaries?: TextBoundaries;
+    }
+}
+
+export default function VaporizeTextCycle({
+    texts = ["Next.js", "React"],
+    font = {
+        fontFamily: "sans-serif",
+        fontSize: "50px",
+        fontWeight: 400,
+    },
+    color = "rgb(255, 255, 255)",
+    spread = 5,
+    density = 5,
+    animation = {
+        vaporizeDuration: 2,
+        fadeInDuration: 1,
+        waitDuration: 0.5,
+    },
+    direction = "left-to-right",
+    entranceDirection = "left-to-right", // Default: directional fade-in from left
+    alignment = "center",
+    tag = Tag.P,
+    manualTrigger,
+    onComplete,
+    loop = true,
+}: VaporizeTextCycleProps) {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
+    const isInView = useIsInView(wrapperRef as React.RefObject<HTMLElement>);
+    const lastFontRef = useRef<string | null>(null);
+    const particlesRef = useRef<Particle[]>([]);
+    const animationFrameRef = useRef<number | null>(null);
+    const waitTimeoutRef = useRef<number | null>(null); // Track wait timeout for cleanup
+    const [currentTextIndex, setCurrentTextIndex] = useState(0);
+    // Use ref for animationState to avoid re-running animation loop effect
+    const animationStateRef = useRef<"static" | "vaporizing" | "fadingIn" | "waiting" | "completed">("static");
+    const [, forceUpdate] = useState(0); // For triggering re-renders when needed
+    const vaporizeProgressRef = useRef(0);
+    const fadeOpacityRef = useRef(0);
+    const entranceProgressRef = useRef(0); // Progress for directional entrance (0-100)
+    const [wrapperSize, setWrapperSize] = useState({ width: 0, height: 0 });
+    const transformedDensity = transformValue(density, [0, 10], [0.3, 1], true);
+    const onCompleteRef = useRef(onComplete);
+    onCompleteRef.current = onComplete;
+    const isAnimatingRef = useRef(false); // Prevent particle regeneration during animation
+
+    // Calculate device pixel ratio
+    const globalDpr = useMemo(() => {
+        if (typeof window !== "undefined") {
+            return window.devicePixelRatio * 1.5 || 1;
+        }
+        return 1;
+    }, []);
+
+    // Memoize static styles
+    const wrapperStyle = useMemo(() => ({
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none" as const,
+    }), []);
+
+    const canvasStyle = useMemo(() => ({
+        minWidth: "30px",
+        minHeight: "20px",
+        pointerEvents: "none" as const,
+    }), []);
+
+    // Memoize animation durations
+    const animationDurations = useMemo(() => ({
+        VAPORIZE_DURATION: (animation.vaporizeDuration ?? 2) * 1000,
+        FADE_IN_DURATION: (animation.fadeInDuration ?? 1) * 1000,
+        WAIT_DURATION: (animation.waitDuration ?? 0.5) * 1000,
+    }), [animation.vaporizeDuration, animation.fadeInDuration, animation.waitDuration]);
+
+    // Memoize font and spread calculations
+    const fontConfig = useMemo(() => {
+        const fontSize = parseInt(font.fontSize?.replace("px", "") || "50");
+        const VAPORIZE_SPREAD = calculateVaporizeSpread(fontSize);
+        const MULTIPLIED_VAPORIZE_SPREAD = VAPORIZE_SPREAD * spread;
+        return {
+            fontSize,
+            VAPORIZE_SPREAD,
+            MULTIPLIED_VAPORIZE_SPREAD,
+            font: `${font.fontWeight ?? 400} ${fontSize * globalDpr}px ${font.fontFamily}`,
+        };
+    }, [font.fontSize, font.fontWeight, font.fontFamily, spread, globalDpr]);
+
+    // Memoize particle update function
+    const memoizedUpdateParticles = useCallback((particles: Particle[], vaporizeX: number, deltaTime: number) => {
+        return updateParticles(
+            particles,
+            vaporizeX,
+            deltaTime,
+            fontConfig.MULTIPLIED_VAPORIZE_SPREAD,
+            animationDurations.VAPORIZE_DURATION,
+            direction,
+            transformedDensity
+        );
+    }, [fontConfig.MULTIPLIED_VAPORIZE_SPREAD, animationDurations.VAPORIZE_DURATION, direction, transformedDensity]);
+    // Memoize render function
+    const memoizedRenderParticles = useCallback((ctx: CanvasRenderingContext2D, particles: Particle[]) => {
+        const canvas = ctx.canvas;
+        renderParticles(ctx, particles, canvas.width, canvas.height);
+    }, []);
+
+    // Start animation cycle when triggered
+    useEffect(() => {
+        if (manualTrigger === true && (animationStateRef.current === "static" || animationStateRef.current === "waiting" || animationStateRef.current === "fadingIn")) {
+            // Manual trigger ON: start vaporizing (exit animation)
+            // Allow triggering from fadingIn state to ensure exit animation works even during entrance
+            vaporizeProgressRef.current = 0;
+            animationStateRef.current = "vaporizing";
+            isAnimatingRef.current = true; // Lock particle regeneration
+        } else if (manualTrigger === false && isInView && animationStateRef.current === "static") {
+            // Manual trigger OFF (controlled mode): start with entrance animation
+            const timer = setTimeout(() => {
+                fadeOpacityRef.current = 0;
+                entranceProgressRef.current = 0;
+                animationStateRef.current = "fadingIn"; // Start with entrance animation
+                isAnimatingRef.current = true;
+            }, 0);
+            return () => clearTimeout(timer);
+        } else if (manualTrigger === undefined && isInView && animationStateRef.current === "static") {
+            // Auto mode (uncontrolled): start with entrance animation
+            const timer = setTimeout(() => {
+                fadeOpacityRef.current = 0;
+                entranceProgressRef.current = 0;
+                animationStateRef.current = "fadingIn"; // Start with entrance animation
+                isAnimatingRef.current = true;
+            }, 0);
+            return () => clearTimeout(timer);
+        }
+    }, [isInView, manualTrigger]);
+
+    // Animation loop - runs continuously when in view, reads state from ref
+    useEffect(() => {
+        if (!isInView) return;
+
+        let lastTime = performance.now();
+        let frameId: number;
+
+        const animate = (currentTime: number) => {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            const canvas = canvasRef.current;
+            const ctx = canvas?.getContext("2d");
+
+            if (!canvas || !ctx || !particlesRef.current.length) {
+                frameId = requestAnimationFrame(animate);
+                return;
+            }
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Read current state from ref (avoids effect re-runs)
+            const currentAnimState = animationStateRef.current;
+
+            switch (currentAnimState) {
+                case "static": {
+                    memoizedRenderParticles(ctx, particlesRef.current);
+                    break;
+                }
+                case "vaporizing": {
+                    vaporizeProgressRef.current += deltaTime * 100 / (animationDurations.VAPORIZE_DURATION / 1000);
+
+                    const textBoundaries = canvas.textBoundaries;
+                    if (!textBoundaries) {
+                        memoizedRenderParticles(ctx, particlesRef.current);
+                        break;
+                    }
+
+                    const progress = Math.min(100, vaporizeProgressRef.current);
+                    const vaporizeX = direction === "left-to-right"
+                        ? textBoundaries.left + textBoundaries.width * progress / 100
+                        : textBoundaries.right - textBoundaries.width * progress / 100;
+
+                    const allVaporized = memoizedUpdateParticles(particlesRef.current, vaporizeX, deltaTime);
+                    memoizedRenderParticles(ctx, particlesRef.current);
+
+                    // Force completion after extra time past 100% progress
+                    const forceCompleteThreshold = 150; // 50% extra time after 100%
+                    const shouldForceComplete = vaporizeProgressRef.current >= forceCompleteThreshold;
+
+                    if ((vaporizeProgressRef.current >= 100 && allVaporized) || shouldForceComplete) {
+                        if (!loop) {
+                            animationStateRef.current = "completed";
+                            if (onCompleteRef.current) onCompleteRef.current();
+                        } else {
+                            setCurrentTextIndex(prevIndex => (prevIndex + 1) % texts.length);
+                            animationStateRef.current = "fadingIn";
+                            fadeOpacityRef.current = 0;
+                        }
+                    }
+                    break;
+                }
+                case "fadingIn": {
+                    const textBoundaries = canvas.textBoundaries;
+                    const particles = particlesRef.current;
+
+                    if (entranceDirection === "none" || !textBoundaries) {
+                        // Original behavior: uniform fade-in
+                        fadeOpacityRef.current += deltaTime * 1000 / animationDurations.FADE_IN_DURATION;
+                        const opacity = Math.min(fadeOpacityRef.current, 1);
+
+                        for (let i = 0; i < particles.length; i++) {
+                            const particle = particles[i];
+                            particle.x = particle.originalX;
+                            particle.y = particle.originalY;
+                            particle.opacity = opacity * particle.originalAlpha;
+                        }
+
+                        memoizedRenderParticles(ctx, particles);
+
+                        if (fadeOpacityRef.current >= 1) {
+                            animationStateRef.current = "waiting";
+                            if (loop) {
+                                // Clear any existing wait timeout before creating a new one
+                                if (waitTimeoutRef.current !== null) {
+                                    clearTimeout(waitTimeoutRef.current);
+                                }
+                                // Only auto-trigger vaporize in loop mode
+                                waitTimeoutRef.current = window.setTimeout(() => {
+                                    animationStateRef.current = "vaporizing";
+                                    vaporizeProgressRef.current = 0;
+                                    resetParticles(particlesRef.current);
+                                }, animationDurations.WAIT_DURATION);
+                            }
+                            // In non-loop mode with manualTrigger, wait for manualTrigger=true
+                        }
+                    } else {
+                        // Directional fade-in: particles appear progressively
+                        entranceProgressRef.current += deltaTime * 100 / (animationDurations.FADE_IN_DURATION / 1000);
+                        const progress = Math.min(100, entranceProgressRef.current);
+
+                        // Calculate the reveal position based on direction
+                        const revealX = entranceDirection === "left-to-right"
+                            ? textBoundaries.left + textBoundaries.width * progress / 100
+                            : textBoundaries.right - textBoundaries.width * progress / 100;
+
+                        for (let i = 0; i < particles.length; i++) {
+                            const particle = particles[i];
+                            particle.x = particle.originalX;
+                            particle.y = particle.originalY;
+
+                            // Determine if this particle should be visible based on position
+                            const shouldBeVisible = entranceDirection === "left-to-right"
+                                ? particle.originalX <= revealX
+                                : particle.originalX >= revealX;
+
+                            if (shouldBeVisible) {
+                                // Calculate fade based on distance from reveal edge
+                                const distanceFromEdge = entranceDirection === "left-to-right"
+                                    ? revealX - particle.originalX
+                                    : particle.originalX - revealX;
+                                const fadeZone = textBoundaries.width * 0.1; // 10% fade zone
+                                const particleFade = Math.min(1, distanceFromEdge / fadeZone);
+                                particle.opacity = particleFade * particle.originalAlpha;
+                            } else {
+                                particle.opacity = 0;
+                            }
+                        }
+
+                        memoizedRenderParticles(ctx, particles);
+
+                        if (entranceProgressRef.current >= 100) {
+                            // Ensure all particles are fully visible
+                            for (let i = 0; i < particles.length; i++) {
+                                particles[i].opacity = particles[i].originalAlpha;
+                            }
+                            entranceProgressRef.current = 0; // Reset for next cycle
+                            animationStateRef.current = "waiting";
+                            if (loop) {
+                                // Clear any existing wait timeout before creating a new one
+                                if (waitTimeoutRef.current !== null) {
+                                    clearTimeout(waitTimeoutRef.current);
+                                }
+                                // Only auto-trigger vaporize in loop mode
+                                waitTimeoutRef.current = window.setTimeout(() => {
+                                    animationStateRef.current = "vaporizing";
+                                    vaporizeProgressRef.current = 0;
+                                    resetParticles(particlesRef.current);
+                                }, animationDurations.WAIT_DURATION);
+                            }
+                            // In non-loop mode with manualTrigger, wait for manualTrigger=true
+                        }
+                    }
+                    break;
+                }
+                case "waiting": {
+                    memoizedRenderParticles(ctx, particlesRef.current);
+                    break;
+                }
+                case "completed": {
+                    // Clear canvas and stop animation loop
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    return; // Stop the animation loop
+                }
+            }
+
+            frameId = requestAnimationFrame(animate);
+        };
+
+        frameId = requestAnimationFrame(animate);
+
+        return () => {
+            if (frameId) {
+                cancelAnimationFrame(frameId);
+            }
+            // Clear wait timeout on cleanup
+            if (waitTimeoutRef.current !== null) {
+                clearTimeout(waitTimeoutRef.current);
+                waitTimeoutRef.current = null;
+            }
+        };
+    }, [
+        isInView,
+        texts.length,
+        direction,
+        globalDpr,
+        loop,
+        memoizedUpdateParticles,
+        memoizedRenderParticles,
+        animationDurations.FADE_IN_DURATION,
+        animationDurations.WAIT_DURATION,
+        animationDurations.VAPORIZE_DURATION
+    ]);
+
+    // Initialize particles - skip only during vaporizing to prevent reset
+    useEffect(() => {
+        // Only skip during vaporizing phase to prevent particle reset mid-animation
+        if (animationStateRef.current === "vaporizing") return;
+
+        renderCanvas({
+            framerProps: {
+                texts,
+                font,
+                color,
+                alignment,
+            },
+            canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
+            wrapperSize,
+            particlesRef,
+            globalDpr,
+            currentTextIndex,
+            transformedDensity,
+        });
+
+        const currentFont = font.fontFamily || "sans-serif";
+        return handleFontChange({
+            currentFont,
+            lastFontRef,
+            canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
+            wrapperSize,
+            particlesRef,
+            globalDpr,
+            currentTextIndex,
+            transformedDensity,
+            framerProps: {
+                texts,
+                font,
+                color,
+                alignment,
+            },
+        });
+    }, [texts, font, color, alignment, wrapperSize, currentTextIndex, globalDpr, transformedDensity]);
+
+    // Handle resize - only when NOT animating
+    useEffect(() => {
+        const container = wrapperRef.current;
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver(entries => {
+            // Only skip during vaporizing phase to prevent particle reset mid-animation
+            if (animationStateRef.current === "vaporizing") return;
+
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                setWrapperSize({ width, height });
+            }
+
+            renderCanvas({
+                framerProps: {
+                    texts,
+                    font,
+                    color,
+                    alignment,
+                },
+                canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
+                wrapperSize: { width: container.clientWidth, height: container.clientHeight },
+                particlesRef,
+                globalDpr,
+                currentTextIndex,
+                transformedDensity,
+            });
+        });
+
+        resizeObserver.observe(container);
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    // Initial size detection
+    useEffect(() => {
+        if (wrapperRef.current) {
+            const rect = wrapperRef.current.getBoundingClientRect();
+            setWrapperSize({
+                width: rect.width,
+                height: rect.height,
+            });
+        }
+    }, []);
+
+    return (
+        <div ref={wrapperRef} style={wrapperStyle}>
+            <canvas ref={canvasRef} style={canvasStyle} />
+            <SeoElement tag={tag} texts={texts} />
+        </div>
+    );
+}
+
+// ------------------------------------------------------------ //
+// SEO ELEMENT
+// ------------------------------------------------------------ //
+const SeoElement = memo(({ tag = Tag.P, texts }: { tag: Tag, texts: string[] }) => {
+    const style = useMemo(() => ({
+        position: "absolute" as const,
+        width: "0",
+        height: "0",
+        overflow: "hidden",
+        userSelect: "none" as const,
+        pointerEvents: "none" as const,
+    }), []);
+
+    // Ensure tag is a valid HTML element string
+    const safeTag = Object.values(Tag).includes(tag) ? tag : "p";
+
+    return createElement(safeTag, { style }, texts?.join(" ") ?? "");
+});
+
+// ------------------------------------------------------------ //
+// FONT HANDLING
+// ------------------------------------------------------------ //
+const handleFontChange = ({
+    currentFont,
+    lastFontRef,
+    canvasRef,
+    wrapperSize,
+    particlesRef,
+    globalDpr,
+    currentTextIndex,
+    transformedDensity,
+    framerProps,
+}: {
+    currentFont: string;
+    lastFontRef: React.MutableRefObject<string | null>;
+    canvasRef: React.RefObject<HTMLCanvasElement>;
+    wrapperSize: { width: number; height: number };
+    particlesRef: React.MutableRefObject<Particle[]>;
+    globalDpr: number;
+    currentTextIndex: number;
+    transformedDensity: number;
+    framerProps: VaporizeTextCycleProps;
+}) => {
+    if (currentFont !== lastFontRef.current) {
+        lastFontRef.current = currentFont;
+
+        // Re-render after 1 second to catch the loaded font
+        const timeoutId = setTimeout(() => {
+            cleanup({ canvasRef, particlesRef }); // Clean up before re-rendering
+            renderCanvas({
+                framerProps,
+                canvasRef,
+                wrapperSize,
+                particlesRef,
+                globalDpr,
+                currentTextIndex,
+                transformedDensity,
+            });
+        }, 1000);
+
+        return () => {
+            clearTimeout(timeoutId);
+            cleanup({ canvasRef, particlesRef });
+        };
+    }
+
+    return undefined;
+};
+
+// ------------------------------------------------------------ //
+// CLEANUP
+// ------------------------------------------------------------ //
+const cleanup = ({ canvasRef, particlesRef }: { canvasRef: React.RefObject<HTMLCanvasElement>; particlesRef: React.MutableRefObject<Particle[]> }) => {
+    // Clear canvas
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+
+    if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Clear particles
+    if (particlesRef.current) {
+        particlesRef.current = [];
+    }
+};
+
+// ------------------------------------------------------------ //
+// RENDER CANVAS
+// ------------------------------------------------------------ //
+const renderCanvas = ({
+    framerProps,
+    canvasRef,
+    wrapperSize,
+    particlesRef,
+    globalDpr,
+    currentTextIndex,
+    transformedDensity,
+}: {
+    framerProps: VaporizeTextCycleProps;
+    canvasRef: React.RefObject<HTMLCanvasElement>;
+    wrapperSize: { width: number; height: number };
+    particlesRef: React.MutableRefObject<Particle[]>;
+    globalDpr: number;
+    currentTextIndex: number;
+    transformedDensity: number;
+}) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !wrapperSize.width || !wrapperSize.height) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const { width, height } = wrapperSize;
+
+    // Scale for retina/high DPI displays
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = Math.floor(width * globalDpr);
+    canvas.height = Math.floor(height * globalDpr);
+
+    // Parse font size
+    const fontSize = parseInt(framerProps.font?.fontSize?.replace("px", "") || "50");
+    const font = `${framerProps.font?.fontWeight ?? 400} ${fontSize * globalDpr}px ${framerProps.font?.fontFamily ?? "sans-serif"}`;
+    const color = parseColor(framerProps.color ?? "rgb(153, 153, 153)");
+
+    // Calculate text position
+    let textX;
+    const textY = canvas.height / 2;
+    const currentText = framerProps.texts[currentTextIndex] || "Next.js";
+
+    if (framerProps.alignment === "center") {
+        textX = canvas.width / 2;
+    } else if (framerProps.alignment === "left") {
+        textX = 0;
+    } else {
+        textX = canvas.width;
+    }
+
+    // ------------------------------------------------------------ //
+    // PARTICLE SYSTEM
+    // ------------------------------------------------------------ //
+    const createParticles = (
+        ctx: CanvasRenderingContext2D,
+        canvas: HTMLCanvasElement,
+        text: string,
+        textX: number,
+        textY: number,
+        font: string,
+        color: string,
+        alignment: "left" | "center" | "right"
+    ) => {
+        const particles: Particle[] = [];
+
+        // Clear any previous content
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Set text properties for sampling
+        ctx.fillStyle = color;
+        ctx.font = font;
+        ctx.textAlign = alignment;
+        ctx.textBaseline = "middle";
+        ctx.imageSmoothingQuality = "high";
+        ctx.imageSmoothingEnabled = true;
+
+        if ('fontKerning' in ctx) {
+            (ctx as any).fontKerning = "normal";
+        }
+
+        if ('textRendering' in ctx) {
+            (ctx as any).textRendering = "geometricPrecision";
+        }
+
+        // Calculate text boundaries
+        const metrics = ctx.measureText(text);
+        let textLeft;
+        const textWidth = metrics.width;
+
+        if (alignment === "center") {
+            textLeft = textX - textWidth / 2;
+        } else if (alignment === "left") {
+            textLeft = textX;
+        } else {
+            textLeft = textX - textWidth;
+        }
+
+        const textBoundaries = {
+            left: textLeft,
+            right: textLeft + textWidth,
+            width: textWidth,
+        };
+
+        // Render the text for sampling
+        ctx.fillText(text, textX, textY);
+
+        // Sample the rendered text
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Calculate sampling rate based on DPR and density to maintain consistent particle density
+        // Calculate sampling rate based on DPR and density to maintain consistent particle density
+        // Optimized: Increased baseDPR to significantly reduce particle count on high-res screens
+        const baseDPR = 1.5; // Lower base for coarser sampling, drastically improving performance
+
+        const currentDPR = canvas.width / parseInt(canvas.style.width);
+        const baseSampleRate = Math.max(1, Math.round(currentDPR / baseDPR));
+        const sampleRate = Math.max(1, Math.round(baseSampleRate)); // Adjust sample rate by density
+
+        // Sample the text pixels and create particles
+        for (let y = 0; y < canvas.height; y += sampleRate) {
+            for (let x = 0; x < canvas.width; x += sampleRate) {
+                const index = (y * canvas.width + x) * 4;
+                const alpha = data[index + 3];
+
+                if (alpha > 0) {
+                    // Remove density from opacity calculation
+                    const originalAlpha = alpha / 255 * (sampleRate / currentDPR);
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+
+                    const particle: Particle = {
+                        x,
+                        y,
+                        originalX: x,
+                        originalY: y,
+                        color: `rgba(${r}, ${g}, ${b}, ${originalAlpha})`,
+                        r, // Store raw RGB values for performance
+                        g,
+                        b,
+                        opacity: originalAlpha,
+                        originalAlpha,
+                        // Animation properties
+                        velocityX: 0,
+                        velocityY: 0,
+                        angle: 0,
+                        speed: 0,
+                    };
+
+                    particles.push(particle);
+                }
+            }
+        }
+
+        // Clear the canvas after sampling
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        return { particles, textBoundaries };
+    };
+
+    // Call createParticles and store the results
+    const { particles, textBoundaries } = createParticles(
+        ctx,
+        canvas,
+        currentText,
+        textX,
+        textY,
+        font,
+        color,
+        framerProps.alignment ?? "center"
+    );
+
+    // Store particles and text boundaries for animation
+    particlesRef.current = particles;
+    canvas.textBoundaries = textBoundaries;
+};
+
+// Helper functions for particle animation
+const updateParticles = (
+    particles: Particle[],
+    vaporizeX: number,
+    deltaTime: number,
+    MULTIPLIED_VAPORIZE_SPREAD: number,
+    VAPORIZE_DURATION: number,
+    direction: string,
+    density: number
+) => {
+    let allParticlesVaporized = true;
+
+    // Optimization: Use for loop instead of forEach for hot path
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+
+        // Only animate particles that have been "vaporized"
+        const shouldVaporize = direction === "left-to-right"
+            ? particle.originalX <= vaporizeX
+            : particle.originalX >= vaporizeX;
+
+        if (shouldVaporize) {
+            // When a particle is first vaporized, determine if it should fade quickly based on density
+            if (particle.speed === 0) {
+                // Initialize particle motion when first vaporized
+                particle.angle = Math.random() * Math.PI * 2;
+                particle.speed = (Math.random() * 1 + 0.5) * MULTIPLIED_VAPORIZE_SPREAD;
+                particle.velocityX = Math.cos(particle.angle) * particle.speed;
+                particle.velocityY = Math.sin(particle.angle) * particle.speed;
+
+                // Determine if particle should fade quickly based on density
+                particle.shouldFadeQuickly = Math.random() > density;
+            }
+
+            if (particle.shouldFadeQuickly) {
+                // Quick fade out for particles marked to fade quickly
+                particle.opacity = Math.max(0, particle.opacity - deltaTime);
+            } else {
+                // Apply normal particle physics and animation
+                // Apply damping based on distance from original position
+                const dx = particle.originalX - particle.x;
+                const dy = particle.originalY - particle.y;
+                const distanceFromOrigin = Math.sqrt(dx * dx + dy * dy);
+
+                // Damping factor increases with distance, creating a more natural motion
+                const dampingFactor = Math.max(0.95, 1 - distanceFromOrigin / (100 * MULTIPLIED_VAPORIZE_SPREAD));
+
+                // Add slight random motion to create a more organic feel
+                const randomSpread = MULTIPLIED_VAPORIZE_SPREAD * 3;
+                const spreadX = (Math.random() - 0.5) * randomSpread;
+                const spreadY = (Math.random() - 0.5) * randomSpread;
+
+                // Update velocities with damping and random motion
+                particle.velocityX = (particle.velocityX + spreadX + dx * 0.002) * dampingFactor;
+                particle.velocityY = (particle.velocityY + spreadY + dy * 0.002) * dampingFactor;
+
+                // Limit maximum velocity
+                const maxVelocity = MULTIPLIED_VAPORIZE_SPREAD * 2;
+                const currentVelocity = Math.sqrt(particle.velocityX * particle.velocityX + particle.velocityY * particle.velocityY);
+
+                if (currentVelocity > maxVelocity) {
+                    const scale = maxVelocity / currentVelocity;
+                    particle.velocityX *= scale;
+                    particle.velocityY *= scale;
+                }
+
+                // Update position
+                particle.x += particle.velocityX * deltaTime * 20;
+                particle.y += particle.velocityY * deltaTime * 10;
+
+                // Calculate fade rate based on vaporize duration
+                const baseFadeRate = 0.25;
+                const durationBasedFadeRate = baseFadeRate * (2000 / VAPORIZE_DURATION);
+
+                // Slower fade out for more persistence, scaled by duration
+                particle.opacity = Math.max(0, particle.opacity - deltaTime * durationBasedFadeRate);
+            }
+
+            // Check if this particle is still visible
+            if (particle.opacity > 0.01) {
+                allParticlesVaporized = false;
+            }
+        } else {
+            // If there are any particles not yet reached by the vaporize wave
+            allParticlesVaporized = false;
+        }
+    }
+
+    return allParticlesVaporized;
+};
+
+const renderParticles = (ctx: CanvasRenderingContext2D, particles: Particle[], width: number, height: number) => {
+    // Optimization: Direct pixel manipulation (ImageData)
+    // This is 10-100x faster than fillRect for thousands of 1x1 particles
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
+
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+        const opacity = particle.opacity;
+
+        if (opacity > 0) {
+            const x = Math.floor(particle.x);
+            const y = Math.floor(particle.y);
+
+            // Bounds check
+            if (x >= 0 && x < width && y >= 0 && y < height) {
+                const index = (y * width + x) * 4;
+                data[index] = particle.r;
+                data[index + 1] = particle.g;
+                data[index + 2] = particle.b;
+                data[index + 3] = Math.floor(opacity * 255);
+            }
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+};
+
+const resetParticles = (particles: Particle[]) => {
+    for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+        particle.x = particle.originalX;
+        particle.y = particle.originalY;
+        particle.opacity = particle.originalAlpha;
+        particle.speed = 0;
+        particle.velocityX = 0;
+        particle.velocityY = 0;
+    }
+};
+
+// ------------------------------------------------------------ //
+// CALCULATE VAPORIZE SPREAD
+// ------------------------------------------------------------ //
+const calculateVaporizeSpread = (fontSize: number) => {
+    // Convert font size string to number if needed
+    const size = typeof fontSize === "string" ? parseInt(fontSize) : fontSize;
+
+    // Define our known points for interpolation
+    const points = [
+        { size: 20, spread: 0.2 },
+        { size: 50, spread: 0.5 },
+        { size: 100, spread: 1.5 }
+    ];
+
+    // Handle edge cases
+    if (size <= points[0].size) return points[0].spread;
+    if (size >= points[points.length - 1].size) return points[points.length - 1].spread;
+
+    // Find the two points to interpolate between
+    let i = 0;
+    while (i < points.length - 1 && points[i + 1].size < size) i++;
+
+    // Linear interpolation between the two closest points
+    const p1 = points[i];
+    const p2 = points[i + 1];
+
+    return p1.spread + (size - p1.size) * (p2.spread - p1.spread) / (p2.size - p1.size);
+};
+
+// ------------------------------------------------------------ //
+// PARSE COLOR
+/**
+ * Extracts RGB/RGBA values from a color string format
+ * @param color - Color string in rgb() or rgba() format ONLY
+ *                (e.g. "rgb(12, 250, 163)" or "rgba(12, 250, 163, 0.5)")
+ *                Note: Hex colors (#FFF), named colors (white), and HSL are NOT supported
+ * @returns Valid RGBA color string
+ */
+const parseColor = (color: string) => {
+    // Try to match rgb/rgba pattern
+    const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    const rgbaMatch = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+
+    if (rgbaMatch) {
+        // If RGBA format
+        const [_, r, g, b, a] = rgbaMatch;
+        return `rgba(${r}, ${g}, ${b}, ${a})`;
+    } else if (rgbMatch) {
+        // If RGB format
+        const [_, r, g, b] = rgbMatch;
+        return `rgba(${r}, ${g}, ${b}, 1)`;
+    }
+
+    // Fallback to black if parsing fails
+    if (process.env.NODE_ENV === 'development') {
+        console.warn("Could not parse color:", color);
+    }
+    return "rgba(0, 0, 0, 1)";
+};
+/**
+ * Maps a value from one range to another, optionally clamping the result.
+ */
+function transformValue(input: number, inputRange: number[], outputRange: number[], clamp = false): number {
+    const [inputMin, inputMax] = inputRange;
+    const [outputMin, outputMax] = outputRange;
+
+    const progress = (input - inputMin) / (inputMax - inputMin);
+    let result = outputMin + progress * (outputMax - outputMin);
+
+    if (clamp) {
+        if (outputMax > outputMin) {
+            result = Math.min(Math.max(result, outputMin), outputMax);
+        } else {
+            result = Math.min(Math.max(result, outputMax), outputMin);
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Custom hook to check if an element is in the viewport
+ */
+function useIsInView(ref: React.RefObject<HTMLElement>) {
+    const [isInView, setIsInView] = useState(false);
+
+    useEffect(() => {
+        if (!ref.current) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsInView(entry.isIntersecting);
+            },
+            { threshold: 0, rootMargin: '50px' }
+        );
+
+        observer.observe(ref.current);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [ref]);
+
+    return isInView;
+}

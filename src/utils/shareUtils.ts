@@ -4,6 +4,7 @@ export interface ShareableState {
     p: string[]; // photo urls
     c: string;   // tree color
     cfg: Partial<AppConfig>; // config
+    a?: string;  // audio id (optional)
 }
 
 /**
@@ -12,7 +13,8 @@ export interface ShareableState {
 export const encodeState = (
     photos: PhotoData[],
     treeColor: string,
-    config: AppConfig
+    config: AppConfig,
+    selectedAudioId?: string
 ): string => {
     const state: ShareableState = {
         p: photos.map(photo => photo.url),
@@ -25,10 +27,17 @@ export const encodeState = (
         }
     };
 
+    // Add audio ID if specified
+    if (selectedAudioId) {
+        state.a = selectedAudioId;
+    }
+
     try {
         const json = JSON.stringify(state);
-        const base64 = btoa(encodeURIComponent(json));
-        // 转换为 URL 安全格式：+ 换成 -，/ 换成 _，删除 =
+        const encoder = new TextEncoder();
+        const uint8Array = encoder.encode(json);
+        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+        const base64 = btoa(binaryString);        // 转换为 URL 安全格式：+ 换成 -，/ 换成 _，删除 =
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     } catch (e) {
         console.error("Failed to encode state", e);
@@ -53,7 +62,9 @@ export const decodeState = (encoded: string): ShareableState | null => {
 
         // Decode Base64 to percent-encoded string (to handle UTF-8 correctly)
         const binaryString = atob(base64);
-        const json = decodeURIComponent(binaryString);
+        const bytes = new Uint8Array([...binaryString].map(char => char.charCodeAt(0)));
+        const decoder = new TextDecoder();
+        const json = decoder.decode(bytes);
 
         const data = JSON.parse(json);
 
@@ -64,14 +75,17 @@ export const decodeState = (encoded: string): ShareableState | null => {
         }
 
         // Validate 'p' (photos) is REQUIRED and must be an array of strings
-        if (!data.p || !Array.isArray(data.p) || data.p.some((item: any) => typeof item !== 'string')) {
+        if (!data.p || !Array.isArray(data.p) || data.p.some((item: any) => {
+            return typeof item !== 'string' ||
+                !(item.startsWith('https://') || item.startsWith('http://'));
+        })) {
             console.warn("Invalid share state: 'p' is missing or invalid (must be string[])");
             return null;
         }
 
-        // Validate 'c' (color) is REQUIRED and must be a string
-        if (!data.c || typeof data.c !== 'string') {
-            console.warn("Invalid share state: 'c' is missing or invalid (must be string)");
+        // Validate 'c' (color) is REQUIRED and must be a string matching hex color format
+        if (data.c === undefined || data.c === null || typeof data.c !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(data.c)) {
+            console.warn("Invalid share state: 'c' is missing or invalid (must be hex color string)");
             return null;
         }
 

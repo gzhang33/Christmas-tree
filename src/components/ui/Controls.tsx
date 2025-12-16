@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Volume2, VolumeX, Palette, Share2, Check } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
-import { TREE_COLOR_PRESETS } from '../../config/colors';
+import { COLOR_CONFIG } from '../../config/colors';
+import { INTERACTION_CONFIG } from '../../config';
+import { AUDIO_CONFIG } from '../../config/audio';
+import { MusicSelect } from './MusicSelect';
 
 interface ControlsProps {
     uiState: UIState; // Keeping for backward compatibility during migration, but will prefer store
@@ -17,8 +20,12 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const treeColor = useStore((state) => state.treeColor);
     const particleCount = useStore((state) => state.particleCount);
     const isExploded = useStore((state) => state.isExploded);
+    const magicDustColor = useStore((state) => state.magicDustColor);
+    const selectedAudioId = useStore((state) => state.selectedAudioId);
     const setTreeColor = useStore((state) => state.setTreeColor);
     const setParticleCount = useStore((state) => state.setParticleCount);
+    const setMagicDustColor = useStore((state) => state.setMagicDustColor);
+    const setSelectedAudioId = useStore((state) => state.setSelectedAudioId);
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
 
@@ -37,7 +44,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                 // Perform update only after user stops sliding
                 setParticleCount(localParticleCount);
             }
-        }, 500); // Increased debounce for heavy operations
+        }, INTERACTION_CONFIG.controls.debounce.particleCountDelay); // Debounce delay from config
         return () => clearTimeout(timer);
     }, [localParticleCount, setParticleCount, particleCount]);
 
@@ -47,11 +54,13 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     // Upload state
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [failedUploads, setFailedUploads] = useState<string[]>([]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             setIsUploading(true);
             setUploadProgress(0);
+            setFailedUploads([]); // Reset previous errors
 
             try {
                 // Dynamically import utility to avoid bundling if not used
@@ -59,48 +68,75 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                 const files = Array.from(e.target.files);
                 const uploadedUrls: string[] = [];
+                const currentFailedFiles: string[] = [];
                 const totalFiles = files.length;
 
                 const progressMap = new Map<number, number>();
                 // Process files sequentially or parallel (parallel for speed)
                 // We'll map file objects to simple { id, url } format expected by addPhotos
-                await Promise.all(files.map(async (file, index) => {
-                    try {
-                        const url = await uploadToCloudinary(file, (percent) => {
-                            progressMap.set(index, percent);
+                // Batch upload, max 8 files per batch
+                const batchSize = INTERACTION_CONFIG.controls.upload.batchSize;
+                for (let i = 0; i < files.length; i += batchSize) {
+                    const batch = files.slice(i, i + batchSize);
+                    await Promise.all(batch.map(async (file, batchIndex) => {
+                        const index = i + batchIndex;
+                        try {
+                            const url = await uploadToCloudinary(file, (percent) => {
+                                progressMap.set(index, percent);
+                                const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
+                                setUploadProgress(Math.round(total / totalFiles));
+                            });
+                            uploadedUrls.push(url);
+                        } catch (err) {
+                            console.error(`Failed to upload ${file.name}:`, err);
+                            currentFailedFiles.push(file.name);
+                            // Fallback to local Data URL if cloud upload fails
+                            const dataUrl = await new Promise<string>((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target?.result as string);
+                                reader.onerror = () => resolve(''); // 考虑是否应该 reject 而不是返回空字符串
+                                reader.readAsDataURL(file);
+                            });
+                            if (dataUrl) {
+                                uploadedUrls.push(dataUrl);
+                            }
+                            // Update progress for failed file to ensure total reaches 100%
+                            progressMap.set(index, 100);
                             const total = Array.from(progressMap.values()).reduce((a, b) => a + b, 0);
                             setUploadProgress(Math.round(total / totalFiles));
-                        });
-                        uploadedUrls.push(url);
-                    } catch (err) {
-                        console.error(`Failed to upload ${file.name}:`, err);
-                        // Fallback to local Data URL if cloud upload fails
-                        const dataUrl = await new Promise<string>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = (e) => resolve(e.target?.result as string);
-                            reader.readAsDataURL(file);
-                        });
-                        uploadedUrls.push(dataUrl);
-                    }
-                }));
+                        }
+                    }));
+                }
+
+                if (currentFailedFiles.length > 0) {
+                    setFailedUploads(currentFailedFiles);
+                }
 
                 // Add all successfully processed URLs (cloud or fallback)
-                // Pass arrays of strings (URLs) to addPhotos
                 if (uploadedUrls.length > 0) {
                     addPhotos(uploadedUrls);
                 }
 
-            } catch (error) {
-                console.error("Upload error", error);
 
-                // Fallback: Just pass the files directly if something completely crashed before processing
-                // Note: FileList is iterable, but safe to just pass e.target.files if needed
-                if (e.target.files) {
-                    addPhotos(Array.from(e.target.files).map(f => URL.createObjectURL(f)));
-                }
+            } catch (error) {
+                // Fallback: Use Data URL if cloud upload completely fails
+                const fallbackUrls = await Promise.all(
+                    Array.from(e.target.files).map(file =>
+                        new Promise<string>((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target?.result as string);
+                            reader.onerror = () => resolve(''); // 失败时返回空字符串
+                            reader.readAsDataURL(file);
+                        })
+                    )
+                );
+                addPhotos(fallbackUrls.filter(url => url !== ''));
+                setFailedUploads(Array.from(e.target.files).map(f => f.name));
             } finally {
                 setIsUploading(false);
                 setUploadProgress(0);
+                // Clear file input so same file can be selected again if needed
+                e.target.value = '';
             }
         }
     };
@@ -113,6 +149,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
         }
     };
 
+
+
     return (
         <AnimatePresence>
             {!isExploded && (
@@ -120,7 +158,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-10 p-4 sm:p-6 gap-4"
+                    className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-50 p-4 sm:p-6 gap-4"
                 >
                     {/* Toggle Button with pulse animation */}
                     <motion.button
@@ -135,7 +173,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 '0 0 15px rgba(128,90,213,0.4)'
                             ]
                         } : {}}
-                        transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+                        transition={{ repeat: Infinity, duration: INTERACTION_CONFIG.controls.animation.buttonPulseDuration, ease: 'easeInOut' }}
                     >
                         {isOpen ? <X size={24} /> : <Settings size={24} />}
                     </motion.button>
@@ -149,7 +187,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             y: isOpen ? 0 : 10,
                             pointerEvents: isOpen ? 'auto' : 'none',
                         }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        transition={{ duration: INTERACTION_CONFIG.controls.animation.panelTransitionDuration, ease: 'easeOut' }}
                         className="relative rounded-3xl border border-electric-purple/30 bg-deep-gray-blue/90 backdrop-blur-2xl p-6 w-[min(320px,85vw)] text-white shadow-[0_25px_70px_rgba(0,0,0,0.65)] overflow-y-auto max-h-[90vh]"
                     >
                         {/* Decorative Elements */}
@@ -176,16 +214,7 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                         {isExploded ? 'Rebuild' : 'Reveal'}
                                     </button>
 
-                                    <button
-                                        onClick={toggleMute}
-                                        className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isMuted
-                                            ? 'border-neon-pink/50 text-neon-pink bg-neon-pink/10'
-                                            : 'border-white/20 text-white hover:bg-white/10'}`}
-                                        title={isMuted ? "Unmute" : "Mute"}
-                                        aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-                                    >
-                                        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                    </button>
+
 
                                     <button
                                         onClick={() => {
@@ -193,15 +222,21 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                             const hasLocalPhotos = photos.some(p => p.url.startsWith('data:'));
 
                                             if (hasLocalPhotos) {
-                                                alert("NOTICE: Some photos are stored locally (Data URL) because cloud upload failed or is not configured.\n\nSharing might not work for others as the link will be too long or invalid.\n\nPlease configure Cloudinary for permanent, shareable links.");
+                                                alert("提示：部分照片保存在本地，分享链接可能无法被其他人打开。\n\n建议重新上传照片以获得永久分享链接。");
                                             }
 
                                             const url = uiState.generateShareUrl();
-                                            navigator.clipboard.writeText(url);
-                                            setIsCopied(true);
-                                            setTimeout(() => setIsCopied(false), 2000);
+                                            navigator.clipboard.writeText(url)
+                                                .then(() => {
+                                                    setIsCopied(true);
+                                                    setTimeout(() => setIsCopied(false), INTERACTION_CONFIG.controls.toast.copySuccessDuration);
+                                                })
+                                                .catch((err) => {
+                                                    console.error('Failed to copy:', err);
+                                                    alert('链接复制失败，请手动复制');
+                                                });
                                         }}
-                                        className={`p-3 rounded-xl border transition-all duration-300 shadow-lg ${isCopied
+                                        className={`p-2 rounded-full border transition-all duration-300 ${isCopied
                                             ? 'border-green-500 text-green-500 bg-green-500/10'
                                             : 'border-white/20 text-white hover:bg-electric-purple/20 hover:border-electric-purple'}`}
                                         title={isCopied ? "Copied!" : "Share Memory"}
@@ -240,15 +275,15 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 <div className="space-y-3">
                                     <label className="text-sm text-white/60 flex justify-between items-center">
                                         <span>Tree Color</span>
-                                        <span className="text-xs font-mono font-bold text-electric-purple">{treeColor}</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{treeColor.substring(0, 7)}</span>
                                     </label>
                                     <div className="flex flex-wrap gap-3">
-                                        {TREE_COLOR_PRESETS.map(({ hex, name }) => (
+                                        {COLOR_CONFIG.tree.presets.map(({ hex, name }) => (
                                             <button
                                                 key={hex}
                                                 onClick={() => setTreeColor(hex)}
                                                 aria-label={`Select color ${name}`}
-                                                className={`w-8 h-8 rounded-full border-2 transition-all ${treeColor === hex
+                                                className={`w-8 h-8 rounded-full border-2 transition-all ${treeColor.toLowerCase().startsWith(hex.toLowerCase())
                                                     ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                     : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`}
                                                 style={{ backgroundColor: hex }}
@@ -262,7 +297,42 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                                 aria-label="Custom color picker"
                                             />
-                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!TREE_COLOR_PRESETS.some(c => c.hex === treeColor)
+                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!COLOR_CONFIG.tree.presets.some(c => treeColor.toLowerCase().startsWith(c.hex.toLowerCase()))
+                                                ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
+                                                : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
+                                                <Palette size={20} className="text-white" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Magic Dust Color */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center">
+                                        <span>Magic Dust Color</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{magicDustColor.substring(0, 7)}</span>
+                                    </label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {COLOR_CONFIG.magicDust.presets.map(({ hex, name }) => (
+                                            <button
+                                                key={hex}
+                                                onClick={() => setMagicDustColor(hex)}
+                                                aria-label={`Select magic dust color ${name}`}
+                                                className={`w-8 h-8 rounded-full border-2 transition-all ${magicDustColor.toLowerCase().startsWith(hex.toLowerCase())
+                                                    ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
+                                                    : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'}`}
+                                                style={{ backgroundColor: hex }}
+                                            />
+                                        ))}
+                                        <div className="relative group">
+                                            <input
+                                                type="color"
+                                                value={magicDustColor}
+                                                onChange={(e) => setMagicDustColor(e.target.value)}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                                aria-label="Custom magic dust color picker"
+                                            />
+                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center bg-white/10 transition-all ${!COLOR_CONFIG.magicDust.presets.some(c => magicDustColor.toLowerCase().startsWith(c.hex.toLowerCase()))
                                                 ? 'border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110'
                                                 : 'border-transparent opacity-70 group-hover:opacity-100'}`}>
                                                 <Palette size={20} className="text-white" />
@@ -279,9 +349,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="5000"
-                                        max="50000"
-                                        step="2500"
+                                        min={INTERACTION_CONFIG.controls.ranges.particleCount.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.particleCount.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.particleCount.step.toString()}
                                         value={localParticleCount}
                                         onChange={(e) => {
                                             const val = parseInt(e.target.value);
@@ -300,9 +370,9 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="0"
-                                        max="5"
-                                        step="0.1"
+                                        min={INTERACTION_CONFIG.controls.ranges.rotationSpeed.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.rotationSpeed.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.rotationSpeed.step.toString()}
                                         value={uiState.config.rotationSpeed}
                                         onChange={(e) => updateConfig('rotationSpeed', parseFloat(e.target.value))}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
@@ -318,13 +388,28 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                     </label>
                                     <input
                                         type="range"
-                                        min="0.5"
-                                        max="3"
-                                        step="0.1"
+                                        min={INTERACTION_CONFIG.controls.ranges.photoSize.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.photoSize.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.photoSize.step.toString()}
                                         value={uiState.config.photoSize}
                                         onChange={(e) => updateConfig('photoSize', parseFloat(e.target.value))}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
                                         aria-label="Adjust photo scale"
+                                    />
+                                </div>
+
+                                {/* Background Music */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center mb-1">
+                                        <span className="flex items-center gap-2">
+                                            <Music size={16} className="text-teal-accent" />
+                                            Background Music
+                                        </span>
+                                    </label>
+                                    <MusicSelect
+                                        options={AUDIO_CONFIG.options}
+                                        value={selectedAudioId}
+                                        onChange={setSelectedAudioId}
                                     />
                                 </div>
                             </div>
@@ -339,12 +424,14 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                 </div>
 
                                 <label className="cursor-pointer border border-dashed border-electric-purple/40 bg-deep-gray-blue/50 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all group hover:border-neon-pink hover:bg-deep-gray-blue hover:shadow-[0_0_20px_rgba(213,63,140,0.2)] relative overflow-hidden">
-                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[radial-gradient(circle,_rgba(213,63,140,0.4)_0%,_transparent_70%)] transition-opacity" aria-hidden />
-                                    <Upload className="text-electric-purple group-hover:text-neon-pink transition-colors relative z-10" />
-                                    <span className="text-xs text-white/80 group-hover:text-white text-center uppercase tracking-[0.2em] relative z-10 font-semibold">
-                                        Upload Photos
-                                    </span>
-                                    <p className="text-[0.65rem] text-white/50 text-center relative z-10">Support multiple files</p>
+                                    <div className={`flex flex-col items-center justify-center gap-3 w-full transition-all duration-300 ${isUploading ? 'opacity-0' : 'opacity-100'}`}>
+                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[radial-gradient(circle,_rgba(213,63,140,0.4)_0%,_transparent_70%)] transition-opacity" aria-hidden />
+                                        <Upload className="text-electric-purple group-hover:text-neon-pink transition-colors relative z-10" />
+                                        <span className="text-xs text-white/80 group-hover:text-white text-center uppercase tracking-[0.2em] relative z-10 font-semibold">
+                                            Upload Photos
+                                        </span>
+                                        <p className="text-[0.65rem] text-white/50 text-center relative z-10">Support multiple files</p>
+                                    </div>
                                     <input
                                         type="file"
                                         multiple
@@ -357,14 +444,62 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
 
                                     {/* Loading Overlay */}
                                     {isUploading && (
-                                        <div className="absolute inset-0 bg-deep-gray-blue/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300">
-                                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-neon-pink animate-spin mb-2" />
-                                            <span className="text-[0.6rem] font-mono text-neon-pink animate-pulse">
+                                        <div
+                                            className="absolute inset-0 bg-deep-gray-blue/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center animate-in fade-in duration-300"
+                                            role="status"
+                                            aria-live="polite"
+                                            aria-label={`正在上传，${uploadProgress}%`}
+                                        >
+                                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-neon-pink animate-spin mb-2" aria-hidden="true" />
+                                            <span className="text-[0.6rem] font-mono text-neon-pink animate-pulse" aria-hidden="true">
                                                 UPLOADING {uploadProgress}%
                                             </span>
                                         </div>
                                     )}
                                 </label>
+
+
+
+                                {/* Error Notification */}
+                                <AnimatePresence>
+                                    {failedUploads.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10, height: 0 }}
+                                            animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                            exit={{ opacity: 0, y: -10, height: 0 }}
+                                            className="bg-red-500/10 border border-red-500/50 rounded-xl p-3 relative overflow-hidden"
+                                            role="alert"
+                                            aria-live="assertive"
+                                        >
+                                            <div className="flex gap-3">
+                                                <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={16} />
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-xs font-bold text-red-200 uppercase tracking-wider mb-1">
+                                                        Upload Warning
+                                                    </h4>
+                                                    <p className="text-[0.65rem] text-red-100/80 mb-2 leading-relaxed">
+                                                        {failedUploads.length} file{failedUploads.length > 1 ? 's' : ''} failed to upload to cloud (saved locally). Sharing via URL may not work for these images.
+                                                    </p>
+                                                    <div className="max-h-20 overflow-y-auto custom-scrollbar-thin bg-black/20 rounded p-2 mb-2">
+                                                        <ul className="list-disc list-inside space-y-1">
+                                                            {failedUploads.map((name, i) => (
+                                                                <li key={i} className="text-[0.6rem] text-red-200/70 truncate" title={name}>
+                                                                    {name}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setFailedUploads([])}
+                                                        className="text-[0.65rem] bg-red-500/20 hover:bg-red-500/30 text-red-200 px-3 py-1 rounded transition-colors w-full uppercase tracking-wider font-semibold"
+                                                    >
+                                                        Dismiss
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 {photos.length > 0 && (
                                     <div className="grid grid-cols-4 gap-2 mt-2 max-h-32 overflow-y-auto custom-scrollbar">

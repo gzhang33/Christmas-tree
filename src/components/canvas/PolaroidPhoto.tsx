@@ -13,39 +13,42 @@
  */
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { useVideoTexture, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib'; // Import utility
-import { MORPH_TIMING } from '../../config/photoConfig';
+import { getVideoTexture } from '../../utils/videoSingleton'; // NEW: Singleton
+import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { getCachedTexture } from '../../utils/texturePreloader';
 import { useStore } from '../../store/useStore';
-import { MEMORIES } from '../../config/assets';
+import { ASSET_CONFIG } from '../../config/assets';
 import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
+import { getFrameMaterialPool } from '../../utils/frameMaterialPool'; // NEW: Frame material pool
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
 const qOrbit = new THREE.Quaternion();
 const qTarget = new THREE.Quaternion();
-const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
-const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
-const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
 
-// Helper to handle Video Texture swapping
-const VideoHandler = ({ videoUrl, material }: { videoUrl: string, material: THREE.ShaderMaterial | null }) => {
-    const texture = useVideoTexture(videoUrl, { start: true, muted: true, loop: true });
+// NEW: Local side-effect component to swap material texture when active
+const VideoTextureSwap = ({ material }: { material: THREE.ShaderMaterial }) => {
     useEffect(() => {
-        if (material) {
+        const videoTex = getVideoTexture();
+        if (videoTex) {
             const oldMap = material.uniforms.map.value;
-            material.uniforms.map.value = texture;
+            material.uniforms.map.value = videoTex;
 
             return () => {
-                // Revert to original texture (image) on unmount
+                // Revert to original image texture on unmount/close
                 material.uniforms.map.value = oldMap;
             };
         }
-    }, [material, texture]); return null;
+    }, [material]);
+    return null;
 };
+const tempVec3 = new THREE.Vector3(); // Temp vector for pop offset calculations
+const tempMouseVec = new THREE.Vector3(); // Temp vector for mouse interaction
+const reusableEuler = new THREE.Euler(); // Reusable Euler for rotation calculations
 
 interface PolaroidPhotoProps {
     url: string;
@@ -67,6 +70,7 @@ interface PolaroidPhotoProps {
         photoMaterial: THREE.ShaderMaterial | null;
         animState: any;
         hoverState: any;
+        id: string; // NEW: Pass ID
         position: [number, number, number];
         rotation: [number, number, number];
         scale: number;
@@ -198,11 +202,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
     const setActivePhoto = useStore(state => state.setActivePhoto);
+    const setPlayingVideoInHover = useStore(state => state.setPlayingVideoInHover); // NEW
     const activePhoto = useStore(state => state.activePhoto);
+    const hoveredPhotoInstanceId = useStore(state => state.hoveredPhotoInstanceId); // Need current hover state for click logic
+    const playingVideoInHover = useStore(state => state.playingVideoInHover); // NEW
 
     // Identify memory ID from URL
     const memoryId = useMemo(() => {
-        return MEMORIES.find(m => m.image === url)?.id || url;
+        return ASSET_CONFIG.memories.find(m => m.image === url)?.id || url;
     }, [url]);
 
     // Check exact instance ID for uniqueness
@@ -220,6 +227,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         textureLoaded: false,
         orbitAngle: null as number | null, // Track accumulated orbit angle
         simulatedTime: 0, // Track time adjusted for slowdown
+        controlPoint: new THREE.Vector3(), // Control point for Fountain Bezier
     });
 
     // Hover state (using refs to avoid re-renders - critical for 60fps)
@@ -233,6 +241,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         tiltY: 0,                    // Current Y tilt angle
         targetTiltX: 0,              // Target X tilt (from mouse)
         targetTiltY: 0,              // Target Y tilt (from mouse)
+
+        // NEW: Z-Axis Depth Effect
+        currentZOffset: 0,           // Current Z-axis offset
+        targetZOffset: 0,            // Target Z-axis offset (forward/backward)
+        isNeighbor: false,           // Whether this photo is a neighbor of hovered photo
     });
 
     // Get shared geometries
@@ -240,45 +253,80 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     // Create materials once (using texture from cache)
     // OPTIMIZED: Use material pool to reduce creation overhead
-    const materials = useMemo(() => {
-        // Frame material - Standard material for light interaction
-        const frameMat = new THREE.MeshStandardMaterial({
-            color: '#ffffff',
-            roughness: 0.4,
-            metalness: 0.1,
-            emissive: new THREE.Color(0xfffee0), // Warm glow color
-            emissiveIntensity: 0,                // Start with no glow
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0,
-        });
 
-        // OPTIMIZED: Acquire photo material from pool instead of cloning
-        // This reuses ShaderMaterial instances and reduces initialization overhead
+    // OPTIMIZED: Acquire frame material from pool instead of creating new
+    // This reuses MeshStandardMaterial instances and reduces initialization overhead
+    const frameMat = useMemo(() => {
+        try {
+            return getFrameMaterialPool().acquire();
+        } catch (e) {
+            // Fallback: Create directly if pool not ready
+            console.warn('[PolaroidPhoto] Frame pool fallback');
+            return new THREE.MeshStandardMaterial({
+                color: '#ffffff',
+                roughness: 0.4,
+                metalness: 0.1,
+                emissive: new THREE.Color(0xfffee0),
+                emissiveIntensity: 0,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0,
+            });
+        }
+    }, []);
+
+    // Photo material - deferred acquisition from pool
+    // Only acquire when texture is confirmed cached to avoid fallback clone
+    const [photoMat, setPhotoMat] = useState<THREE.ShaderMaterial | null>(null);
+
+    useEffect(() => {
+        // Only acquire material when texture is ready (cached)
+        if (!textureReady) return;
+
         const cachedTexture = getCachedTexture(url);
-        const photoMat = cachedTexture
-            ? getPhotoMaterialPool().acquire(cachedTexture)
-            : masterPhotoMaterial.clone(); // Fallback if pool not ready
+        if (cachedTexture && !photoMat) {
+            try {
+                const mat = getPhotoMaterialPool().acquire(cachedTexture);
+                setPhotoMat(mat);
+            } catch (e) {
+                // Pool not initialized, fallback to clone (should rarely happen)
+                console.warn('[PolaroidPhoto] Pool fallback for', url);
+                setPhotoMat(masterPhotoMaterial.clone());
+            }
+        }
+    }, [textureReady, url, photoMat]);
 
-        return { frameMat, photoMat };
-    }, [url]); // Add url dependency for texture updates
+    // Combine for backward compatibility
+    const materials = useMemo(() => ({
+        frameMat,
+        photoMat,
+    }), [frameMat, photoMat]);
 
     // Sync refs for useFrame and Cleanup
-    // OPTIMIZED: Release material back to pool on unmount
+    // OPTIMIZED: Release materials back to pools on unmount
     useEffect(() => {
         frameMaterialRef.current = materials.frameMat;
         photoMaterialRef.current = materials.photoMat;
 
         return () => {
-            // Dispose frame material
-            materials.frameMat.dispose();
+            // OPTIMIZED: Release frame material back to pool
+            if (materials.frameMat) {
+                try {
+                    getFrameMaterialPool().release(materials.frameMat);
+                } catch (e) {
+                    // Fallback: dispose if pool not available
+                    materials.frameMat.dispose();
+                }
+            }
 
             // OPTIMIZED: Release photo material back to pool instead of disposing
-            try {
-                getPhotoMaterialPool().release(materials.photoMat);
-            } catch (e) {
-                // Fallback: dispose if pool not available
-                materials.photoMat.dispose();
+            if (materials.photoMat) {
+                try {
+                    getPhotoMaterialPool().release(materials.photoMat);
+                } catch (e) {
+                    // Fallback: dispose if pool not available
+                    materials.photoMat.dispose();
+                }
             }
         };
     }, [materials]);
@@ -302,6 +350,15 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             anim.isAnimating = true;
             anim.startTime = -1;
             anim.currentPosition.set(...particleStartPosition);
+
+            // Calculate Fountain Control Point (Bezier P1)
+            const p0 = new THREE.Vector3(...particleStartPosition);
+            const p2 = new THREE.Vector3(...position);
+            const mid = new THREE.Vector3().addVectors(p0, p2).multiplyScalar(0.5);
+            // Fountain height boost (randomized 8-12 units for dramatic effect)
+            mid.y = Math.max(p0.y, p2.y) + 8.0 + Math.random() * 4.0;
+            anim.controlPoint.copy(mid);
+
             anim.orbitAngle = null; // Reset orbit
 
             // CRITICAL OPTIMIZATION:
@@ -342,6 +399,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 photoMaterial: photoMaterialRef.current,
                 animState: animRef.current,
                 hoverState: hoverRef.current,
+                id: memoryId, // NEW: Pass global tracking ID
                 position,
                 rotation,
                 scale,
@@ -352,24 +410,50 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 isThisActive,
             });
         }
-    }, [useExternalAnimation, onRegisterAnimation, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
+    }, [useExternalAnimation, onRegisterAnimation, memoryId, position, rotation, scale, particleStartPosition, morphIndex, totalPhotos, instanceId, isThisActive]);
 
     // === HOVER EVENT HANDLERS (AC: 1, 3) ===
 
     const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
-        setHoveredPhoto(url); // Notify global store
+
+        // Disable hover during photo centering animation
+        if (activePhoto) return;
+
+        setHoveredPhoto(instanceId); // Notify global store with instanceId
 
         const hover = hoverRef.current;
         hover.isHovered = true;
         hover.targetScale = HOVER_CONFIG.scaleTarget;
         hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
+
+        // NEW: Set forward Z-offset for depth effect
+        hover.targetZOffset = HOVER_CONFIG.depthEffect.forwardDistance;
+
+        // NEW: Set max renderOrder to prevent occlusion by snow/particles
+        if (groupRef.current) {
+            groupRef.current.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+        }
+
         // Standard pointer cursor (no custom icon per AC:3)
         document.body.style.cursor = 'pointer';
-    }, [url, setHoveredPhoto]);
+    }, [instanceId, memoryId, setHoveredPhoto, activePhoto]);
 
     const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Disable hover during photo centering animation
+        if (activePhoto) return;
+
+        // NEW: Don't clear hover if this photo is playing video
+        // Keep the hover effects while video is playing
+        const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+        if (isThisPlayingVideo) {
+            // Keep hover state active, just update cursor
+            document.body.style.cursor = 'auto';
+            return;
+        }
+
         setHoveredPhoto(null); // Notify global store
 
         const hover = hoverRef.current;
@@ -378,35 +462,62 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         hover.targetRotationMultiplier = 1.0;
         hover.targetTiltX = 0;
         hover.targetTiltY = 0;
+
+        // NEW: Reset Z-offset
+        hover.targetZOffset = 0;
+
+        // NEW: Reset renderOrder
+        if (groupRef.current) {
+            groupRef.current.renderOrder = 0;
+        }
+
         document.body.style.cursor = 'auto';
-    }, [setHoveredPhoto]);
+    }, [memoryId, setHoveredPhoto, activePhoto, playingVideoInHover, instanceId]);
 
     // === 3D TILT INTERACTION (AC: 2) ===
 
     const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+
+        // Disable tilt during photo centering animation
+        if (activePhoto) return;
+
         const hover = hoverRef.current;
 
         if (!hover.isHovered || !groupRef.current) return;
 
-        // Get intersection point in local coordinates using scratch vector (No Sync/Clone)
-        tempMouseVec.copy(e.point);
-        groupRef.current.worldToLocal(tempMouseVec);
+        // Safe fallback if e.uv is undefined
+        // Use e.point for 3D position-based tilt calculation
+        if (e.uv) {
+            // UV-based tilt (if available)
+            const normalizedX = (e.uv.x - 0.5) * 2; // Convert 0-1 to -1 to 1
+            const normalizedY = (e.uv.y - 0.5) * 2;
 
-        // Calculate normalized offset from center (-1 to 1)
-        // Frame dimensions: width=1.0, height=1.2
-        const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
-        const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
+            const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
+            const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
 
-        // Clamp values to avoid extreme tilts
-        const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
-        const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
+            hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
+            hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
+        } else {
+            // Fallback: Get intersection point in local coordinates using scratch vector
+            tempMouseVec.copy(e.point);
+            groupRef.current.worldToLocal(tempMouseVec);
 
-        // Apply tilt: mouse on right tilts card left (negative Y rotation)
-        // Mouse on top tilts card back (positive X rotation)
-        hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
-        hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
-    }, []);
+            // Calculate normalized offset from center (-1 to 1)
+            // Frame dimensions: width=1.0, height=1.2
+            const normalizedX = (tempMouseVec.x / (FRAME.width / 2));
+            const normalizedY = (tempMouseVec.y / (FRAME.height / 2));
+
+            // Clamp values to avoid extreme tilts
+            const clampedX = THREE.MathUtils.clamp(normalizedX, -1, 1);
+            const clampedY = THREE.MathUtils.clamp(normalizedY, -1, 1);
+
+            // Apply tilt: mouse on right tilts card left (negative Y rotation)
+            // Mouse on top tilts card back (positive X rotation)
+            hover.targetTiltY = -clampedX * HOVER_CONFIG.tiltMaxAngle;
+            hover.targetTiltX = clampedY * HOVER_CONFIG.tiltMaxAngle;
+        }
+    }, [memoryId, setHoveredPhoto, activePhoto]);
 
     // Animation frame - optimized to minimize allocations
     // NEW: Skip if using external animation (PhotoManager handles it)
@@ -426,10 +537,16 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
         const lerpFactor = 1 - Math.exp(-HOVER_CONFIG.transitionSpeed * delta);
         const tiltLerpFactor = 1 - Math.exp(-HOVER_CONFIG.tiltSmoothing * delta);
 
+        // NEW: Depth effect lerp factor
+        const depthLerpFactor = 1 - Math.exp(-HOVER_CONFIG.depthEffect.transitionSpeed * delta);
+
         hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
         hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
         hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
         hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
+
+        // NEW: Smooth Z-axis offset transition
+        hover.currentZOffset = THREE.MathUtils.lerp(hover.currentZOffset, hover.targetZOffset, depthLerpFactor);
 
         if (anim.isAnimating) {
             // Initialize start time on first frame
@@ -466,81 +583,74 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             let developProgress = 0.0;
 
             if (elapsed > 0) {
-                // PHASE 1: EJECTION (Printing from Slot)
-                if (elapsed < ejectionDuration) {
-                    // === EJECTION PHASE ===
-                    const t = elapsed / ejectionDuration;
+                // FOUNTAIN ARC ANIMATION (Quadratic Bezier)
+                const flightDuration = 1.8; // Time to fly
+                const tRaw = elapsed / flightDuration;
+                const t = Math.min(Math.max(tRaw, 0), 1);
+                const easeT = 1 - Math.pow(1 - t, 3); // Cubic ease out for position? No, linear t for Bezier is better physics.
+                // Actually simple T is fine for arc.
 
-                    // Position: Rise UP from spawn point
-                    const ejectHeight = 1.2;
-                    anim.currentPosition.x = particleStartPosition[0];
-                    anim.currentPosition.y = particleStartPosition[1] + (t * ejectHeight);
-                    anim.currentPosition.z = particleStartPosition[2];
+                const tInv = 1 - t;
+                const tInv2 = tInv * tInv;
+                const t2 = t * t;
+                const twoTInvT = 2 * tInv * t;
 
-                    // Scale Y: 0->1
-                    group.scale.set(scale, scale * t, scale);
+                // P0 (Start)
+                const x0 = particleStartPosition[0];
+                const y0 = particleStartPosition[1];
+                const z0 = particleStartPosition[2];
 
-                    // Ejection Phase: Pure Energy (develop = 0)
-                    developProgress = 0.0;
-                }
-                else if (elapsed < myTotalDuration) {
-                    // === TRANSITION PHASE ===
-                    // Dynamic speed based on available time
-                    const t = (elapsed - ejectionDuration) / transitionDuration;
+                // P1 (Control High Point)
+                const x1 = anim.controlPoint.x;
+                const y1 = anim.controlPoint.y;
+                const z1 = anim.controlPoint.z;
 
-                    // Snappy Ejection: BackOut easing
-                    // s = 1.2 for slight overshoot
-                    const s = 1.2;
-                    const t2 = t - 1;
-                    const animationProgress = t2 * t2 * ((s + 1) * t2 + s) + 1;
-                    const developEase = 1 - Math.pow(1 - t, 3);
+                // P2 (Target)
+                const x2 = position[0];
+                const y2 = position[1];
+                const z2 = position[2];
 
-                    // Start: BoxTop (Spawn + EjectHeight)
-                    const startY = particleStartPosition[1] + 1.2;
+                // Bezier Interpolation
+                anim.currentPosition.x = tInv2 * x0 + twoTInvT * x1 + t2 * x2;
+                anim.currentPosition.y = tInv2 * y0 + twoTInvT * y1 + t2 * y2;
+                anim.currentPosition.z = tInv2 * z0 + twoTInvT * z1 + t2 * z2;
 
-                    // Lerp
-                    // Lerp
-                    anim.currentPosition.x = THREE.MathUtils.lerp(particleStartPosition[0], position[0], animationProgress);
-                    anim.currentPosition.y = THREE.MathUtils.lerp(startY, position[1], animationProgress);
-                    anim.currentPosition.z = THREE.MathUtils.lerp(particleStartPosition[2], position[2], animationProgress);
+                // Rotation: Spin wildly during flight, settle at end
+                const spinDecay = 1 - easeT;
+                anim.currentRotation.x = rotation[0] + (Math.sin(time * 10) * spinDecay * 2);
+                anim.currentRotation.y = rotation[1] + (time * 8 * spinDecay);
+                anim.currentRotation.z = rotation[2] + (Math.cos(time * 8) * spinDecay * 2);
 
-                    // Rotation
-                    anim.currentRotation.x = rotation[0] * animationProgress;
-                    anim.currentRotation.y = rotation[1] * animationProgress;
-                    anim.currentRotation.z = rotation[2] * animationProgress;
+                // Scale: rapid elastic pop
+                const scaleProgress = Math.min(elapsed / 0.4, 1);
+                const elastic = scaleProgress === 1 ? 1 : 1 - Math.pow(2, -10 * scaleProgress);
+                group.scale.setScalar(scale * elastic);
 
-                    group.scale.setScalar(scale);
+                // Develop photo as it flies
+                developProgress = t * t; // Reveal mostly near end
 
-                    // Transition Phase: Develop 0 -> 1 using easeOut
-                    developProgress = developEase;
-                }
-                else {
-                    // Animation Done - Hand over to Orbit Loop
+                if (t >= 1) {
                     anim.isAnimating = false;
                     group.scale.setScalar(scale);
+                    anim.currentPosition.set(x2, y2, z2);
+                    anim.currentRotation.set(rotation[0], rotation[1], rotation[2]);
                     developProgress = 1.0;
                 }
-
-                // Opacity runs over total duration (Fade in during Ejection mainly)
-                const opacityProgress = Math.min(elapsed / 0.5, 1);
-                if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
-
-                // Update Shader Uniforms
-                if (materials.photoMat && anim.textureLoaded) {
-                    materials.photoMat.uniforms.opacity.value = opacityProgress;
-                    materials.photoMat.uniforms.uDevelop.value = developProgress;
-                }
-
-                // Apply updates
-                group.position.copy(anim.currentPosition);
-
-                // In Phase 1 we keep rotation 0 (flat/aligned)
-                if (elapsed >= ejectionDuration) {
-                    group.rotation.copy(anim.currentRotation);
-                } else {
-                    group.rotation.set(0, 0, 0);
-                }
             }
+
+            // Opacity runs over total duration (Fade in during Ejection mainly)
+            const opacityProgress = Math.min(elapsed / 0.5, 1);
+            if (materials.frameMat) materials.frameMat.opacity = opacityProgress;
+
+            // Update Shader Uniforms
+            if (materials.photoMat && anim.textureLoaded) {
+                materials.photoMat.uniforms.opacity.value = opacityProgress;
+                materials.photoMat.uniforms.uDevelop.value = developProgress;
+            }
+
+            // Apply updates
+            group.position.copy(anim.currentPosition);
+            group.rotation.copy(anim.currentRotation);
         } else if (isExploded) {
             // === PHASE 2: ORBIT & FLOAT ===
             // Ensure fully developed
@@ -560,8 +670,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                     anim.simulatedTime = 0; // Start simulated time
                 }
 
+                // Check if THIS photo is playing video
+                const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+
                 // Advance simulated time based on rotation multiplier (handling slowdown)
-                anim.simulatedTime += delta * hover.rotationMultiplier;
+                // FREEZE when playing video
+                if (!isThisPlayingVideo) {
+                    anim.simulatedTime += delta * hover.rotationMultiplier;
+                }
                 const hoverTime = anim.simulatedTime;
 
                 const idx = morphIndex * 0.5;
@@ -572,8 +688,10 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 const radius = Math.sqrt(initialX * initialX + initialZ * initialZ);
 
                 // Global Hover Check
-                const isAnyHovered = useStore.getState().hoveredPhotoId !== null;
-                const effectiveSpeed = isAnyHovered ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
+                const isAnyHovered = useStore.getState().hoveredPhotoInstanceId !== null;
+
+                // FREEZE orbit when playing video
+                const effectiveSpeed = (isAnyHovered || isThisPlayingVideo) ? 0 : (0.05 + (1.0 / (radius + 0.1)) * 0.1);
 
                 // Accumulate angle
                 anim.orbitAngle += effectiveSpeed * delta;
@@ -581,15 +699,23 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // 1. Calculate Base Position (Orbit + Bobbing)
                 const baseX = Math.cos(anim.orbitAngle) * radius;
                 const baseZ = Math.sin(anim.orbitAngle) * radius;
-                const yBob = Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
-                group.position.set(baseX, position[1] + yBob, baseZ);
+                // FREEZE bobbing when playing video
+                const yBob = isThisPlayingVideo ? 0 : Math.sin(hoverTime * 0.5 + idx) * 0.3;
+
+                // NEW: Apply Z-axis depth offset for hover effect
+                // Calculate direction from center to photo for consistent Z-offset direction
+                const directionZ = baseZ / (radius || 1); // Normalized Z direction
+                const zWithOffset = baseZ + (directionZ * hover.currentZOffset);
+
+                group.position.set(baseX, position[1] + yBob, zWithOffset);
 
                 // 2. Calculate Base Rotation (Spinning) & Convert to Quaternion
-                // Stop spinning if Active
-                const spinY = isThisActive ? rotation[1] : (rotation[1] + hoverTime * 0.15);
-                const spinX = isThisActive ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
-                const spinZ = isThisActive ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
+                // Stop spinning if Active or Playing Video
+                const shouldFreezeRotation = isThisActive || isThisPlayingVideo;
+                const spinY = shouldFreezeRotation ? rotation[1] : (rotation[1] + hoverTime * 0.15);
+                const spinX = shouldFreezeRotation ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
+                const spinZ = shouldFreezeRotation ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
 
                 // Reset rotation to ensure FromEuler works cleanly on base state
                 group.rotation.set(0, 0, 0);
@@ -626,6 +752,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // If Active, override scale to 2.5x (ZOOM_SCALE)
                 if (isThisActive) {
                     hover.targetScale = 2.5;
+
+                    // NEW: Ensure active photo has max renderOrder
+                    if (groupRef.current) {
+                        groupRef.current.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+                    }
                 }
 
                 const finalScale = scale * hover.currentScale;
@@ -663,7 +794,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
     // Check for video
     const videoUrl = useMemo(() => {
-        const memory = MEMORIES.find(m => m.image === url);
+        const memory = ASSET_CONFIG.memories.find(m => m.image === url);
         return memory?.video || null;
     }, [url]);
 
@@ -686,62 +817,73 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 e.stopPropagation();
                 if (!isExploded || !groupRef.current) return;
 
-                // Toggle Logic:
-                // If this photo is already active, clicking it again de-selects it (Return to Sea).
-                if (isThisActive) {
-                    setActivePhoto(null);
-                } else {
-                    // Activate this photo
-                    const pos = groupRef.current.position;
-                    const rot = groupRef.current.rotation;
+                const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-                    setActivePhoto({
-                        id: memoryId,
-                        instanceId,
-                        position: [pos.x, pos.y, pos.z],
-                        rotation: [rot.x, rot.y, rot.z]
-                    });
+                // === CHECK CURRENT PLAYING STATE ===
+                const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;
+
+                // === EXIT LOGIC: Click same photo again → Exit video/hover mode ===
+                if (isThisPlayingVideo) {
+                    setPlayingVideoInHover(null);
+                    setHoveredPhoto(null);
+                    return;
                 }
+
+                // === MOBILE INTERACTION: 3-step process ===
+                // Tap 1 → Preview (Hover)
+                // Tap 2 → Play Video (if has video) or stay in hover
+                // Tap 3 → Exit
+                if (isTouch && hoveredPhotoInstanceId !== instanceId) {
+                    // First tap: Set hover preview
+                    setHoveredPhoto(instanceId);
+                    return;
+                }
+
+                // === SWITCH LOGIC: Click other photo while one is playing ===
+                if (playingVideoInHover && playingVideoInHover.instanceId !== instanceId) {
+                    // Switch to this photo (if has video)
+                    if (videoUrl) {
+                        setPlayingVideoInHover({
+                            instanceId,
+                            videoUrl,
+                            photoPosition: position
+                        });
+                    } else {
+                        // No video, just switch hover
+                        setPlayingVideoInHover(null);
+                        setHoveredPhoto(instanceId);
+                    }
+                    return;
+                }
+
+                // === PLAY VIDEO: Click hovered photo with video ===
+                if (videoUrl && hoveredPhotoInstanceId === instanceId) {
+                    setPlayingVideoInHover({
+                        instanceId,
+                        videoUrl,
+                        photoPosition: position
+                    });
+                    return;
+                }
+
+                // === LEGACY: No video, keep old active behavior (optional) ===
+                // If you want to remove the centering behavior entirely, comment this out
+                // For now, photos without video can still be "activated" for viewing
+                // But this is optional - per requirements, we can skip this
             }}
         >
-            {/* Render Video Handler if active and video exists */}
-            {isThisActive && videoUrl && materials.photoMat && (
-                <React.Suspense fallback={null}>
-                    <VideoHandler videoUrl={videoUrl} material={materials.photoMat} />
-                </React.Suspense>
+            {/* Singleton Video Logic Side Effect - Now triggered by playingVideoInHover */}
+            {playingVideoInHover?.instanceId === instanceId && videoUrl && materials.photoMat && (
+                <VideoTextureSwap material={materials.photoMat} />
             )}
 
-            {/* Close Button UI */}
-            {isThisActive && (
-                <Html position={[0.6, 0.6, 0]} center zIndexRange={[100, 0]}>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePhoto(null);
-                        }}
-                        aria-label="关闭照片"
-                        style={{
-                            background: 'rgba(0, 0, 0, 0.5)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            borderRadius: '50%',
-                            width: '40px',
-                            height: '40px',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'auto',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'}
-                    >
-                        ✕
-                    </button>
-                </Html>
+            {/* Legacy: Active photo video (kept for compatibility, but new mode uses playingVideoInHover) */}
+            {isThisActive && !playingVideoInHover && videoUrl && materials.photoMat && (
+                <VideoTextureSwap material={materials.photoMat} />
             )}
+
+            {/* Close Button UI - REMOVED per user requirements */}
+            {/* The exit mechanism is now: click same photo again, click other photo, or click background */}
 
             {/* Polaroid Frame */}
             <mesh geometry={frameGeometry}>
