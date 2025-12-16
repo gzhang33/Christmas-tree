@@ -97,6 +97,7 @@ export const PARTICLE_CONFIG = {
         maxSize: 1.7,          // 最大粒子尺寸
         radiusVariation: 0.2,  // 半径随机变化
         angleVariation: 0.5,   // 角度随机变化
+        flickerFreq: 3.0,      // 闪烁频率
     },
 
     // ------------------------------------------------------------------------

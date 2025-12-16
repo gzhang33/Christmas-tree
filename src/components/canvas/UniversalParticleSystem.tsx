@@ -92,7 +92,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         },
 
         // Dust color (initial value, updated dynamically via useEffect)
-        uDustColor: { value: new THREE.Color('#b150e4') },
+        uDustColor: { value: new THREE.Color(PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4') },
 
         // Tree/Spiral parameters
         uTreeHeight: { value: PARTICLE_CONFIG.treeHeight },
@@ -112,7 +112,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
         // Dust loop parameters
         uAscentSpeed: { value: PARTICLE_CONFIG.magicDust.ascentSpeed },
-        uDustFlickerFreq: { value: 3.0 },
+        uDustFlickerFreq: { value: PARTICLE_CONFIG.magicDust.flickerFreq },
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [sparkleTexture, baseSize, config]);
 

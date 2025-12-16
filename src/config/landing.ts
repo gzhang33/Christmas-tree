@@ -295,6 +295,13 @@ export const LANDING_CONFIG = {
             compact: ['Merry', 'Christmas'], // Two lines for mobile
             lineSpacing: 1.4,              // Line spacing multiplier for multi-line mode
         },
+        // 字体配置 (用于 Canvas 采样)
+        typography: {
+            titleFont: "'Merry Christmas Star', 'Mountains of Christmas', cursive",
+            usernameFont: "'Courier New', monospace",
+            samplingFontSize: 80,          // 采样时的基准字号 (px)
+            usernameScale: 0.4,            // Username 相对 Title 的大小比例
+        },
         // 粒子采样密度 (值越小粒子越密集)
         density: {
             normal: 3,    // 桌面端
@@ -310,7 +317,7 @@ export const LANDING_CONFIG = {
             formDuration: 1.5,      // 粒子聚合成文字时长
             displayDuration: 2.0,   // 文字静态展示时长
             disperseDuration: 1.5,  // 粒子飘散时长
-            reformDuration: 2.0,    // 重构为 MagicDust 时长
+            reformDuration: 3.0,    // 重构为 MagicDust 时长
         },
         // 飘散动画参数
         disperse: {

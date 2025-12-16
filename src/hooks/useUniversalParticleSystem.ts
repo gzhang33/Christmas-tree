@@ -332,8 +332,8 @@ export function useUniversalParticleSystem({
     const worldWidth = isMobile ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
 
     const attributes = useMemo(() => {
-        const fontFamily = "'Merry Christmas Star', 'Mountains of Christmas', cursive";
-        const fontSize = 80;
+        const fontFamily = config.typography.titleFont;
+        const fontSize = config.typography.samplingFontSize;
         const lineSpacing = config.text.lineSpacing;
 
         // Generate title particles - use multiline or single line based on title type
@@ -364,8 +364,8 @@ export function useUniversalParticleSystem({
         // Generate username particles
         const usernameData = generateTextParticles(
             username,
-            fontSize * 0.4,
-            "'Courier New', monospace",
+            fontSize * config.typography.usernameScale,
+            config.typography.usernameFont,
             density,
             worldWidth * 0.6,
             config.layout.usernameY
@@ -405,7 +405,7 @@ export function useUniversalParticleSystem({
         }
 
         // Generate dust colors and sizes for all particles
-        const dustColor = dustColors[1] || dustColors[0] || '#b150e4';
+        const dustColor = dustColors[1] || dustColors[0] || PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4';
         const { colors, sizes, flickerPhases } = generateDustColors(totalCount, dustColor);
 
         console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, username: ${usernameData.count}, dust budget: ${dustParticleCount})`);
