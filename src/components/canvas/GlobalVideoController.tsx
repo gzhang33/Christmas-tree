@@ -24,7 +24,11 @@ export const GlobalVideoController = () => {
         // Priority 1: Hover video playback (new feature)
         if (playingVideoInHover) {
             console.log(`[VideoController] Playing hover video for instanceId ${playingVideoInHover.instanceId}`);
-            playVideo(playingVideoInHover.videoUrl);
+            try {
+                playVideo(playingVideoInHover.videoUrl);
+            } catch (error) {
+                console.error('[VideoController] 播放悬停视频失败:', error);
+            }
             return;
         }
 
@@ -44,7 +48,6 @@ export const GlobalVideoController = () => {
         // No active state, stop video
         stopVideo();
     }, [activePhoto, playingVideoInHover]);
-
     return null; // Logic only, no render
 };
 

@@ -20,9 +20,8 @@ export const ASSET_CONFIG = {
    * Audio assets
    */
   audio: {
-    jingleBells: '/audio/All I Want for Christmas Is You.flac',
+    allIWantForChristmas: '/audio/All I Want for Christmas Is You.flac',
   },
-
   /**
    * Placeholder images
    */

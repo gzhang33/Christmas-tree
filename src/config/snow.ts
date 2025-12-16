@@ -41,7 +41,7 @@ export const SNOW_CONFIG = {
 
         // 旋转速度配置
         rotation: {
-            speedRange: 0.03, // 旋转速度范围（speedRange-0.025 到 speedRange+0.025）
+            speedRange: 0.03, // 旋转速度范围
         },
 
         // 摆动配置

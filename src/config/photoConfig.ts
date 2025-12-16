@@ -6,14 +6,6 @@
  * 用于爆炸效果时的照片展示
  */
 
-/**
- * Photo Configuration
- * 照片配置文件
- *
- * 管理照片墙的分布、动画和布局参数
- * 用于爆炸效果时的照片展示
- */
-
 export const PHOTO_WALL_CONFIG = {
     /**
      * 照片数量配置
@@ -74,3 +66,4 @@ export interface PhotoPosition {
     scale: number;   // 缩放比例
     rotation: [number, number, number]; // 旋转角度 [x, y, z]
 }
+

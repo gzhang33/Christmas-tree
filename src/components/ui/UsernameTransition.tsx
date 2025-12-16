@@ -79,7 +79,7 @@ export const UsernameTransition: React.FC = () => {
             {showTransition && (
                 <motion.div
                     ref={containerRef}
-                    className="fixed inset-0 z-45 pointer-events-none flex flex-col items-center"
+                    className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center"
                     style={{ paddingTop: '30vh' }}
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 1 }}

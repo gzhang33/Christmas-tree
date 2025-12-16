@@ -27,11 +27,25 @@ export const initVideoSingleton = (): void => {
     // Critical for performance: preload none until needed
     video.preload = 'none';
 
-    // Append to body (optional, but good for some browser policies)
-    if (document.body) {
-        document.body.appendChild(video);
+    // Ensure video is appended to DOM when ready
+    const appendVideo = () => {
+        if (video && document.body) {
+            document.body.appendChild(video);
+            console.log('[VideoSingleton] Video element appended to DOM');
+        }
+    };
+
+    // Check if DOM is already ready
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        // DOM is ready, append immediately
+        appendVideo();
     } else {
-        console.warn('[VideoSingleton] document.body not ready, video element not appended');
+        // DOM not ready, wait for DOMContentLoaded
+        const handleDOMReady = () => {
+            appendVideo();
+            document.removeEventListener('DOMContentLoaded', handleDOMReady);
+        };
+        document.addEventListener('DOMContentLoaded', handleDOMReady);
     }
 
     // Create a single VideoTexture
@@ -75,7 +89,7 @@ export const playVideo = (url: string): Promise<void> => {
         })
         .catch(e => {
             console.warn('[VideoSingleton] Video play failed:', e);
-            // Don't update currentUrl if playback failed
+            throw e; // 重新抛出错误，让调用者知道播放失败了
         });
 };
 

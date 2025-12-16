@@ -38,9 +38,7 @@ const GIFT_MODELS = [
   '/models/gift_box_2.glb',
 ];
 
-// Preload models for smoother experience
-// Preload models for smoother experience
-GIFT_MODELS.forEach(path => useGLTF.preload(path));
+// Preload will be done in component mount effect to avoid SSR issues
 
 const GiftMesh = React.memo(({ scene, width, height, position, rotation, visible }: { scene: THREE.Group, width: number, height: number, position: [number, number, number], rotation: number, visible: boolean }) => {
 
@@ -341,7 +339,7 @@ const DissolvingImage = ({
 
       material.opacity = alpha;
       material.transparent = true;
-      material.depthWrite = true; // Fix transparency sorting issues
+      material.depthWrite = false; // Proper transparency rendering
     }
   });
 
@@ -371,6 +369,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const { viewport } = useThree();
 
   const globalAlphaRef = useRef(0.0);
+
+  // === PRELOAD GIFT MODELS (CLIENT-ONLY) ===
+  // Must run in useEffect to avoid SSR issues with Three.js context
+  useEffect(() => {
+    GIFT_MODELS.forEach(path => useGLTF.preload(path));
+  }, []); // Empty deps - run once on mount
 
   // === LOAD USER MODELS ===
   const giftGltfs = useGLTF(GIFT_MODELS);
@@ -1479,7 +1483,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       console.log('[TreeParticles] Entrance animation started (morphing phase)');
       progressRef.current = 0.61; // Start from exploded state
       targetProgressRef.current = 0.0; // Target is tree form
-      (window as any)._morphingCompleteTriggered = false;
       animationCompletionFlags.current.entranceComplete = false;
       useStore.getState().setTreeMorphState('morphing-in');
     }
@@ -1520,13 +1523,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       !animationCompletionFlags.current.entranceComplete &&
       (progressNearTarget || progressRef.current < 0.1)
     ) {
-      if (!(window as any)._morphingCompleteTriggered) {
-        (window as any)._morphingCompleteTriggered = true;
-        animationCompletionFlags.current.entranceComplete = true;
-        console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
-        useStore.getState().setLandingPhase('tree');
-        useStore.getState().setTreeMorphState('idle');
-      }
+      animationCompletionFlags.current.entranceComplete = true;
+      console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
+      useStore.getState().setLandingPhase('tree');
+      useStore.getState().setTreeMorphState('idle');
     }
 
     // === EXPLOSION ANIMATION COMPLETION (morphing-out) ===

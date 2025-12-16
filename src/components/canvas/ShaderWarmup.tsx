@@ -26,16 +26,22 @@ export const ShaderWarmup: React.FC = () => {
         // 4. gl.compile(): Force shader compilation
         // 5. Third RAF + render: Force a full render cycle to compile post-processing shaders
 
-        const frameId1 = requestAnimationFrame(() => {
-            const timeoutId = setTimeout(() => {
-                const frameId2 = requestAnimationFrame(() => {
+        // Capture all IDs in outer scope for proper cleanup
+        let frameId1: number | undefined;
+        let timeoutId: number | undefined;
+        let frameId2: number | undefined;
+        let frameId3: number | undefined;
+
+        frameId1 = requestAnimationFrame(() => {
+            timeoutId = window.setTimeout(() => {
+                frameId2 = requestAnimationFrame(() => {
                     try {
                         // Force shader compilation for all scene objects
                         gl.compile(scene, camera);
                         console.log('[ShaderWarmup] Phase 1: Scene shaders compiled');
 
                         // Force a render to compile EffectComposer shaders
-                        const frameId3 = requestAnimationFrame(() => {
+                        frameId3 = requestAnimationFrame(() => {
                             try {
                                 gl.render(scene, camera);
                                 hasWarmedUp.current = true;
@@ -45,33 +51,27 @@ export const ShaderWarmup: React.FC = () => {
                                 hasWarmedUp.current = true;
                             }
                         });
-
-                        // Store for cleanup
-                        (window as any).__shaderWarmupFrame3 = frameId3;
                     } catch (error) {
                         console.warn('[ShaderWarmup] Compilation failed:', error);
                         hasWarmedUp.current = true;
                     }
                 });
-
-                // Store for cleanup
-                (window as any).__shaderWarmupFrame2 = frameId2;
             }, 100); // 100ms delay for React effects
-
-            // Store for cleanup
-            (window as any).__shaderWarmupTimeout = timeoutId;
         });
 
         return () => {
-            cancelAnimationFrame(frameId1);
-            if ((window as any).__shaderWarmupTimeout) {
-                clearTimeout((window as any).__shaderWarmupTimeout);
+            // Cancel all scheduled callbacks
+            if (frameId1 !== undefined) {
+                cancelAnimationFrame(frameId1);
             }
-            if ((window as any).__shaderWarmupFrame2) {
-                cancelAnimationFrame((window as any).__shaderWarmupFrame2);
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
             }
-            if ((window as any).__shaderWarmupFrame3) {
-                cancelAnimationFrame((window as any).__shaderWarmupFrame3);
+            if (frameId2 !== undefined) {
+                cancelAnimationFrame(frameId2);
+            }
+            if (frameId3 !== undefined) {
+                cancelAnimationFrame(frameId3);
             }
         };
     }, [gl, scene, camera]);

@@ -139,10 +139,13 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         // 尝试播放（如果未静音）
         if (!isMuted) {
-            attemptPlay();
+            const handleCanPlay = () => {
+                attemptPlay();
+                audio.removeEventListener('canplaythrough', handleCanPlay);
+            };
+            audio.addEventListener('canplaythrough', handleCanPlay);
         }
     }, [selectedAudioId, isMuted, hasUserInteracted, autoplayBlocked, attemptPlay, normalizeUrl, ensureVolume]);
-
     // 静音控制（统一机制）
     // 使用 pause()/play() 而非 muted 属性来控制静音，节省资源
     useEffect(() => {

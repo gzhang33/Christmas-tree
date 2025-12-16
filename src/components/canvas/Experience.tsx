@@ -53,9 +53,6 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
     // RAF animation ID for camera reset animation
     const animationIdRef = useRef<number | null>(null);
 
-    // NEW: Ref for VolumetricRays (moved from component)
-    const raysRef = useRef<THREE.Group>(null);
-
     // MagicDust moved to SceneContainer
 
     // Handle OrbitControls interaction events

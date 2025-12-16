@@ -118,6 +118,7 @@ export default function VaporizeTextCycle({
     const lastFontRef = useRef<string | null>(null);
     const particlesRef = useRef<Particle[]>([]);
     const animationFrameRef = useRef<number | null>(null);
+    const waitTimeoutRef = useRef<number | null>(null); // Track wait timeout for cleanup
     const [currentTextIndex, setCurrentTextIndex] = useState(0);
     // Use ref for animationState to avoid re-running animation loop effect
     const animationStateRef = useRef<"static" | "vaporizing" | "fadingIn" | "waiting" | "completed">("static");
@@ -174,7 +175,6 @@ export default function VaporizeTextCycle({
 
     // Memoize particle update function
     const memoizedUpdateParticles = useCallback((particles: Particle[], vaporizeX: number, deltaTime: number) => {
-        /* ... existing update logic ... */
         return updateParticles(
             particles,
             vaporizeX,
@@ -185,7 +185,6 @@ export default function VaporizeTextCycle({
             transformedDensity
         );
     }, [fontConfig.MULTIPLIED_VAPORIZE_SPREAD, animationDurations.VAPORIZE_DURATION, direction, transformedDensity]);
-
     // Memoize render function
     const memoizedRenderParticles = useCallback((ctx: CanvasRenderingContext2D, particles: Particle[]) => {
         const canvas = ctx.canvas;
@@ -194,8 +193,9 @@ export default function VaporizeTextCycle({
 
     // Start animation cycle when triggered
     useEffect(() => {
-        if (manualTrigger === true && (animationStateRef.current === "static" || animationStateRef.current === "waiting")) {
+        if (manualTrigger === true && (animationStateRef.current === "static" || animationStateRef.current === "waiting" || animationStateRef.current === "fadingIn")) {
             // Manual trigger ON: start vaporizing (exit animation)
+            // Allow triggering from fadingIn state to ensure exit animation works even during entrance
             vaporizeProgressRef.current = 0;
             animationStateRef.current = "vaporizing";
             isAnimatingRef.current = true; // Lock particle regeneration
@@ -304,8 +304,12 @@ export default function VaporizeTextCycle({
                         if (fadeOpacityRef.current >= 1) {
                             animationStateRef.current = "waiting";
                             if (loop) {
+                                // Clear any existing wait timeout before creating a new one
+                                if (waitTimeoutRef.current !== null) {
+                                    clearTimeout(waitTimeoutRef.current);
+                                }
                                 // Only auto-trigger vaporize in loop mode
-                                setTimeout(() => {
+                                waitTimeoutRef.current = window.setTimeout(() => {
                                     animationStateRef.current = "vaporizing";
                                     vaporizeProgressRef.current = 0;
                                     resetParticles(particlesRef.current);
@@ -356,8 +360,12 @@ export default function VaporizeTextCycle({
                             entranceProgressRef.current = 0; // Reset for next cycle
                             animationStateRef.current = "waiting";
                             if (loop) {
+                                // Clear any existing wait timeout before creating a new one
+                                if (waitTimeoutRef.current !== null) {
+                                    clearTimeout(waitTimeoutRef.current);
+                                }
                                 // Only auto-trigger vaporize in loop mode
-                                setTimeout(() => {
+                                waitTimeoutRef.current = window.setTimeout(() => {
                                     animationStateRef.current = "vaporizing";
                                     vaporizeProgressRef.current = 0;
                                     resetParticles(particlesRef.current);
@@ -388,6 +396,11 @@ export default function VaporizeTextCycle({
             if (frameId) {
                 cancelAnimationFrame(frameId);
             }
+            // Clear wait timeout on cleanup
+            if (waitTimeoutRef.current !== null) {
+                clearTimeout(waitTimeoutRef.current);
+                waitTimeoutRef.current = null;
+            }
         };
     }, [
         isInView,
@@ -402,10 +415,10 @@ export default function VaporizeTextCycle({
         animationDurations.VAPORIZE_DURATION
     ]);
 
-    // Initialize particles - only when NOT animating
+    // Initialize particles - skip only during vaporizing to prevent reset
     useEffect(() => {
-        // Skip if animation is in progress
-        if (isAnimatingRef.current) return;
+        // Only skip during vaporizing phase to prevent particle reset mid-animation
+        if (animationStateRef.current === "vaporizing") return;
 
         renderCanvas({
             framerProps: {
@@ -447,8 +460,8 @@ export default function VaporizeTextCycle({
         if (!container) return;
 
         const resizeObserver = new ResizeObserver(entries => {
-            // Skip resize handling during animation
-            if (isAnimatingRef.current) return;
+            // Only skip during vaporizing phase to prevent particle reset mid-animation
+            if (animationStateRef.current === "vaporizing") return;
 
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
@@ -475,7 +488,7 @@ export default function VaporizeTextCycle({
         return () => {
             resizeObserver.disconnect();
         };
-    }, [wrapperRef.current]);
+    }, []);
 
     // Initial size detection
     useEffect(() => {
@@ -635,126 +648,132 @@ const renderCanvas = ({
         textX = canvas.width;
     }
 
-    // Create particles from the rendered text and get text boundaries
-    const { particles, textBoundaries } = createParticles(ctx, canvas, currentText, textX, textY, font, color, framerProps.alignment || "left");
+    // ------------------------------------------------------------ //
+    // PARTICLE SYSTEM
+    // ------------------------------------------------------------ //
+    const createParticles = (
+        ctx: CanvasRenderingContext2D,
+        canvas: HTMLCanvasElement,
+        text: string,
+        textX: number,
+        textY: number,
+        font: string,
+        color: string,
+        alignment: "left" | "center" | "right"
+    ) => {
+        const particles: Particle[] = [];
+
+        // Clear any previous content
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Set text properties for sampling
+        ctx.fillStyle = color;
+        ctx.font = font;
+        ctx.textAlign = alignment;
+        ctx.textBaseline = "middle";
+        ctx.imageSmoothingQuality = "high";
+        ctx.imageSmoothingEnabled = true;
+
+        if ('fontKerning' in ctx) {
+            (ctx as any).fontKerning = "normal";
+        }
+
+        if ('textRendering' in ctx) {
+            (ctx as any).textRendering = "geometricPrecision";
+        }
+
+        // Calculate text boundaries
+        const metrics = ctx.measureText(text);
+        let textLeft;
+        const textWidth = metrics.width;
+
+        if (alignment === "center") {
+            textLeft = textX - textWidth / 2;
+        } else if (alignment === "left") {
+            textLeft = textX;
+        } else {
+            textLeft = textX - textWidth;
+        }
+
+        const textBoundaries = {
+            left: textLeft,
+            right: textLeft + textWidth,
+            width: textWidth,
+        };
+
+        // Render the text for sampling
+        ctx.fillText(text, textX, textY);
+
+        // Sample the rendered text
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Calculate sampling rate based on DPR and density to maintain consistent particle density
+        // Calculate sampling rate based on DPR and density to maintain consistent particle density
+        // Optimized: Increased baseDPR to significantly reduce particle count on high-res screens
+        const baseDPR = 1.5; // Lower base for coarser sampling, drastically improving performance
+
+        const currentDPR = canvas.width / parseInt(canvas.style.width);
+        const baseSampleRate = Math.max(1, Math.round(currentDPR / baseDPR));
+        const sampleRate = Math.max(1, Math.round(baseSampleRate)); // Adjust sample rate by density
+
+        // Sample the text pixels and create particles
+        for (let y = 0; y < canvas.height; y += sampleRate) {
+            for (let x = 0; x < canvas.width; x += sampleRate) {
+                const index = (y * canvas.width + x) * 4;
+                const alpha = data[index + 3];
+
+                if (alpha > 0) {
+                    // Remove density from opacity calculation
+                    const originalAlpha = alpha / 255 * (sampleRate / currentDPR);
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+
+                    const particle: Particle = {
+                        x,
+                        y,
+                        originalX: x,
+                        originalY: y,
+                        color: `rgba(${r}, ${g}, ${b}, ${originalAlpha})`,
+                        r, // Store raw RGB values for performance
+                        g,
+                        b,
+                        opacity: originalAlpha,
+                        originalAlpha,
+                        // Animation properties
+                        velocityX: 0,
+                        velocityY: 0,
+                        angle: 0,
+                        speed: 0,
+                    };
+
+                    particles.push(particle);
+                }
+            }
+        }
+
+        // Clear the canvas after sampling
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        return { particles, textBoundaries };
+    };
+
+    // Call createParticles and store the results
+    const { particles, textBoundaries } = createParticles(
+        ctx,
+        canvas,
+        currentText,
+        textX,
+        textY,
+        font,
+        color,
+        framerProps.alignment ?? "center"
+    );
 
     // Store particles and text boundaries for animation
     particlesRef.current = particles;
     canvas.textBoundaries = textBoundaries;
-};
-
-// ------------------------------------------------------------ //
-// PARTICLE SYSTEM
-// ------------------------------------------------------------ //
-// ------------------------------------------------------------ //
-// PARTICLE SYSTEM
-// ------------------------------------------------------------ //
-const createParticles = (
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    text: string,
-    textX: number,
-    textY: number,
-    font: string,
-    color: string,
-    alignment: "left" | "center" | "right"
-) => {
-    const particles: Particle[] = [];
-
-    // Clear any previous content
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Set text properties for sampling
-    ctx.fillStyle = color;
-    ctx.font = font;
-    ctx.textAlign = alignment;
-    ctx.textBaseline = "middle";
-    ctx.imageSmoothingQuality = "high";
-    ctx.imageSmoothingEnabled = true;
-
-    if ('fontKerning' in ctx) {
-        (ctx as any).fontKerning = "normal";
-    }
-
-    if ('textRendering' in ctx) {
-        (ctx as any).textRendering = "geometricPrecision";
-    }
-
-    // Calculate text boundaries
-    const metrics = ctx.measureText(text);
-    let textLeft;
-    const textWidth = metrics.width;
-
-    if (alignment === "center") {
-        textLeft = textX - textWidth / 2;
-    } else if (alignment === "left") {
-        textLeft = textX;
-    } else {
-        textLeft = textX - textWidth;
-    }
-
-    const textBoundaries = {
-        left: textLeft,
-        right: textLeft + textWidth,
-        width: textWidth,
-    };
-
-    // Render the text for sampling
-    ctx.fillText(text, textX, textY);
-
-    // Sample the rendered text
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    // Calculate sampling rate based on DPR and density to maintain consistent particle density
-    // Calculate sampling rate based on DPR and density to maintain consistent particle density
-    // Optimized: Increased baseDPR to significantly reduce particle count on high-res screens
-    const baseDPR = 1.5; // Lower base for coarser sampling, drastically improving performance
-
-    const currentDPR = canvas.width / parseInt(canvas.style.width);
-    const baseSampleRate = Math.max(1, Math.round(currentDPR / baseDPR));
-    const sampleRate = Math.max(1, Math.round(baseSampleRate)); // Adjust sample rate by density
-
-    // Sample the text pixels and create particles
-    for (let y = 0; y < canvas.height; y += sampleRate) {
-        for (let x = 0; x < canvas.width; x += sampleRate) {
-            const index = (y * canvas.width + x) * 4;
-            const alpha = data[index + 3];
-
-            if (alpha > 0) {
-                // Remove density from opacity calculation
-                const originalAlpha = alpha / 255 * (sampleRate / currentDPR);
-                const r = data[index];
-                const g = data[index + 1];
-                const b = data[index + 2];
-
-                const particle: Particle = {
-                    x,
-                    y,
-                    originalX: x,
-                    originalY: y,
-                    color: `rgba(${r}, ${g}, ${b}, ${originalAlpha})`,
-                    r, // Store raw RGB values for performance
-                    g,
-                    b,
-                    opacity: originalAlpha,
-                    originalAlpha,
-                    // Animation properties
-                    velocityX: 0,
-                    velocityY: 0,
-                    angle: 0,
-                    speed: 0,
-                };
-
-                particles.push(particle);
-            }
-        }
-    }
-
-    // Clear the canvas after sampling
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    return { particles, textBoundaries };
 };
 
 // Helper functions for particle animation
@@ -919,10 +938,11 @@ const calculateVaporizeSpread = (fontSize: number) => {
 
 // ------------------------------------------------------------ //
 // PARSE COLOR
-// ------------------------------------------------------------ //
 /**
  * Extracts RGB/RGBA values from a color string format
- * @param color - Color string (e.g. "rgb(12, 250, 163)")
+ * @param color - Color string in rgb() or rgba() format ONLY
+ *                (e.g. "rgb(12, 250, 163)" or "rgba(12, 250, 163, 0.5)")
+ *                Note: Hex colors (#FFF), named colors (white), and HSL are NOT supported
  * @returns Valid RGBA color string
  */
 const parseColor = (color: string) => {

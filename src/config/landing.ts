@@ -282,4 +282,55 @@ export const LANDING_CONFIG = {
     morphing: {
         duration: 2.5, // 粒子飞向树的动画时长 (秒)
     },
+
+    // ------------------------------------------------------------------------
+    // 阶段4: 3D 文字粒子系统 (Text Particle System)
+    // 用于将 Title 和 Username 渲染为 3D WebGL 粒子，实现飘散→重构动画
+    // ------------------------------------------------------------------------
+    textParticle: {
+        // 粒子采样密度 (值越小粒子越密集)
+        density: {
+            normal: 3,    // 桌面端
+            compact: 4,   // 移动端 (降低密度以提升性能)
+        },
+        // 粒子基础尺寸
+        baseSize: {
+            normal: 2.5,
+            compact: 3.0,
+        },
+        // 动画时长 (秒)
+        animation: {
+            formDuration: 1.5,      // 粒子聚合成文字时长
+            displayDuration: 2.0,   // 文字静态展示时长
+            disperseDuration: 1.5,  // 粒子飘散时长
+            reformDuration: 2.0,    // 重构为 MagicDust 时长
+        },
+        // 飘散动画参数
+        disperse: {
+            upwardForce: 3.0,       // 向上飘升力度
+            driftAmplitude: 2.5,    // 随机漂移幅度
+            noiseScale: 0.5,        // 噪波缩放
+            fadeStart: 0.3,         // 开始淡出进度
+            fadeEnd: 0.85,          // 完全淡出进度
+        },
+        // 粒子颜色 (RGB)
+        colors: {
+            title: {
+                r: 212, g: 175, b: 55, // Gold #D4AF37
+            },
+            username: {
+                r: 244, g: 227, b: 178, // Light Gold #F4E3B2
+            },
+        },
+        // 世界空间布局
+        layout: {
+            worldWidth: {
+                normal: 20,   // 桌面端
+                compact: 16,  // 移动端
+            },
+            titleY: 4.0,      // 标题 Y 坐标
+            usernameY: 2.0,   // 用户名 Y 坐标
+            zOffset: 0,       // Z 轴偏移
+        },
+    },
 } as const;

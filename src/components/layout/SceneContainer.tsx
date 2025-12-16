@@ -6,7 +6,9 @@ import { Snow } from '../canvas/Snow';
 import { CinematicEffects } from '../canvas/CinematicEffects';
 import { Floor } from '../canvas/Floor';
 import { MagicDust } from '../canvas/MagicDust';
+import { SnowFloor } from '../canvas/SnowFloor';
 import { ShaderWarmup } from '../canvas/ShaderWarmup';
+import { TextParticles } from '../canvas/TextParticles';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
 import { UIState, AppConfig } from '../../types';
@@ -50,6 +52,24 @@ const PerformanceMonitorWrapper: React.FC<{
         updateData(data);
         onUpdateRef.current({ ...data, particleCount });
     }} />;
+};
+
+/**
+ * MagicDust with delayed visibility until TextParticles reforming is complete
+ * This prevents duplicate particle systems during the transition
+ */
+const MagicDustWithDelay: React.FC = () => {
+    const textParticlePhase = useStore((state) => state.textParticlePhase);
+
+    // Only show MagicDust after TextParticles have completed reforming (dust phase)
+    // Or when phase is still hidden (TextParticles never started)
+    const shouldShow = textParticlePhase === 'dust' || textParticlePhase === 'hidden';
+
+    if (!shouldShow) {
+        return null;
+    }
+
+    return <MagicDust />;
 };
 
 /**
@@ -140,6 +160,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
     onPerformanceUpdate
 }) => {
     const landingPhase = useStore((state) => state.landingPhase);
+    const userName = useStore((state) => state.userName);
 
     return (
         <div className="absolute inset-0 z-40">
@@ -178,18 +199,34 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         wind={config.windStrength}
                     />
 
+                    {/* Text Particles - Extended lifespan through tree phase for reforming animation */}
+                    {(landingPhase === 'entrance' || landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
+                        <React.Suspense fallback={null}>
+                            <TextParticles
+                                title="Merry Christmas"
+                                username={userName || 'Friend'}
+                            />
+                        </React.Suspense>
+                    )}
+
+
 
 
                     {/* Persistent Environment Elements (Floor & Dust) - Visible in both phases to prevent pop */}
                     {/* Floor */}
-                    {(landingPhase === 'morphing' || landingPhase === 'tree') && <Floor />}
+                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                        <>
+                            <Floor />
+                            {/* Layered accumulated snow on top of the reflective floor */}
+                            <SnowFloor count={3000} opacity={0.3} />
+                        </>
+                    )}
 
-                    {/* Magic Dust - continuous presence */}
                     {/* Tree Experience & Magic Dust - Grouped in Suspense for synchronized loading */}
                     {(landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <React.Suspense fallback={null}>
-                            {/* Magic Dust - continuous presence, inside Suspense to sync start time with Tree */}
-                            <MagicDust />
+                            {/* Magic Dust - Delayed until TextParticles reforming is complete */}
+                            <MagicDustWithDelay />
                             <Experience
                                 uiState={uiState}
                                 visible={landingPhase === 'tree' || landingPhase === 'morphing'}

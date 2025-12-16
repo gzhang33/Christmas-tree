@@ -16,8 +16,6 @@ export interface PerformanceData {
   shaderCount?: number;
 }
 
-
-
 interface PerformanceMonitorProps {
   visible?: boolean;
 }
@@ -60,7 +58,8 @@ const PerformanceTracker: React.FC<{
           z: Number(camera.position.z.toFixed(2)),
         },
         resolution: `${gl.domElement.width}x${gl.domElement.height}`,
-        textureCount: info.memory?.textures ?? 0, shaderCount: info.programs?.length ?? 0,
+        textureCount: info.memory?.textures ?? 0,
+        shaderCount: info.programs?.length ?? 0,
       });
 
       frameCount.current = 0;
@@ -82,8 +81,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
   const [isExpanded, setIsExpanded] = useState(true);
 
-
-
   const handleUpdate = useCallback((newData: Partial<PerformanceData>) => {
     setData((prev) => ({ ...prev, ...newData }));
   }, []);
@@ -96,10 +93,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     if (fps >= 40) return '#FFC107'; // Yellow
     return '#F44336'; // Red
   };
-
-
-
-
 
   return (
     <>
@@ -125,10 +118,6 @@ export const PerformanceOverlay: React.FC<{
     if (fps >= 40) return '#FFC107';
     return '#F44336';
   };
-
-
-
-
 
   return (
     <div
@@ -186,7 +175,8 @@ export const PerformanceOverlay: React.FC<{
           {data.textureCount !== undefined && <Row label="纹理" value={String(data.textureCount)} />}
           {data.shaderCount !== undefined && <Row label="着色器" value={String(data.shaderCount)} />}
         </div>
-      )}    </div>
+      )}
+    </div>
   );
 };
 
@@ -223,4 +213,3 @@ export const usePerformanceMonitor = () => {
 
   return { data, updateData, TrackerComponent: PerformanceTracker };
 };
-

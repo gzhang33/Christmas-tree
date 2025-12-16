@@ -21,8 +21,7 @@ export const createConfigSlice: StateCreator<AppState, [], [], ConfigSlice> = (s
     treeColor: COLOR_CONFIG.tree.default,
     // 使用响应式配置：桌面端 12000，移动端 10000
     particleCount: getResponsiveValue(PERFORMANCE_CONFIG.particles.defaultCount),
-    // 魔法尘埃颜色默认使用配置文件中的第一个颜色
-    magicDustColor: PARTICLE_CONFIG.magicDust.colors[0] ?? '#ffffff',    // 默认不播放音乐
+    magicDustColor: COLOR_CONFIG.magicDust.default,
     selectedAudioId: AUDIO_CONFIG.defaultId,
     setTreeColor: (color) => set({ treeColor: color }),
     setParticleCount: (count) => set({ particleCount: count }),

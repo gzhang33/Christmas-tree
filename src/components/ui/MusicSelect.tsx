@@ -10,9 +10,19 @@ interface MusicSelectProps {
 
 export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
 
     const selectedOption = options.find(opt => opt.id === value);
+    const selectedIndex = options.findIndex(opt => opt.id === value);
+
+    // Reset highlighted index when opening
+    useEffect(() => {
+        if (isOpen) {
+            setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+        }
+    }, [isOpen, selectedIndex]);
 
     // Click outside and Escape key handler
     useEffect(() => {
@@ -38,6 +48,20 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
             document.removeEventListener('keydown', handleEscapeKey);
         };
     }, [isOpen]);
+
+    // Auto-scroll highlighted item into view
+    useEffect(() => {
+        if (isOpen && highlightedIndex >= 0 && listRef.current) {
+            const listElement = listRef.current;
+            const highlightedElement = listElement.children[highlightedIndex] as HTMLElement;
+            if (highlightedElement) {
+                highlightedElement.scrollIntoView({
+                    block: 'nearest',
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }, [highlightedIndex, isOpen]);
 
     return (
         <div className="relative w-full" ref={containerRef}>
@@ -82,6 +106,7 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                     `}
                 />
             </button>
+
             {/* Dropdown List */}
             {isOpen && (
                 <div className="
@@ -95,9 +120,47 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                     overflow-hidden
                     animate-in fade-in zoom-in-95 duration-200
                 ">
-                    <ul className="py-1 max-h-[240px] overflow-y-auto custom-scrollbar" role="listbox">
-                        {options.map((option) => {
+                    <ul
+                        ref={listRef}
+                        className="py-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+                        role="listbox"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            switch (e.key) {
+                                case 'ArrowDown':
+                                    e.preventDefault();
+                                    setHighlightedIndex((prev) =>
+                                        prev < options.length - 1 ? prev + 1 : prev
+                                    );
+                                    break;
+                                case 'ArrowUp':
+                                    e.preventDefault();
+                                    setHighlightedIndex((prev) =>
+                                        prev > 0 ? prev - 1 : prev
+                                    );
+                                    break;
+                                case 'Home':
+                                    e.preventDefault();
+                                    setHighlightedIndex(0);
+                                    break;
+                                case 'End':
+                                    e.preventDefault();
+                                    setHighlightedIndex(options.length - 1);
+                                    break;
+                                case 'Enter':
+                                case ' ':
+                                    e.preventDefault();
+                                    if (highlightedIndex >= 0 && highlightedIndex < options.length) {
+                                        onChange(options[highlightedIndex].id);
+                                        setIsOpen(false);
+                                    }
+                                    break;
+                            }
+                        }}
+                    >
+                        {options.map((option, index) => {
                             const isSelected = option.id === value;
+                            const isHighlighted = index === highlightedIndex;
                             return (
                                 <li
                                     key={option.id}
@@ -105,6 +168,7 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                                         onChange(option.id);
                                         setIsOpen(false);
                                     }}
+                                    onMouseEnter={() => setHighlightedIndex(index)}
                                     role="option"
                                     aria-selected={isSelected}
                                     className={`
@@ -116,7 +180,9 @@ export const MusicSelect: React.FC<MusicSelectProps> = ({ options, value, onChan
                                         border-l-2
                                         ${isSelected
                                             ? 'bg-white/10 text-white border-electric-purple'
-                                            : 'text-white/70 border-transparent hover:bg-white/5 hover:text-[#D4AF37] hover:border-[#D4AF37]/50'
+                                            : isHighlighted
+                                                ? 'bg-white/5 text-[#D4AF37] border-[#D4AF37]/50'
+                                                : 'text-white/70 border-transparent hover:bg-white/5 hover:text-[#D4AF37] hover:border-[#D4AF37]/50'
                                         }
                                     `}
                                 >

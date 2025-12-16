@@ -9,6 +9,8 @@ interface SnowProps {
   wind?: number;
 }
 
+import { useSnowTexture } from '../../hooks/useSnowTexture';
+
 export const Snow: React.FC<SnowProps> = ({
   count = SNOW_DEFAULTS.count,
   speed = SNOW_DEFAULTS.speed,
@@ -17,64 +19,8 @@ export const Snow: React.FC<SnowProps> = ({
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  // Generate a procedural snowflake texture
-  const snowflakeTexture = useMemo(() => {
-    const { texture: cfg } = SNOW_CONFIG;
-    const canvas = document.createElement('canvas');
-    canvas.width = cfg.canvasSize;
-    canvas.height = cfg.canvasSize;
-    const ctx = canvas.getContext('2d');
-
-    if (ctx) {
-      ctx.fillStyle = 'rgba(0,0,0,0)';
-      ctx.clearRect(0, 0, cfg.canvasSize, cfg.canvasSize);
-
-      ctx.strokeStyle = cfg.strokeColor;
-      ctx.lineWidth = cfg.lineWidth;
-      ctx.lineCap = cfg.lineCap;
-      ctx.shadowBlur = cfg.shadowBlur;
-      ctx.shadowColor = cfg.shadowColor;
-
-      // Draw branches
-      for (let i = 0; i < cfg.branches; i++) {
-        ctx.save();
-        ctx.translate(cfg.centerX, cfg.centerY);
-        ctx.rotate((i * 2 * Math.PI) / cfg.branches);
-
-        // Main branch
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -cfg.radius);
-        ctx.stroke();
-
-        // Inner V-shaped sub-branches
-        ctx.beginPath();
-        ctx.moveTo(0, -cfg.radius * cfg.innerVBranchPosition);
-        ctx.lineTo(-cfg.branchSize, -cfg.radius * cfg.innerVBranchExtend);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, -cfg.radius * cfg.innerVBranchPosition);
-        ctx.lineTo(cfg.branchSize, -cfg.radius * cfg.innerVBranchExtend);
-        ctx.stroke();
-
-        // Outer V-shaped sub-branches
-        ctx.beginPath();
-        ctx.moveTo(0, -cfg.radius * cfg.outerVBranchPosition);
-        ctx.lineTo(-cfg.branchSize * cfg.outerVBranchScale, -cfg.radius * cfg.outerVBranchExtend);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, -cfg.radius * cfg.outerVBranchPosition);
-        ctx.lineTo(cfg.branchSize * cfg.outerVBranchScale, -cfg.radius * cfg.outerVBranchExtend);
-        ctx.stroke();
-
-        ctx.restore();
-      }
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
+  // Use the shared hook for consistent texture
+  const snowflakeTexture = useSnowTexture();
 
   // Initialize particle data
   const particles = useMemo(() => {

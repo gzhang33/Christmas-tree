@@ -10,6 +10,7 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { z } from 'zod';
 import { INTERACTION_CONFIG } from '../../config';
 
 interface NameInputModalProps {
@@ -19,26 +20,13 @@ interface NameInputModalProps {
 // Get validation config
 const { validation, errorMessages } = INTERACTION_CONFIG.nameInput;
 
-/**
- * Validates user name input
- * @returns Object with valid boolean and optional error message
- */
-function validateUserName(input: string): { valid: boolean; error?: string } {
-    const trimmed = input.trim();
-
-    if (trimmed.length < validation.minLength) {
-        return { valid: false, error: errorMessages.empty };
-    }
-
-    if (trimmed.length > validation.maxLength) {
-        return { valid: false, error: errorMessages.tooLong(validation.maxLength) };
-    }
-
-    if (!validation.pattern.test(trimmed)) {
-        return { valid: false, error: errorMessages.invalidChars };
-    }
-    return { valid: true };
-}
+// Zod schema for name validation
+const nameSchema = z
+    .string()
+    .trim()
+    .min(validation.minLength, { message: errorMessages.empty })
+    .max(validation.maxLength, { message: errorMessages.tooLong(validation.maxLength) })
+    .regex(validation.pattern, { message: errorMessages.invalidChars });
 
 export const NameInputModal: React.FC<NameInputModalProps> = ({
     onSubmit,
@@ -63,23 +51,24 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
     }, [error]);
 
     const handleSubmit = useCallback(async () => {
-        const validation = validateUserName(inputValue);
+        // Use Zod schema for validation
+        const result = nameSchema.safeParse(inputValue);
 
-        if (!validation.valid) {
-            setError(validation.error || 'Invalid input');
+        if (!result.success) {
+            // Get the first error message
+            const firstError = result.error.issues[0]?.message || 'Invalid input';
+            setError(firstError);
             return;
         }
 
+        // result.data is already trimmed by the schema
+        const trimmedName = result.data;
         setIsSubmitting(true);
-        const trimmedName = inputValue.trim();
-
-        // Give React a moment to render the "Shared Element" source (text overlay)
-        // before unmounting the modal via onSubmit -> phase change.
-        await new Promise(resolve => setTimeout(resolve, 50));
 
         try {
+            // Call onSubmit immediately to prevent getting stuck in loading state
             await onSubmit(trimmedName);
-            // Don't reset submitting here as component will likely unmount or transition
+            // Component will unmount or transition after this
         } catch (err) {
             setError(errorMessages.submitFailed);
             setIsSubmitting(false);
@@ -95,6 +84,9 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
         },
         [handleSubmit]
     );
+
+    // Centralized button disabled logic
+    const isButtonDisabled = isSubmitting || inputValue.trim().length === 0;
 
     return (
         <AnimatePresence>
@@ -187,28 +179,28 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                         <motion.button
                             onClick={handleSubmit}
                             aria-busy={isSubmitting}
-                            disabled={isSubmitting || inputValue.trim().length === 0}
+                            disabled={isButtonDisabled}
                             className="group relative px-12 py-5 text-lg font-bold text-white overflow-hidden
                                      rounded-full z-[999]
                                      disabled:cursor-not-allowed
                                      transition-all duration-500"
                             style={{
-                                background: isSubmitting || inputValue.trim().length === 0
+                                background: isButtonDisabled
                                     ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(185, 28, 28, 0.3) 100%)'
                                     : 'linear-gradient(135deg, #dc2626 0%, #b91c1c 50%, #991b1b 100%)',
                                 border: '3px solid #fbbf24',
-                                boxShadow: isSubmitting || inputValue.trim().length === 0
+                                boxShadow: isButtonDisabled
                                     ? 'none'
                                     : '0 0 30px rgba(220, 38, 38, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                             }}
-                            whileHover={!(isSubmitting || inputValue.trim().length === 0) ? {
+                            whileHover={!isButtonDisabled ? {
                                 scale: 1.08,
                                 boxShadow: '0 0 40px rgba(220, 38, 38, 0.8), 0 0 80px rgba(251, 191, 36, 0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
                             } : {}}
-                            whileTap={!(isSubmitting || inputValue.trim().length === 0) ? { scale: 0.95 } : {}}
+                            whileTap={!isButtonDisabled ? { scale: 0.95 } : {}}
                         >
                             {/* Shimmer effect */}
-                            {!(isSubmitting || inputValue.trim().length === 0) && (
+                            {!isButtonDisabled && (
                                 <motion.div
                                     className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                                     animate={{
@@ -224,7 +216,7 @@ export const NameInputModal: React.FC<NameInputModalProps> = ({
                             )}
 
                             {/* Sparkle decorations */}
-                            {!(isSubmitting || inputValue.trim().length === 0) && (
+                            {!isButtonDisabled && (
                                 <>
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl animate-pulse">✨</span>
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl animate-pulse" style={{ animationDelay: '0.5s' }}>✨</span>
