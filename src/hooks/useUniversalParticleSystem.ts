@@ -21,6 +21,7 @@ interface TextParticleData {
     colors: Float32Array;
     sizes: Float32Array;
     flickerPhases: Float32Array;
+    types: Float32Array; // 1.0 = text particle, 0.0 = pure dust particle
     count: number;
 }
 
@@ -56,6 +57,7 @@ function generateTextParticles(
             colors: new Float32Array(0),
             sizes: new Float32Array(0),
             flickerPhases: new Float32Array(0),
+            types: new Float32Array(0),
             count: 0
         };
     }
@@ -114,6 +116,8 @@ function generateTextParticles(
     }
 
     const count = particlePositions.length / 3;
+    const types = new Float32Array(count).fill(1.0); // All text particles are type 1.0
+
     return {
         positions: new Float32Array(particlePositions),
         spiralT: new Float32Array(particleSpiralT),
@@ -121,6 +125,7 @@ function generateTextParticles(
         colors: new Float32Array(count * 3), // Placeholder, will be filled with dust colors
         sizes: new Float32Array(count),      // Placeholder, will be filled with sizes
         flickerPhases: new Float32Array(count), // Placeholder
+        types,
         count,
     };
 }
@@ -146,6 +151,7 @@ function generateMultilineTextParticles(
             colors: new Float32Array(0),
             sizes: new Float32Array(0),
             flickerPhases: new Float32Array(0),
+            types: new Float32Array(0),
             count: 0
         };
     }
@@ -245,6 +251,8 @@ function generateMultilineTextParticles(
     });
 
     const count = allPositions.length / 3;
+    const types = new Float32Array(count).fill(1.0); // All text particles are type 1.0
+
     return {
         positions: new Float32Array(allPositions),
         spiralT: new Float32Array(allSpiralT),
@@ -252,6 +260,7 @@ function generateMultilineTextParticles(
         colors: new Float32Array(count * 3),
         sizes: new Float32Array(count),
         flickerPhases: new Float32Array(count),
+        types,
         count,
     };
 }
@@ -361,7 +370,9 @@ export function useUniversalParticleSystem({
             );
         }
 
-        // Generate username particles
+
+        // Generate username particles - REMOVED per request
+        /*
         const usernameData = generateTextParticles(
             username,
             fontSize * config.typography.usernameScale,
@@ -370,45 +381,59 @@ export function useUniversalParticleSystem({
             worldWidth * 0.6,
             config.layout.usernameY
         );
+        */
+
 
         // Calculate total particle count: max of text particles and dust requirements
         // Use the ratio-based dust count for proper density matching MagicDust
-        const textParticleCount = titleData.count + usernameData.count;
+        // Calculate total particle count: max of text particles and dust requirements
+        // Use the ratio-based dust count for proper density matching MagicDust
+        const textParticleCount = titleData.count;
+
         const totalCount = Math.max(textParticleCount, dustParticleCount);
 
         // Allocate combined arrays
         const allPositions = new Float32Array(totalCount * 3);
         const allSpiralT = new Float32Array(totalCount);
         const allRandoms = new Float32Array(totalCount);
+        const allTypes = new Float32Array(totalCount);
 
         // Copy title particles
         allPositions.set(titleData.positions, 0);
         allSpiralT.set(titleData.spiralT, 0);
         allRandoms.set(titleData.randoms, 0);
+        allTypes.set(titleData.types, 0);
 
-        // Copy username particles (offset by title count)
+        // Copy username particles - REMOVED
+        /*
         allPositions.set(usernameData.positions, titleData.count * 3);
         allSpiralT.set(usernameData.spiralT, titleData.count);
         allRandoms.set(usernameData.randoms, titleData.count);
+        allTypes.set(usernameData.types, titleData.count);
+        */
+
 
         // Fill extra particles (if totalCount > textParticleCount)
-        // These particles start invisible in text phases and become visible in dust phase
+        // These particles must start "hidden" in the cloud area to prevent bottom-up artifact
         for (let i = textParticleCount; i < totalCount; i++) {
-            // Random position far away (will be replaced by spiral in dust phase)
-            allPositions[i * 3] = (Math.random() - 0.5) * 50;
-            allPositions[i * 3 + 1] = -100; // Start below visible area
-            allPositions[i * 3 + 2] = (Math.random() - 0.5) * 50;
+            // Random position generally matching text area (scattered cloud)
+            // Instead of -100, we place them around the visible center
+            allPositions[i * 3] = (Math.random() - 0.5) * 20;      // X: +/- 10
+            allPositions[i * 3 + 1] = (Math.random() - 0.5) * 10;  // Y: +/- 5 (Center screen)
+            allPositions[i * 3 + 2] = (Math.random() - 0.5) * 10;  // Z: +/- 5
 
             // Uniform spiralT distribution for even dust coverage
             allSpiralT[i] = i / totalCount;
             allRandoms[i] = Math.random();
+            allTypes[i] = 0.0; // Extra particle
         }
 
         // Generate dust colors and sizes for all particles
         const dustColor = dustColors[1] || dustColors[0] || PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4';
         const { colors, sizes, flickerPhases } = generateDustColors(totalCount, dustColor);
 
-        console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, username: ${usernameData.count}, dust budget: ${dustParticleCount})`);
+        console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, dust budget: ${dustParticleCount})`);
+
 
         return {
             positions: allPositions,
@@ -417,10 +442,11 @@ export function useUniversalParticleSystem({
             colors,
             sizes,
             flickerPhases,
+            types: allTypes,
             count: totalCount,
             textParticleCount, // Track how many are from text (vs extra dust particles)
         };
-    }, [title, username, density, worldWidth, config.layout.titleY, config.layout.usernameY, dustColors, dustParticleCount]);
+    }, [title, density, worldWidth, config.layout.titleY, dustColors, dustParticleCount]);
 
     return attributes;
 }

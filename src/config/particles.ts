@@ -106,7 +106,7 @@ export const PARTICLE_CONFIG = {
     // ------------------------------------------------------------------------
     animation: {
         // 呼吸动画全局开关
-        enableBreathing: true,
+        enableBreathing: false,
 
         // 呼吸动画频率 (多层有机运动)
         breatheFrequency1: 0.6,    // 主呼吸层
@@ -124,7 +124,7 @@ export const PARTICLE_CONFIG = {
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
         dampingSpeedExplosion: 0.002, // 爆炸速度 (High velocity)
         dampingSpeedReset: 0.004,     // 还原速度 (Rapid damping)
-        dampingSpeedEntrance: 0.003,  // 入场速度 (Slower for entrance)
+        dampingSpeedEntrance: 0.004,  // 入场速度 (Slower for entrance)
     },
 
     // ------------------------------------------------------------------------

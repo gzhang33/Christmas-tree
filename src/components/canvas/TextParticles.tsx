@@ -155,18 +155,9 @@ export const TextParticles: React.FC<TextParticlesProps> = ({
             config.layout.titleY
         );
 
-        // Generate username particles
-        const usernameData = generateTextParticles(
-            username,
-            fontSize * 0.4,
-            "'Courier New', monospace",
-            density,
-            worldWidth * 0.6,
-            config.layout.usernameY
-        );
 
-        // Combine both
-        const totalCount = titleData.count + usernameData.count;
+        // Only use title particles
+        const totalCount = titleData.count;
         const allPositions = new Float32Array(totalCount * 3);
         const allSpiralT = new Float32Array(totalCount);
         const allRandoms = new Float32Array(totalCount);
@@ -176,12 +167,9 @@ export const TextParticles: React.FC<TextParticlesProps> = ({
         allSpiralT.set(titleData.spiralT, 0);
         allRandoms.set(titleData.randoms, 0);
 
-        // Copy username particles
-        allPositions.set(usernameData.positions, titleData.count * 3);
-        allSpiralT.set(usernameData.spiralT, titleData.count);
-        allRandoms.set(usernameData.randoms, titleData.count);
 
-        console.log(`[TextParticles] Generated ${totalCount} particles (title: ${titleData.count}, username: ${usernameData.count})`);
+        console.log(`[TextParticles] Generated ${totalCount} particles (title: ${titleData.count})`);
+
 
         return {
             positions: allPositions,
@@ -189,7 +177,7 @@ export const TextParticles: React.FC<TextParticlesProps> = ({
             randoms: allRandoms,
             count: totalCount,
         };
-    }, [title, username, density, worldWidth, config.layout.titleY, config.layout.usernameY]);
+    }, [title, density, worldWidth, config.layout.titleY]);
 
     // Shader uniforms
     const uniforms = useMemo(() => ({
