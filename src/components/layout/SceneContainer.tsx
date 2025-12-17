@@ -8,6 +8,7 @@ import { Floor } from '../canvas/Floor';
 import { SnowFloor } from '../canvas/SnowFloor';
 import { ShaderWarmup } from '../canvas/ShaderWarmup';
 import { UniversalParticleSystemComponent } from '../canvas/UniversalParticleSystem';
+import { ScatterText3D } from '../canvas/ScatterText3D';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { LANDING_CONFIG } from '../../config/landing';
 import { usePerformanceMonitor, PerformanceData } from '../canvas/PerformanceMonitor';
@@ -231,6 +232,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                             {/* Shader Warmup - MUST be inside Suspense, after shader-using components */}
                             <ShaderWarmup />
                         </React.Suspense>
+                    )}
+
+                    {/* 3D Scattered Text - shown after tree explosion */}
+                    {landingPhase === 'tree' && (
+                        <ScatterText3D />
                     )}
 
                     {/* Performance Tracker */}
