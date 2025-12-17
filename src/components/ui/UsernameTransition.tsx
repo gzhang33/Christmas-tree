@@ -86,10 +86,17 @@ export const UsernameTransition: React.FC = () => {
                 <motion.div
                     ref={containerRef}
                     className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center"
-                    style={{ paddingTop: '30vh' }}
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.5 } }}
+                    style={{ paddingTop: '30vh', transformStyle: 'preserve-3d' }}
+                    initial={{ opacity: 1, transform: "perspective(1000px) translateZ(0px)" }}
+                    animate={{ opacity: 1, transform: "perspective(1000px) translateZ(0px)" }}
+                    exit={{
+                        opacity: 0,
+                        transform: "perspective(1000px) translateZ(-2000px)", // Pull Z far away to be covered by tree
+                        transition: {
+                            duration: 2.0, // Synced with tree entrance
+                            ease: "easeInOut"
+                        }
+                    }}
                 >
                     {/* Spacer for Title (200px) + Gap (space-y-4 = 16px) */}
                     <div style={{ height: '200px', flexShrink: 0 }} />
