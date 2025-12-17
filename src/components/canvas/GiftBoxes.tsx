@@ -71,8 +71,11 @@ const GiftMesh = React.memo(({
                 const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
                 materials.forEach(mat => {
                     if (mat) {
-                        mat.transparent = true;
-                        mat.opacity = 1; // Start fully visible
+                        // FIX: Forces opaque rendering to resolve Z-fighting with transparent tree particles.
+                        // Opaque objects are drawn first and write depth, ensuring correct occlusion.
+                        mat.transparent = false;
+                        mat.opacity = 1;
+                        // mat.depthWrite = true; // Default is true for opaque objects
                         mats.push(mat);
                     }
                 });
@@ -84,6 +87,8 @@ const GiftMesh = React.memo(({
     // Update material opacity every frame based on landing phase
     useFrame((_, delta) => {
         // Gift boxes are always fully visible (100% opacity) in all phases
+        // Opacity animation disabled to support opaque rendering (fix for occlusion bugs)
+        /*
         const targetOpacity = 1;
 
         // Smooth lerp to target
@@ -97,6 +102,7 @@ const GiftMesh = React.memo(({
         materialsRef.current.forEach(mat => {
             mat.opacity = currentOpacityRef.current;
         });
+        */
     });
 
     // Cleanup cloned scene resources on unmount

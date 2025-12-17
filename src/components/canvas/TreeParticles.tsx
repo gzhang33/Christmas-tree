@@ -27,7 +27,7 @@ import { initPhotoMaterialPool, disposePhotoMaterialPool } from "../../utils/mat
 import { initFrameMaterialPool, disposeFrameMaterialPool } from "../../utils/frameMaterialPool"; // NEW: Frame material pool
 import { SkeletonUtils } from "three-stdlib"; // NEW: For Model-to-Particle conversion & Scene cloning
 
-import { useGLTF, Image } from "@react-three/drei"; // NEW: Load user models & Images
+import { useGLTF, Image, useTexture } from "@react-three/drei"; // NEW: Load user models & Images
 import { GIFT_MODELS, GIFT_BOX_CONFIGS, calculateGiftPosition } from "../../config/giftBoxes";
 
 // GiftMesh component moved to GiftBoxes.tsx for independent rendering
@@ -41,30 +41,7 @@ interface TreeParticlesProps {
 
 // === TEXTURE FACTORY ===
 
-// Feathery texture for entity layer (Normal blending)
-const createFeatherTexture = () => {
-  const canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
 
-  // Soft feathery gradient with depth
-  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-  grad.addColorStop(0.1, "rgba(255, 255, 255, 0.95)");
-  grad.addColorStop(0.3, "rgba(255, 255, 255, 0.7)");
-  grad.addColorStop(0.5, "rgba(255, 255, 255, 0.4)");
-  grad.addColorStop(0.7, "rgba(255, 255, 255, 0.15)");
-  grad.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 128, 128);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-};
 
 
 
@@ -386,7 +363,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
 
   // Textures
-  const featherTexture = useMemo(() => createFeatherTexture(), []);
+  const particleTexture = useTexture('/textures/sparkle.png');
 
 
   // === PHOTO DATA GENERATION (ASYNC WORKER) ===
@@ -1198,7 +1175,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       // Entity layer: size 0.55, normal blending
       entityMaterialRef.current = createParticleShaderMaterial(
         treeColorThree,
-        featherTexture,
+        particleTexture,
         0.55,
       );
       entityMaterialRef.current.depthWrite = true;
@@ -1214,7 +1191,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       // Gifts: size 0.7, normal blending
       giftMaterialRef.current = createParticleShaderMaterial(
         treeColorThree,
-        featherTexture,
+        particleTexture,
         0.7,
       );
       giftMaterialRef.current.depthWrite = true;
@@ -1284,7 +1261,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       // Create fallback materials with proper ShaderMaterial instances
       entityMaterialRef.current = createFallbackShaderMaterial(
         0.55,
-        featherTexture,
+        particleTexture,
       );
       entityMaterialRef.current.depthWrite = true;
 
@@ -1296,7 +1273,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       giftMaterialRef.current = createFallbackShaderMaterial(
         0.7,
-        featherTexture,
+        particleTexture,
       );
       giftMaterialRef.current.depthWrite = true;
 
@@ -1318,7 +1295,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       giftMaterialRef.current?.dispose();
       treeBaseMaterialRef.current?.dispose();
     };
-  }, [treeColor, featherTexture]);
+  }, [treeColor, particleTexture]);
 
   // === UPDATE TARGET PROGRESS & START TIME ===
   const prevIsExplodedRef = useRef(isExploded);

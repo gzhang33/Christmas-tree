@@ -89,6 +89,7 @@ export const PARTICLE_CONFIG = {
         spiralTurns: 2.5,      // 螺旋圈数 (值越小坡度越陡, >20度)
         radiusOffset: 1.5,     // 距离树表面的距离 (关键参数)
         ascentSpeed: 0.15,      // 垂直上升速度
+        reformDelay: 0.0,       // 变形动画启动延迟 (秒, 0 = 与树同步启动)
         rotationSpeed: 0.15,    // 轨道旋转速度
 
         // 视觉效果

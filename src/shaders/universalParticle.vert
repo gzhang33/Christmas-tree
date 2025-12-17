@@ -299,40 +299,31 @@ void main() {
         color = uTextColor;
     }
     // === PHASE 4: REFORMING ===
-    // Particles converge from scattered position to MagicDust spiral positions
+    // Particles transfer directly from Text Shape to MagicDust spiral
+    // Skipping dispersion/drifting for a direct morph effect
     else if (uPhase == PH_REFORMING) {
         float progress = easeInOutCubic(uProgress);
         
-        // Current scattered position (from drifting phase)
-        vec3 scatteredPos = calculateScatteredPosition(aPositionText, uTime);
+        // Start: Original Text Position (no scatter)
+        vec3 startPos = aPositionText;
         
-        // Add the float offset that was present in drifting
-        float floatPhase = uTime * 0.5 + aRandom * 6.28;
-        vec3 floatOffset = vec3(
-            sin(floatPhase) * 0.3,
-            sin(floatPhase * 0.7 + 1.0) * 0.5,
-            cos(floatPhase * 0.5) * 0.3
-        ) * (1.0 - progress); // Fade out float as we reform
-        
-        scatteredPos += floatOffset;
-        
-        // Target: static spiral position (we'll use the assigned spiralT as final position)
+        // Target: static spiral position
         vec3 spiralPos = calculateStaticSpiralPosition(aSpiralT, uTime, aRandom);
         
-        // Interpolate from scattered to spiral
-        finalPos = mix(scatteredPos, spiralPos, progress);
+        // Direct Morph: Interpolate from Text -> Spiral
+        finalPos = mix(startPos, spiralPos, progress);
         
         // Fade back in fully and transition color
-        // For text particles: start at 0.5, fade to 1.0
-        // For extra particles: start at 0.0, fade to 1.0
-        float startAlpha = mix(0.0, 0.5, aIsText);
+        // For text particles: start at 1.0 (visible), stay 1.0
+        // For extra particles: start at 0.0 (hidden), fade to 1.0
+        float startAlpha = aIsText; 
         alpha = mix(startAlpha, 1.0, smoothstep(0.0, 0.3, progress));
         
         // Smooth color transition from text to dust color
-        color = mix(uTextColor, aColor, smoothstep(0.3, 0.8, progress));
+        color = mix(uTextColor, aColor, smoothstep(0.0, 1.0, progress));
         
         // Size transition
-        size = mix(uBaseSize * 0.9, aSize, progress);
+        size = mix(uBaseSize, aSize, progress);
     }
     // === PHASE 5: DUST LOOP ===
     // Continuous ascending spiral animation (MagicDust behavior)

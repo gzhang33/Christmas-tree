@@ -29,10 +29,8 @@ void main() {
   vec4 texColor = texture2D(uMap, gl_PointCoord);
 
   // Use texture alpha with edge sharpening for clearer particle edges
-  float rawAlpha = texColor.a * vAlpha;
-  // Tighter smoothstep for sharper, more crystal-like appearance
-  float edgeSharpness = smoothstep(0.1, 0.35, rawAlpha);
-  float alpha = mix(rawAlpha, edgeSharpness, 0.6);
+  // Direct alpha mapping for 100% texture fidelity
+  float alpha = texColor.a * vAlpha;
 
   // Discard fully transparent pixels for performance
   if (alpha < 0.02) discard;

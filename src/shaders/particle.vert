@@ -235,7 +235,7 @@ void main() {
   // === ALPHA CALCULATION ===
   // Photo particles: fade out during explosion (replaced by photos)
   // Regular particles: fade out completely for dissipation effect
-  float baseAlpha = 0.85 * (0.75 + aScale * 0.20);
+  float baseAlpha = 1.0;
 
   if (aIsPhotoParticle > 0.5) {
     // Photo particles fade to let photo mesh appear

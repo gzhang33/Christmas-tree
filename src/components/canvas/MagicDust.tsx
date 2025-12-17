@@ -16,7 +16,7 @@ interface MagicDustProps {
 export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const geometryRef = useRef<THREE.BufferGeometry>(null);
-  const meteorTexture = useTexture('/textures/sparkle.png');
+  const meteorTexture = useTexture('/textures/star_07.png');
 
   // Get dynamic color from store
   const magicDustColor = useStore((state) => state.magicDustColor);

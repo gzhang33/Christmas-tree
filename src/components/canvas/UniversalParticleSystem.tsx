@@ -44,9 +44,9 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 }) => {
     const materialRef = useRef<THREE.ShaderMaterial>(null);
     const geometryRef = useRef<THREE.BufferGeometry>(null);
-    const sparkleTexture = useTexture('/textures/sparkle.png');
+    const sparkleTexture = useTexture('/textures/star_07.png');
 
-    const { viewport } = useThree();
+    const { viewport, clock } = useThree();
 
     // Store state
     const landingPhase = useStore((state) => state.landingPhase);
@@ -58,6 +58,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
     // Animation refs
     const phaseStartTimeRef = useRef(0);
+    const morphStartTimeRef = useRef(0);
     const currentPhaseRef = useRef<number>(0);
 
     // Responsive config
@@ -182,18 +183,20 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
     // Sync with landing phase changes
     useEffect(() => {
+        const now = clock.elapsedTime;
+
         if (landingPhase === 'entrance') {
-            transitionToPhase(0, performance.now() / 1000);
+            transitionToPhase(0, now);
         } else if (landingPhase === 'text') {
             // Transition to visible if not already past it
             if (currentPhaseRef.current < 1) {
-                transitionToPhase(1, performance.now() / 1000);
+                transitionToPhase(1, now);
             }
         } else if (landingPhase === 'morphing') {
-            // Start dispersing
-            transitionToPhase(2, performance.now() / 1000);
+            // Capture the start time of the tree morphing phase
+            morphStartTimeRef.current = now;
         }
-    }, [landingPhase, transitionToPhase]);
+    }, [landingPhase, transitionToPhase, clock]);
 
     // Animation loop
     useFrame((state) => {
@@ -218,23 +221,16 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
             case 1: // visible
                 progress = 1.0;
-                // Wait for landingPhase change to trigger dispersing
-                break;
-
-            case 2: // dispersing
-                duration = anim.disperseDuration;
-                progress = Math.min(elapsed / duration, 1.0);
-                if (progress >= 1.0) {
-                    transitionToPhase(3, time);
+                // Wait for tree start (morphing) + delay
+                if (landingPhase === 'morphing' || landingPhase === 'tree') {
+                    const delay = PARTICLE_CONFIG.magicDust.reformDelay || 0;
+                    if (time >= morphStartTimeRef.current + delay) {
+                        transitionToPhase(4, time);
+                    }
                 }
                 break;
 
-            case 3: // drifting - wait for tree to complete morphing
-                progress = 1.0; // Hold at dispersed state
-                if (treeMorphState === 'idle' && landingPhase === 'tree') {
-                    transitionToPhase(4, time);
-                }
-                break;
+            // case 2 (dispersing) and case 3 (drifting) are skipped
 
             case 4: // reforming
                 duration = anim.reformDuration;
