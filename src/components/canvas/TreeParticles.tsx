@@ -28,71 +28,9 @@ import { initFrameMaterialPool, disposeFrameMaterialPool } from "../../utils/fra
 import { SkeletonUtils } from "three-stdlib"; // NEW: For Model-to-Particle conversion & Scene cloning
 
 import { useGLTF, Image } from "@react-three/drei"; // NEW: Load user models & Images
+import { GIFT_MODELS, GIFT_BOX_CONFIGS, calculateGiftPosition } from "../../config/giftBoxes";
 
-const GIFT_MODELS = [
-  '/models/a_gift_box.glb',
-  '/models/fnaf_gift_box.glb',
-  '/models/gift_box(1).glb',
-  '/models/gift_box(2).glb',
-  '/models/gift_box.glb',
-  '/models/gift_box_2.glb',
-];
-
-// Preload will be done in component mount effect to avoid SSR issues
-
-const GiftMesh = React.memo(({ scene, width, height, position, rotation, visible }: { scene: THREE.Group, width: number, height: number, position: [number, number, number], rotation: number, visible: boolean }) => {
-
-  const clonedScene = useMemo(() => {
-    // Clone the scene to allow independent transforms
-    const clone = SkeletonUtils.clone(scene);
-
-    // Compute bounding box to auto-scale
-    const box = new THREE.Box3().setFromObject(clone);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    // Calculate scale to fit target dimensions
-    const sx = size.x > 0 ? width / size.x : 1;
-    const sy = size.y > 0 ? height / size.y : 1;
-    const sz = size.z > 0 ? width / size.z : 1;
-
-    // Uniform scale? No, user boxes might be non-uniform.
-    // Apply scale to root
-    clone.scale.set(sx, sy, sz);
-
-    // Center logic? GLTFs usually have origin at bottom or center.
-    // We'll trust the GLTF or center it manually if needed, but for now simple scale is safer.
-
-    return clone;
-
-  }, [scene, width, height]);
-
-  // 组件卸载时清理克隆的场景资源
-  useEffect(() => {
-    return () => {
-      clonedScene.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          mesh.geometry?.dispose();
-          if (Array.isArray(mesh.material)) {
-            mesh.material.forEach(m => m.dispose());
-          } else {
-            mesh.material?.dispose();
-          }
-        }
-      });
-    };
-  }, [clonedScene]);
-
-  return (
-    <primitive
-      object={clonedScene}
-      position={position}
-      rotation={[0, rotation, 0]}
-      visible={visible}
-    />
-  );
-});
+// GiftMesh component moved to GiftBoxes.tsx for independent rendering
 
 interface TreeParticlesProps {
   isExploded: boolean;
@@ -370,18 +308,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const globalAlphaRef = useRef(0.0);
 
-  // === PRELOAD GIFT MODELS (CLIENT-ONLY) ===
-  // Must run in useEffect to avoid SSR issues with Three.js context
-  useEffect(() => {
-    GIFT_MODELS.forEach(path => useGLTF.preload(path));
-  }, []); // Empty deps - run once on mount
-
-  // === LOAD USER MODELS ===
+  // === GIFT BOX GLB MODELS ===
+  // GLB rendering moved to independent GiftBoxes component
+  // Only keeping giftGltfs for geometry extraction (used in particle effects)
   const giftGltfs = useGLTF(GIFT_MODELS);
 
-  // Extract geometries from loaded GLTFs
+  // Extract geometries from loaded GLTFs (for particle effects)
   const giftGeometries = useMemo(() => {
-    return giftGltfs.map((gltf) => {
+    const gltfArray = Array.isArray(giftGltfs) ? giftGltfs : [giftGltfs];
+    return gltfArray.map((gltf) => {
       let geo: THREE.BufferGeometry | null = null;
       gltf.scene.traverse((child) => {
         if (!geo && (child as THREE.Mesh).isMesh) {
@@ -1798,28 +1733,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             )}
           </points>
 
-          {/* Real 3D Gift Models */}
-          <group>
-            {gifts.map((gift, i) => {
-              // Deterministically pick a model based on index
-              const modelIndex = i % giftGltfs.length;
-              const cx = Math.cos(gift.ang) * gift.r;
-              const cz = Math.sin(gift.ang) * gift.r;
-              const cy = PARTICLE_CONFIG.treeBase.centerY + gift.h * 0.3; // Match previous particle logic
-
-              return (
-                <GiftMesh
-                  key={i}
-                  scene={giftGltfs[modelIndex].scene}
-                  width={gift.w}
-                  height={gift.h}
-                  position={[cx, cy, cz]}
-                  rotation={gift.ang} // Face outward
-                  visible={true} // Gifts stay visible during/after explosion
-                />
-              );
-            })}
-          </group>
+          {/* Gift Boxes moved to independent GiftBoxes component for earlier rendering */}
 
           {/* Ornaments and pearls */}
           <points ref={ornamentsRef}>

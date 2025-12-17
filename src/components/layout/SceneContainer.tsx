@@ -19,6 +19,7 @@ import { getResponsiveValue } from '../../utils/responsiveUtils';
 import { useFrame } from '@react-three/fiber';
 import { Environment, Stars } from '@react-three/drei';
 import { ErrorBoundary } from '../utils/ErrorBoundary';
+import { GiftBoxes } from '../canvas/GiftBoxes';
 
 
 interface SceneContainerProps {
@@ -212,13 +213,16 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         </React.Suspense>
                     )}
 
-                    {/* Persistent Environment Elements (Floor) - Visible in both phases to prevent pop */}
-                    {/* Floor */}
-                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                    {/* Persistent Environment Elements (Floor + GiftBoxes) - Pre-loaded from input phase */}
+                    {/* Rendered from input onwards to ensure all resources are loaded immediately */}
+                    {/* GiftBoxes visible at 100% from start, Floor animates opacity */}
+                    {(landingPhase === 'input' || landingPhase === 'entrance' || landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <>
                             <Floor />
                             {/* Layered accumulated snow on top of the reflective floor */}
                             <SnowFloor count={3000} opacity={0.3} />
+                            {/* Gift Boxes - GLB models loaded and displayed immediately */}
+                            <GiftBoxes />
                         </>
                     )}
 

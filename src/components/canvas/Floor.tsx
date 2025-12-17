@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import { SCENE_CONFIG } from '../../config';
 import { MeshReflectorMaterial } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
 export const Floor: React.FC = () => {
     const activePhoto = useStore((state) => state.activePhoto);
@@ -9,6 +11,35 @@ export const Floor: React.FC = () => {
     const setHoveredPhoto = useStore((state) => state.setHoveredPhoto);
     const playingVideoInHover = useStore((state) => state.playingVideoInHover); // NEW
     const setPlayingVideoInHover = useStore((state) => state.setPlayingVideoInHover); // NEW
+    const landingPhase = useStore((state) => state.landingPhase);
+
+    const materialRef = useRef<any>(null);
+    const currentOpacityRef = useRef(0); // Start at 0
+
+    // Animate opacity based on landing phase
+    useFrame((state, delta) => {
+        if (!materialRef.current) return;
+
+        // Target opacity based on phase:
+        // - input/entrance: 0% (invisible during loading)
+        // - text: 30% (subtle background)
+        // - morphing/tree: 50% (standard state)
+        let targetOpacity = 0.5; // Default for morphing/tree
+        if (landingPhase === 'input' || landingPhase === 'entrance') {
+            targetOpacity = 0;
+        } else if (landingPhase === 'text') {
+            targetOpacity = 0.3;
+        }
+
+        // Smooth lerp to target
+        currentOpacityRef.current = THREE.MathUtils.lerp(
+            currentOpacityRef.current,
+            targetOpacity,
+            delta * 2 // Transition speed
+        );
+
+        materialRef.current.opacity = currentOpacityRef.current;
+    });
 
     return (
         <mesh
@@ -40,9 +71,10 @@ export const Floor: React.FC = () => {
                 that blends into the dark environment using MeshReflectorMaterial
             */}
             <MeshReflectorMaterial
+                ref={materialRef}
                 color="#000000"      // Pure black base for best contrast with transparency
-                transparent={true}   // NEW: Enable transparency
-                opacity={0.5}        // NEW: 50% opacity (Glass/Ice effect) - allows stars to show through
+                transparent={true}   // Enable transparency
+                // opacity controlled by useFrame animation (starts at 0.3 in text phase, 0.5 in morphing/tree)
                 blur={[300, 100]}    // Soft blur for realistic ground reflections
                 mixBlur={1}          // Mix blur with surface color
                 mixStrength={30}     // Reflection strength
