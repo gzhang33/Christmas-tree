@@ -15,12 +15,12 @@
  */
 export const TREE_SHAPE_CONFIG = {
     // 着色器用参数 (用于 MagicDust 螺旋粒子)
-    maxRadius: 5.5,       // 树底部最大半径 (匹配显示半径 5.5)
+    maxRadius: 6,       // 树底部最大半径
     radiusScale: 1.0,     // 半径缩放系数
     minRadius: 0.0,       // 树顶部最小半径
 
     // 显示渲染用参数 (用于 getTreeRadius 分层算法)
-    layers: 7,            // 分层数量
+    layers: 6,            // 分层数量
     maxRDisplay: 5.5,     // 显示用最大半径
 } as const;
 
@@ -59,7 +59,7 @@ export const PARTICLE_CONFIG = {
     // 各子系统从全局粒子预算中独立分配的比例
     // ------------------------------------------------------------------------
     ratios: {
-        entity: 0.91,     // 91.0% - 树主体 (增强主体密度)
+        entity: 0.97,     // 97.0% - 树主体 (增强主体密度)
         magicDust: 0.005, // 0.5% - 魔法尘埃螺旋光环
         treeBase: 0.025,  // 2.5% - 树底座
     },
@@ -141,9 +141,9 @@ export const PARTICLE_CONFIG = {
 
         // 爆炸物理阻尼速度
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
-        dampingSpeedExplosion: 0.002, // 爆炸速度 (High velocity)
-        dampingSpeedReset: 0.004,     // 还原速度 (Rapid damping)
-        dampingSpeedEntrance: 0.004,  // 入场速度 (Slower for entrance)
+        dampingSpeedExplosion: 0.002, // 爆炸速度 
+        dampingSpeedReset: 0.004,     // 还原速度 
+        dampingSpeedEntrance: 0.004,  // 入场速度 
     },
 
     // ------------------------------------------------------------------------

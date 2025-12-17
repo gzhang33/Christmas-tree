@@ -300,15 +300,16 @@ void main() {
     }
     // === PHASE 4: REFORMING ===
     // Particles transfer directly from Text Shape to MagicDust spiral
-    // Skipping dispersion/drifting for a direct morph effect
+    // Using dynamic ascending spiral to eliminate visual pause before dust loop
     else if (uPhase == PH_REFORMING) {
         float progress = easeInOutCubic(uProgress);
         
         // Start: Original Text Position (no scatter)
         vec3 startPos = aPositionText;
         
-        // Target: static spiral position
-        vec3 spiralPos = calculateStaticSpiralPosition(aSpiralT, uTime, aRandom);
+        // Target: dynamic ascending spiral (same as dust loop)
+        // This ensures particles start ascending during the morph, eliminating the pause
+        vec3 spiralPos = calculateSpiralPosition(aSpiralT, uTime, aRandom);
         
         // Direct Morph: Interpolate from Text -> Spiral
         finalPos = mix(startPos, spiralPos, progress);
