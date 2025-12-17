@@ -197,9 +197,9 @@ export function getPhotoMaterialPool(): MaterialPool {
  * Dispose the global material pool
  * Call this when cleaning up the application
  */
-export function disposePhotoMaterialPool(): void {
+export function disposePhotoMaterialPool(force: boolean = false): void {
     if (globalPhotoMaterialPool) {
-        globalPhotoMaterialPool.dispose();
+        globalPhotoMaterialPool.dispose(force);
         globalPhotoMaterialPool = null;
     }
 }

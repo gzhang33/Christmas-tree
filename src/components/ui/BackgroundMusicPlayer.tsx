@@ -123,7 +123,9 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             // 如果暂停了且未静音且用户已交互，则播放
             if (audio.paused && !isMuted && (hasUserInteracted || !autoplayBlocked)) {
                 audio.play().catch((error) => {
-                    console.warn('[BackgroundMusicPlayer] Resume play failed:', error);
+                    if (error.name !== 'NotAllowedError') {
+                        console.warn('[BackgroundMusicPlayer] Resume play failed:', error);
+                    }
                 });
             }
             return;
@@ -157,7 +159,9 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             // 取消静音时，如果音频已暂停且有音源，尝试播放
             ensureVolume(audio);
             audio.play().catch((error) => {
-                console.warn('[BackgroundMusicPlayer] Play on unmute failed:', error);
+                if (error.name !== 'NotAllowedError') {
+                    console.warn('[BackgroundMusicPlayer] Play on unmute failed:', error);
+                }
             });
         } else if (isMuted && !audio.paused) {
             // 静音时暂停播放

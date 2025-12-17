@@ -14,6 +14,7 @@ uniform float uProgress;
 uniform vec3 uTreeColor;      // Primary tree color
 uniform sampler2D uMap;       // Particle texture map (feather/sparkle)
 uniform float uGlobalAlpha;   // Global alpha for fade-in transitions
+uniform float uBrightness;    // Brightness multiplier
 
 // === VARYINGS ===
 varying float vProgress;
@@ -38,6 +39,9 @@ void main() {
   // === COLOR PROCESSING ===
   // Base color from vertex shader, modulated by texture brightness
   vec3 color = vColor * texColor.rgb;
+
+  // Apply Brightness Multiplier
+  color *= uBrightness;
 
   // Kinetic Flash (Shockwave effect)
   // Add additive burst of white/gold light based on vFlash
