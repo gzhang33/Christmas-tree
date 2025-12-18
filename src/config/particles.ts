@@ -46,7 +46,10 @@ export const PARTICLE_CONFIG = {
             brightness: 3.5,   // 粒子亮度增强
         },
         ornament: {
-            count: 60,         // 装饰球数量
+            count: {
+                normal: 60,         // 桌面端装饰球数量
+                compact: 25,        // 移动端减少装饰球数量，减轻渲染压力
+            },
             scale: 3.0,        // 装饰球缩放系数
         },
         treeBase: {
@@ -141,9 +144,9 @@ export const PARTICLE_CONFIG = {
 
         // 爆炸物理阻尼速度
         // 匹配 AC6 "Midnight Magic" 美学: 爆炸时高速度，回归时更快
-        dampingSpeedExplosion: 0.002, // 爆炸速度 
-        dampingSpeedReset: 0.004,     // 还原速度 
-        dampingSpeedEntrance: 0.004,  // 入场速度 
+        dampingSpeedExplosion: 0.030, // 爆炸速度 
+        dampingSpeedReset: 0.050,     // 还原速度 
+        dampingSpeedEntrance: 0.050,  // 入场速度 
     },
 
     // ------------------------------------------------------------------------

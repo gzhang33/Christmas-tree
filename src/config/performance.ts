@@ -38,7 +38,7 @@ export const PERFORMANCE_CONFIG = {
         /** 默认粒子总数 - 响应式配置 */
         defaultCount: {
             normal: 400000,
-            compact: 300000,
+            compact: 180000,
         },
     },
 
@@ -55,18 +55,16 @@ export const PERFORMANCE_CONFIG = {
          */
         titleSamplingDensity: {
             normal: 4,  // 桌面端(密度增加，更清晰)
-            compact: 3, // 移动端(密度增加，更清晰)
+            compact: 6, // 移动端: 减小密度（从3->6）以极大降低渲染压力
         },
 
         /**
-         * 3D 场景中的文字粒子采样密度 - 响应式
-         * 用于 LandingParticles 组件
-         * 
+         * 3D 文字生成密度 (用于从 3D 文本网格进行采样)
          * 移动端需要更高密度以确保 "Merry Christmas" 和用户名清晰显示
          */
         particleGenerationDensity: {
             normal: 4,  // 桌面端
-            compact: 3, // 移动端
+            compact: 6, // 移动端: 减小密度以极大降低渲染压力
         },
 
         /**

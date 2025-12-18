@@ -100,15 +100,19 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
         const time = state.clock.elapsedTime;
         const isAnyHovered = hoveredPhotoInstanceId !== null;
-        visibleThisFrameRef.current = 0;
+        const isMobile = state.viewport.width < 10;
+        visibleThisFrameRef.current = 0; // Restore missing line
 
-        // 从store获取动态状态（只调用一次）
         const currentActivePhoto = useStore.getState().activePhoto;
         const currentPlayingVideo = useStore.getState().playingVideoInHover;
 
-        // === 邻居检测（优化：只在有hover时执行） ===
+        // Peak Protection: Skip heavy calculations during the first 1s of explosion on mobile
+        const explosionElapsed = time - (explosionStartTimeRef.current || 0);
+        const isPeakPeriod = isMobile && explosionElapsed < 1.0;
+
+        // === 邻居检测（优化：移动端彻底禁用以节省 CPU） ===
         let hoveredPhoto: PhotoAnimationData | null = null;
-        if (hoveredPhotoInstanceId !== null) {
+        if (!isMobile && hoveredPhotoInstanceId !== null) {
             hoveredPhoto = photos.find(p => p.instanceId === hoveredPhotoInstanceId) || null;
 
             // 批量更新Z偏移
@@ -155,33 +159,34 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
             const isThisActive = currentActivePhoto?.instanceId === photo.instanceId;
 
-            // === 全局Hover同步（优化：提前计算条件） ===
-            const shouldBeHovered = photo.instanceId === hoveredPhotoInstanceId;
-            if (shouldBeHovered !== hover.isHovered) {
-                const isThisPlayingVideo = currentPlayingVideo?.instanceId === photo.instanceId;
+            // === 全局Hover同步（优化：高峰期跳过） ===
+            if (!isPeakPeriod) {
+                const shouldBeHovered = photo.instanceId === hoveredPhotoInstanceId;
+                if (shouldBeHovered !== hover.isHovered) {
+                    const isThisPlayingVideo = currentPlayingVideo?.instanceId === photo.instanceId;
 
-                if (shouldBeHovered) {
-                    hover.isHovered = true;
-                    hover.targetScale = HOVER_CONFIG.scaleTarget;
-                    hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
-                    if (group) group.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
-                } else if (!isThisPlayingVideo) {
-                    hover.isHovered = false;
-                    hover.targetScale = 1.0;
-                    hover.targetRotationMultiplier = 1.0;
-                    hover.targetTiltX = 0;
-                    hover.targetTiltY = 0;
-                    if (group) group.renderOrder = 0;
+                    if (shouldBeHovered) {
+                        hover.isHovered = true;
+                        hover.targetScale = HOVER_CONFIG.scaleTarget;
+                        hover.targetRotationMultiplier = HOVER_CONFIG.rotationDamping;
+                        if (group) group.renderOrder = HOVER_CONFIG.depthEffect.maxRenderOrder;
+                    } else if (!isThisPlayingVideo) {
+                        hover.isHovered = false;
+                        hover.targetScale = 1.0;
+                        hover.targetRotationMultiplier = 1.0;
+                        hover.targetTiltX = 0;
+                        hover.targetTiltY = 0;
+                        if (group) group.renderOrder = 0;
+                    }
                 }
+
+                // === Hover插值（批量使用预计算的lerpFactor） ===
+                hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
+                hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
+                hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
+                hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
+                hover.currentZOffset = THREE.MathUtils.lerp(hover.currentZOffset, hover.targetZOffset, depthLerpFactor);
             }
-
-            // === Hover插值（批量使用预计算的lerpFactor） ===
-            hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
-            hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
-            hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
-            hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
-            hover.currentZOffset = THREE.MathUtils.lerp(hover.currentZOffset, hover.targetZOffset, depthLerpFactor);
-
             // === 动画分支处理 ===
             if (anim.isAnimating) {
                 // 变形动画（保持原逻辑）
@@ -195,7 +200,9 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
                 if (elapsed >= 0) {
                     if (!group.visible) {
-                        if (visibleThisFrameRef.current < 5) {
+                        // Mobile: stagger even more to avoid texture upload spike
+                        const maxPerFrame = isMobile ? 2 : 5;
+                        if (visibleThisFrameRef.current < maxPerFrame) {
                             group.visible = true;
                             visibleThisFrameRef.current += 1;
                         } else {
@@ -205,6 +212,20 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
                 } else {
                     if (group.visible) group.visible = false;
                     continue;
+                }
+
+                // Skip complex easing during peak to save CPU
+                if (isPeakPeriod) {
+                    const t = Math.min(elapsed / 1.8, 1.0);
+                    const p0 = photo.particleStartPosition;
+                    const p2 = photo.position;
+                    group.position.set(
+                        THREE.MathUtils.lerp(p0[0], p2[0], t),
+                        THREE.MathUtils.lerp(p0[1], p2[1], t) + (Math.sin(t * Math.PI) * 5.0),
+                        THREE.MathUtils.lerp(p0[2], p2[2], t)
+                    );
+                    group.scale.setScalar(photo.scale * Math.min(elapsed * 2, 1.0));
+                    continue; // Exit early during peak
                 }
 
                 // ... 保持原有的morph动画逻辑

@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette, ChromaticAberration } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
@@ -44,40 +44,55 @@ export const CinematicEffects: React.FC = () => {
     });
 
     const { bloom, vignette, chromaticAberration, composer } = POST_PROCESSING_CONFIG;
+    const { viewport } = useThree();
+
+    // Detection for mobile (consistent with other components)
+    const isMobile = viewport.width < 10;
+
+    // Dynamic bloom intensity reduction during explosion peak (mobile only)
+    const treeMorphState = useStore((state) => state.treeMorphState);
+    const treeProgress = useStore((state) => state.treeProgress);
+    const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.5;
+    const bloomIntensityMultiplier = isExplosionPeak ? 0.4 : (isMobile ? 0.8 : 1.0);
 
     return (
-        <EffectComposer multisampling={composer.multisampling}>
-            {/* Primary Bloom - Higher threshold for sharper tree silhouette */}
+        <EffectComposer multisampling={isMobile ? 0 : composer.multisampling}>
+            {/* Primary Bloom - Dynamically reduced during explosion peak on mobile */}
             <Bloom
                 luminanceThreshold={bloom.primary.luminanceThreshold}
                 luminanceSmoothing={bloom.primary.luminanceSmoothing}
                 mipmapBlur={bloom.primary.mipmapBlur}
-                intensity={bloom.primary.intensity}
+                intensity={bloom.primary.intensity * bloomIntensityMultiplier}
                 radius={bloom.primary.radius}
             />
 
-            {/* Secondary Bloom - Highlights for star/top particles only */}
-            <Bloom
-                luminanceThreshold={bloom.secondary.luminanceThreshold}
-                luminanceSmoothing={bloom.secondary.luminanceSmoothing}
-                mipmapBlur={bloom.secondary.mipmapBlur}
-                intensity={bloom.secondary.intensity}
-                radius={bloom.secondary.radius}
-            />
+            {/* Secondary Bloom - Disabled on mobile to save a full render pass */}
+            {!isMobile && (
+                <Bloom
+                    luminanceThreshold={bloom.secondary.luminanceThreshold}
+                    luminanceSmoothing={bloom.secondary.luminanceSmoothing}
+                    mipmapBlur={bloom.secondary.mipmapBlur}
+                    intensity={bloom.secondary.intensity}
+                    radius={bloom.secondary.radius}
+                />
+            )}
 
-            {/* Cinematic Vignette */}
+            {/* Cinematic Vignette - Low cost, keep on both */}
             <Vignette
                 offset={vignette.offset}
                 darkness={vignette.darkness}
                 blendFunction={BlendFunction.NORMAL}
             />
 
-            <ChromaticAberration
-                ref={chromaticRef}
-                offset={initialOffset}
-                radialModulation={chromaticAberration.radialModulation}
-                modulationOffset={chromaticAberration.modulationOffset}
-            />
+            {/* Chromatic Aberration - Disabled on mobile as it's a per-pixel distortion */}
+            {!isMobile && (
+                <ChromaticAberration
+                    ref={chromaticRef}
+                    offset={initialOffset}
+                    radialModulation={chromaticAberration.radialModulation}
+                    modulationOffset={chromaticAberration.modulationOffset}
+                />
+            )}
         </EffectComposer>
     );
 };

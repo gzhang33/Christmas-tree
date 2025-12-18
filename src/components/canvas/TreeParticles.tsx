@@ -422,8 +422,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       console.warn('[PhotoWorker] Error:', err);
       worker.terminate();
     };
+    const isMobile = viewport.width < 10;
+    const photoCount = isMobile ? PHOTO_WALL_CONFIG.count.compact : PHOTO_WALL_CONFIG.count.normal;
+
     worker.postMessage({
-      count: PHOTO_WALL_CONFIG.count,
+      count: photoCount,
       aspectRatio,
       sourceUrls
     });
@@ -455,26 +458,28 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Use requestIdleCallback if available, otherwise setTimeout with delay
     const initMaterialPools = () => {
       try {
-        // Pre-warm 120 photo materials to cover all photos (99) + buffer
-        // This prevents frame drop on first explosion due to synchronous cloning
-        initPhotoMaterialPool(masterPhotoMaterial, 120);
-        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
+        const isMobile = viewport.width < 10;
+        const poolSize = isMobile ? PHOTO_WALL_CONFIG.count.compact + 20 : PHOTO_WALL_CONFIG.count.normal + 20;
 
-        // Pre-warm frame materials (MeshStandardMaterial for photo frames)
+        // Pre-warm photo materials
+        initPhotoMaterialPool(masterPhotoMaterial, poolSize);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[MaterialPool] Initialized with ${poolSize} pre-warmed instances`);
+
+        // Pre-warm frame materials
         const masterFrameMat = new THREE.MeshStandardMaterial({
           color: '#ffffff',
           roughness: 0.4,
           metalness: 0.1,
           emissive: new THREE.Color(0xfffee0),
           emissiveIntensity: 0,
-          side: THREE.FrontSide, // NEW: Use FrontSide for solid box (performance & avoids internal Z-fighting)
+          side: THREE.FrontSide,
           transparent: true,
           opacity: 0,
-          depthWrite: true,      // NEW: Explicitly enable for stable occlusion
+          depthWrite: true,
         });
-        masterFrameMatRef.current = masterFrameMat; // Store for cleanup
-        initFrameMaterialPool(masterFrameMat, 120);
-        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
+        masterFrameMatRef.current = masterFrameMat;
+        initFrameMaterialPool(masterFrameMat, poolSize);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[FrameMaterialPool] Initialized with ${poolSize} pre-warmed instances`);
 
         // NEW: Mark as initialized
         setPoolsInitialized(true);
@@ -789,8 +794,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
 
     let attempts = 0;
-    // Use configured count
-    const maxItems = PARTICLE_CONFIG.rendering.ornament.count;
+    const isMobile = viewport.width < 10;
+    const maxItems = isMobile ? PARTICLE_CONFIG.rendering.ornament.count.compact : PARTICLE_CONFIG.rendering.ornament.count.normal;
     const baseScale = PARTICLE_CONFIG.rendering.ornament.scale;
     let placedCount = 0;
 
@@ -1353,7 +1358,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     // === INTERPOLATE PROGRESS ===
     const diff = targetProgressRef.current - progressRef.current;
-    progressRef.current += diff * dampingSpeed;
+
+    // Performance Fix: Make interpolation frame-rate independent
+    // Original: progressRef.current += diff * dampingSpeed;
+    // New: Use exponential decay with delta
+    // Using a base adjustment to keep desktop feeling similar (dampingSpeed * 60)
+    const lerpFactor = 1 - Math.exp(-dampingSpeed * 60 * delta);
+    progressRef.current += diff * Math.min(lerpFactor, 1.0);
 
     // === CHECK ANIMATION COMPLETION ===
     // Use relaxed thresholds and OR logic for faster detection
@@ -1395,8 +1406,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       animationCompletionFlags.current.explosionComplete = false;
     }
 
-    // === RESET ANIMATION COMPLETION (morphing-in from photo sea back to tree) ===
-    // Complete when: progress is close to 0 OR diff is very small
+    // === RESET ANIMATION COMPLETION ===
     if (
       !isExploded &&
       landingPhase === 'tree' &&
@@ -1408,6 +1418,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Reset animation complete, setting to idle');
       useStore.getState().setTreeMorphState('idle');
     }
+
+    // === MOBILE OPTIMIZATION: Throttled Photo Activation ===
+    // If it's mobile and we just started exploding, we can use this loop to 
+    // potentially signal PhotoManager to stagger its work, but PhotoManagerOptimized 
+    // already has some visibility logic. Let's ensure it's effective.
 
     // Reset reset completion flag when starting new reset
     if (currentMorphState === 'morphing-in' && landingPhase === 'tree' && animationCompletionFlags.current.resetComplete === false) {
@@ -1426,37 +1441,43 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Update all shader materials with new uniform values
     const materials = [
       entityMaterialRef.current,
-      // ornamentMaterialRef.current, // Removed
-      // giftMaterialRef.current, // Removed
-      treeBaseMaterialRef.current, // Added tree base to loop
+      treeBaseMaterialRef.current,
     ];
 
-    materials.forEach((mat) => {
-      if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
-        mat.uniforms.uProgress.value = progressRef.current;
-        mat.uniforms.uTime.value = time;
-        // Update entrance phase flag for dual-layer particle system
-        if (mat.uniforms.uIsEntrance) {
-          mat.uniforms.uIsEntrance.value = landingPhase === 'morphing' ? 1.0 : 0.0;
+    // Mobile optimization: Skip non-critical updates during explosion peak
+    const isMobile = viewport.width < 10;
+    const explosionJustStarted = isExploded && currentMorphState === 'morphing-out' && progressRef.current < 0.3;
+    const shouldSkipUpdates = isMobile && explosionJustStarted;
+
+    if (!shouldSkipUpdates) {
+      materials.forEach((mat) => {
+        if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
+          mat.uniforms.uProgress.value = progressRef.current;
+          mat.uniforms.uTime.value = time;
+          if (mat.uniforms.uIsEntrance) {
+            mat.uniforms.uIsEntrance.value = landingPhase === 'morphing' ? 1.0 : 0.0;
+          }
+          if (mat.uniforms.uGlobalAlpha) {
+            mat.uniforms.uGlobalAlpha.value = 1.0;
+          }
         }
-        // Removed uGlobalAlpha logic (using implosion instead)
-        if (mat.uniforms.uGlobalAlpha) {
-          mat.uniforms.uGlobalAlpha.value = 1.0;
+      });
+
+      // Rotation animation for visual appeal
+      const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
+
+      if (entityLayerRef.current) entityLayerRef.current.rotation.y += rotSpeed;
+      if (imageOrnamentsRef.current) imageOrnamentsRef.current.rotation.y += rotSpeed;
+    } else {
+      // During peak: only update critical progress uniform
+      materials.forEach((mat) => {
+        if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
+          mat.uniforms.uProgress.value = progressRef.current;
         }
-      }
-    });
+      });
+    }
 
-    // Box Dissolve Logic removed (Gifts removed)
-
-    // Rotation animation for visual appeal
-    const rotSpeed = isExploded ? 0.0005 : config.rotationSpeed * 0.001;
-
-    // Check if refs exist before accessing rotation
-    if (entityLayerRef.current) entityLayerRef.current.rotation.y += rotSpeed;
-
-    if (imageOrnamentsRef.current) imageOrnamentsRef.current.rotation.y += rotSpeed; // Rotate images
-
-    // Ensure root position is reset (shake animation removed)
+    // Ensure root position is reset
     if (rootRef.current && rootRef.current.position.lengthSq() > 0) {
       rootRef.current.position.set(0, 0, 0);
     }

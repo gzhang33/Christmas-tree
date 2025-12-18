@@ -29,7 +29,12 @@ interface TextureWarmupProps {
 const FRAME_BUDGET_MS = 12; // Leave 4ms buffer for 60fps (16.67ms total)
 
 // Maximum textures to upload per frame
-const MAX_TEXTURES_PER_FRAME = 2;
+// Adaptive for mobile: 1 per frame to avoid stutter, 2 for desktop
+const getBatchSize = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return 1;
+    return 2;
+};
+const MAX_TEXTURES_PER_FRAME = getBatchSize();
 
 /**
  * TextureWarmup Component

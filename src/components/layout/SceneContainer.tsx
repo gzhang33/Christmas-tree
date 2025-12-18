@@ -172,7 +172,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         position: getResponsiveValue(CAMERA_CONFIG.default.position) as [number, number, number],
                         fov: CAMERA_CONFIG.default.fov
                     }}
-                    dpr={[1, 1.5]} // Performance: Cap pixel ratio to 1.5 for high-DPI screens
+                    dpr={isMobile ? 1 : [1, 1.5]} // Performance: Lock to 1.0 on mobile to avoid rendering excessive pixels on high-DPI screens
                     gl={{
                         antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
                         toneMappingExposure: 1.08,

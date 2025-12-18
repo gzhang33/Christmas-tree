@@ -305,7 +305,7 @@ export const LANDING_CONFIG = {
         // 粒子采样密度 (值越小粒子越密集)
         density: {
             normal: 3,    // 桌面端
-            compact: 4,   // 移动端 (降低密度以提升性能)
+            compact: 6,   // 移动端 (降低密度从4->6以提升性能)
         },
         // 粒子基础尺寸
         baseSize: {
