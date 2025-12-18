@@ -202,9 +202,9 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                     />
 
                     {/* Universal Particle System - Permanent background element
-                        Mounts at entrance phase and never unmounts.
+                        PRE-LOADED from input phase (hidden) to eliminate black screen transition.
                         Handles text intro → dispersion → dust loop as seamless animation. */}
-                    {(landingPhase === 'entrance' || landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
+                    {(landingPhase === 'input' || landingPhase === 'entrance' || landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <React.Suspense fallback={null}>
                             <UniversalParticleSystemComponent
                                 title={responsiveTitle}

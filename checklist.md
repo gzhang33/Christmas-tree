@@ -86,33 +86,11 @@
     - Removed close button per requirements - exit via: click same photo / other photo / background
     - Camera stays static - no movement or animation when clicking to play video
 
-- [ ] **[PHOTO-03] Anti-Clipping Physics (Repulsion)**
-  - **Task:** Implement a simple force-directed graph or repulsion algorithm.
-  - **Logic:** If the distance between two photos is less than **150 pixels**, they should repel each other.
-  - **Testing Method:** Drag a photo to an overlapping position and check if they automatically separate.
-  - **Goal:** Prevent photos from overlapping/clipping into each other at the bottom.
-
-- [ ] **[PHOTO-04] Navigation Anchor (Fly-in/Fly-out)**
-  - **Task:** Update click animation.
-  - **Open:** Animate position from `Original_Pos` to `Center_Screen`.
-  - **Close:** Animate position from `Center_Screen` back to `Original_Pos`.
-  - **UI:** Render a semi-transparent dashed border at `Original_Pos` when the photo is open.
-
-- [ ] **[PHOTO-05] 3D Thickness (Extrusion)**
-  - **Task:** Modify Photo Geometry.
-  - **Action:** Add Z-axis extrusion (thickness) and side shadows.
-  - **Style:** Mimic physical Polaroid film texture.
-
-- [ ] **[PHOTO-06] Mobile Gyroscope**
+- [ ] **[PHOTO-03] Mobile Gyroscope**
   - **Task:** Add `DeviceOrientation` event listener.
-  - **Action:** Map device tilt (Beta/Gamma) to slight camera or photo container offset.  - **Goal:**Implement the gyroscope effect on the mobile phone side,
-
-- [ ] **[PHOTO-07] Focus mode visuals effect**
-  - **Task:** Update camera movement logic.
-  - **Action:** When clicking a photo, move camera directly to center (remove intermediate offset step).
-  - **Implementation:** Update camera move logic in [relevant file].
-
-- [x] **[PHOTO-08] personalized photo**
+  - **Action:** Map device tilt (Beta/Gamma) to slight photo container offset, simulating the tilt effect of images when the mouse hovers over them. 
+  - **Goal:**Implement the gyroscope effect on the mobile phone side
+- [x] **[PHOTO-04] personalized photo**
   - **Task:** ensure  personalized photo can be shown repeatedly in the sea, will not shown the default photo.
   - **Action:** 
   - **Implementation:** 

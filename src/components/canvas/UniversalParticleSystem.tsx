@@ -255,8 +255,8 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         setTextParticleProgress(progress);
     });
 
-    // Don't render if phase is hidden
-    if (textParticlePhase === 'hidden') {
+    // Don't render if phase is hidden or still in input phase (preloading only)
+    if (textParticlePhase === 'hidden' || landingPhase === 'input') {
         return null;
     }
 
