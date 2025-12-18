@@ -10,6 +10,7 @@ interface BackgroundMusicPlayerProps {
 
 // 音量常量
 const DEFAULT_VOLUME = 0.35;
+const FADE_IN_DURATION = 7000; // 7秒淡入时间
 
 /**
  * 背景音乐播放器组件
@@ -25,6 +26,48 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     const selectedAudioId = useStore((state) => state.selectedAudioId);
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+    const fadeTimerRef = useRef<number | null>(null);
+
+    // 停止淡入动画
+    const stopFadeIn = useCallback(() => {
+        if (fadeTimerRef.current) {
+            cancelAnimationFrame(fadeTimerRef.current);
+            fadeTimerRef.current = null;
+        }
+    }, []);
+
+    // 音量淡入效果
+    const fadeInVolume = useCallback((audio: HTMLAudioElement) => {
+        stopFadeIn();
+
+        const startTime = performance.now();
+        const startVolume = 0;
+        const targetVolume = DEFAULT_VOLUME;
+
+        audio.volume = startVolume;
+
+        const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / FADE_IN_DURATION, 1);
+
+            // 使用二次方缓入，效果更自然
+            const easedProgress = progress * progress;
+            audio.volume = startVolume + (targetVolume - startVolume) * easedProgress;
+
+            if (progress < 1) {
+                fadeTimerRef.current = requestAnimationFrame(animate);
+            } else {
+                fadeTimerRef.current = null;
+            }
+        };
+
+        fadeTimerRef.current = requestAnimationFrame(animate);
+    }, [stopFadeIn]);
+
+    // 组件销毁时停止动画
+    useEffect(() => {
+        return () => stopFadeIn();
+    }, [stopFadeIn]);
 
     // 辅助函数：规范化 URL 以便比较
     const normalizeUrl = useCallback((url: string): string => {
@@ -38,6 +81,9 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
     // 辅助函数：确保音量设置
     const ensureVolume = useCallback((audio: HTMLAudioElement) => {
+        // 如果正在淡入，不强制设置音量
+        if (fadeTimerRef.current) return;
+
         if (audio.volume !== DEFAULT_VOLUME) {
             audio.volume = DEFAULT_VOLUME;
         }
@@ -48,17 +94,19 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         if (!audioRef.current) return;
 
         const audio = audioRef.current;
-        ensureVolume(audio);
+        // 尝试播放时先将音量设为 0，准备淡入
+        audio.volume = 0;
 
         try {
             await audio.play();
+            fadeInVolume(audio);
             setAutoplayBlocked(false);
-            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Playing music');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Playing music with fade-in');
         } catch (error) {
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Autoplay prevented, waiting for user interaction');
             setAutoplayBlocked(true);
         }
-    }, [ensureVolume]);
+    }, [fadeInVolume]);
 
     // 音频元素初始化
     useEffect(() => {
@@ -81,8 +129,11 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] User interaction detected');
 
             if (audioRef.current && !isMuted) {
-                ensureVolume(audioRef.current);
-                audioRef.current.play().catch((error) => {
+                const audio = audioRef.current;
+                audio.volume = 0;
+                audio.play().then(() => {
+                    fadeInVolume(audio);
+                }).catch((error) => {
                     console.warn('[BackgroundMusicPlayer] Play after interaction failed:', error);
                 });
             }
@@ -118,16 +169,19 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         // 精确比较：如果音频源已经是当前选择的音乐，不需要重新加载
         if (currentSrc === fullPath) {
-            // 确保音量正确
-            ensureVolume(audio);
-
             // 如果暂停了且未静音且用户已交互，则播放
             if (audio.paused && !isMuted && (hasUserInteracted || !autoplayBlocked)) {
-                audio.play().catch((error) => {
+                audio.volume = 0;
+                audio.play().then(() => {
+                    fadeInVolume(audio);
+                }).catch((error) => {
                     if (error.name !== 'NotAllowedError') {
                         console.warn('[BackgroundMusicPlayer] Resume play failed:', error);
                     }
                 });
+            } else {
+                // 确保音量正确（如果正在播放）
+                ensureVolume(audio);
             }
             return;
         }
@@ -158,14 +212,17 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         if (!isMuted && audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
             // 取消静音时，如果音频已暂停且有音源，尝试播放
-            ensureVolume(audio);
-            audio.play().catch((error) => {
+            audio.volume = 0;
+            audio.play().then(() => {
+                fadeInVolume(audio);
+            }).catch((error) => {
                 if (error.name !== 'NotAllowedError') {
                     console.warn('[BackgroundMusicPlayer] Play on unmute failed:', error);
                 }
             });
         } else if (isMuted && !audio.paused) {
             // 静音时暂停播放
+            stopFadeIn();
             audio.pause();
         }
     }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
