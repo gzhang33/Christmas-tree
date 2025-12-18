@@ -19,6 +19,8 @@ import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
 import { PolaroidPhoto, masterPhotoMaterial } from "./PolaroidPhoto"; // NEW: Import masterPhotoMaterial for pool init
 import { PhotoManager, PhotoAnimationData } from "./PhotoManager"; // NEW: Import PhotoManager
+import { PhotoManagerOptimized } from "./PhotoManagerOptimized"; // Phase 2: Optimized version
+import { usePerformanceMonitor } from "../../utils/performanceMonitor"; // Performance monitoring
 import { TextureWarmup } from "./TextureWarmup"; // NEW: GPU texture pre-upload (Plan B)
 import { ASSET_CONFIG } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
@@ -289,6 +291,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const globalAlphaRef = useRef(0.0);
 
+  // Phase 2: 性能监控 (始终初始化，通过内部逻辑控制启用)
+  const performanceMonitor = usePerformanceMonitor('PhotoWall');
+  useEffect(() => {
+    if (!PARTICLE_CONFIG.performance.enablePerformanceMonitor) {
+      performanceMonitor.disable();
+    } else {
+      performanceMonitor.enable();
+    }
+  }, [performanceMonitor]);
+
   // === GIFT BOX GLB MODELS ===
   // GLB rendering moved to independent GiftBoxes component
   // Only keeping giftGltfs for geometry extraction (used in particle effects)
@@ -311,7 +323,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   // Local State
   const [texturesLoaded, setTexturesLoaded] = React.useState(false);
+  const [poolsInitialized, setPoolsInitialized] = React.useState(false); // NEW: Track pool readiness
   const preloadStartedRef = useRef<string | null>(null);
+  const initCleanupRef = useRef<(() => void) | null>(null); // NEW: Store cleanup for scheduled init
   const explosionStartTimeRef = useRef(0);
 
   // Photo animation optimization: Use Map for O(1) updates, batch setState
@@ -453,13 +467,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           metalness: 0.1,
           emissive: new THREE.Color(0xfffee0),
           emissiveIntensity: 0,
-          side: THREE.DoubleSide,
+          side: THREE.FrontSide, // NEW: Use FrontSide for solid box (performance & avoids internal Z-fighting)
           transparent: true,
           opacity: 0,
+          depthWrite: true,      // NEW: Explicitly enable for stable occlusion
         });
         masterFrameMatRef.current = masterFrameMat; // Store for cleanup
         initFrameMaterialPool(masterFrameMat, 120);
         console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
+
+        // NEW: Mark as initialized
+        setPoolsInitialized(true);
       } catch (e) {
         console.warn('[MaterialPool] Initialization failed:', e);
       }
@@ -470,23 +488,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const idleCallbackId = requestIdleCallback(initMaterialPools, { timeout: 2000 });
 
       // Cleanup callback on unmount
-      const cleanup = () => {
+      initCleanupRef.current = () => {
         cancelIdleCallback(idleCallbackId);
       };
-
-      // Store cleanup function
-      (cleanup as any).__idleCallback = true;
     } else {
       // Fallback: Delay initialization by 300ms to let tree animation start smoothly
       const timerId = setTimeout(initMaterialPools, 300);
 
       // Cleanup timer on unmount
-      const cleanup = () => {
+      initCleanupRef.current = () => {
         clearTimeout(timerId);
       };
-
-      // Store cleanup function
-      (cleanup as any).__timer = true;
     }
 
     // Preload in batches
@@ -501,14 +513,21 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     // Cleanup: Dispose material pools on unmount
     return () => {
+      // NEW: Clear scheduled initialization
+      if (initCleanupRef.current) {
+        initCleanupRef.current();
+        initCleanupRef.current = null;
+      }
+
       try {
-        disposePhotoMaterialPool(true);
+        disposePhotoMaterialPool(true, true); // NEW: silent=true
         console.log('[MaterialPool] Disposed');
       } catch (e) {
         console.warn('[MaterialPool] Disposal failed:', e);
       }
 
       try {
+        // User manually reverted this function to 1 argument
         disposeFrameMaterialPool(true);
         console.log('[FrameMaterialPool] Disposed');
       } catch (e) {
@@ -521,6 +540,10 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         masterFrameMatRef.current = null;
         console.log('[FrameMaterialPool] Master material disposed');
       }
+
+      // Reset readiness flags
+      setPoolsInitialized(false);
+      setTexturesLoaded(false);
     };
   }, [photoData.urls]);
 
@@ -1436,18 +1459,30 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const treeKey = `tree-${particleCount}-${treeColor}`;
 
+  // NEW: Custom Double-tap detection for mobile (onDoubleClick is unreliable on touch)
+  const lastClickTimeRef = useRef(0);
+
   return (
     <group
       ref={rootRef}
       onClick={(e) => {
         e.stopPropagation();
-        if (!isExploded) {
-          onParticlesClick();
+
+        const now = Date.now();
+        const diff = now - lastClickTimeRef.current;
+        lastClickTimeRef.current = now;
+
+        // Double-tap/Double-click detected (within 300ms)
+        if (diff < 300) {
+          if (isExploded) {
+            console.log('[TreeParticles] Double-tap detected - Restoring tree');
+            onParticlesClick();
+          }
+          return;
         }
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        if (isExploded) {
+
+        // Single click logic
+        if (!isExploded) {
           onParticlesClick();
         }
       }}
@@ -1635,7 +1670,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
               particleStartPosition={giftData.photoParticleStartPositions[i]}
               morphIndex={i}
               totalPhotos={photoData.positions.length}
-              textureReady={texturesLoaded}
+              textureReady={texturesLoaded && poolsInitialized} // Updated: Depend on pool readiness
+              poolsReady={poolsInitialized} // NEW: Explicitly pass pool readiness
               instanceId={i}
               useExternalAnimation={true} // NEW: Enable external animation
               onRegisterAnimation={onRegisterAnimation} // NEW: Stable callback
@@ -1655,8 +1691,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         />
       )}
 
-      {/* NEW: PhotoManager - Single useFrame for all photos */}
-      <PhotoManager photos={photoAnimations} isExploded={isExploded} />
+      {/* Phase 2: PhotoManager - 根据配置切换原版/优化版 */}
+      {PARTICLE_CONFIG.performance.useOptimizedPhotoManager ? (
+        <PhotoManagerOptimized photos={photoAnimations} isExploded={isExploded} />
+      ) : (
+        <PhotoManager photos={photoAnimations} isExploded={isExploded} />
+      )}
     </group>
   );
 };

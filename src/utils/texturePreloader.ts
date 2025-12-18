@@ -3,16 +3,48 @@
  *
  * Manages texture loading with caching and batch preloading
  * to avoid performance spikes during explosion animation.
+ * 
+ * Phase 3A: Integrated with optimized texture loader for progressive loading and LOD
  */
 import * as THREE from 'three';
+import { getOptimizedTextureLoader, TextureQuality } from './optimizedTextureLoader';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 const textureCache = new Map<string, THREE.Texture>();
 const loadingPromises = new Map<string, Promise<THREE.Texture>>();
 
 /**
  * Load a single texture with caching
+ * Phase 3A: Supports optimized progressive loading
  */
-export const loadTexture = (url: string): Promise<THREE.Texture> => {
+export const loadTexture = (url: string, quality?: TextureQuality): Promise<THREE.Texture> => {
+    // 检查是否启用优化加载器
+    const useOptimized = PARTICLE_CONFIG.performance.texture?.useOptimizedLoader ?? false;
+
+    if (useOptimized) {
+        // 使用优化的加载器（支持渐进式加载）
+        const loader = getOptimizedTextureLoader();
+        const targetQuality = quality || (PARTICLE_CONFIG.performance.texture?.defaultQuality as TextureQuality) || TextureQuality.MEDIUM;
+
+        // 检查是否启用渐进式加载
+        const useProgressive = PARTICLE_CONFIG.performance.texture?.useProgressiveLoading ?? true;
+
+        if (useProgressive) {
+            // 渐进式加载：先加载低质量预览，然后升级到目标质量
+            return loader.loadProgressive(url, targetQuality, (currentQuality, texture) => {
+                // 每次质量升级时更新缓存
+                textureCache.set(url, texture);
+            });
+        } else {
+            // 直接加载目标质量
+            return loader.loadProgressive(url, targetQuality).then(texture => {
+                textureCache.set(url, texture);
+                return texture;
+            });
+        }
+    }
+
+    // 原版加载逻辑（向后兼容）
     if (textureCache.has(url)) {
         return Promise.resolve(textureCache.get(url)!);
     }

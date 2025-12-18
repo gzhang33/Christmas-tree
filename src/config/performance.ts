@@ -145,9 +145,9 @@ export const CAMERA_CONFIG = {
     /** 爆炸时的电影感相机动画 */
     explosionAnimation: {
         enabled: true,                      // 启用爆炸相机动画
-        zoomOutDistance: 4.5,               // 缩放距离 (相机向后移动的距离)
-        rotationAngle: Math.PI / 3,         // 旋转角度 
-        duration: 4.5,                      // 动画持续时间（秒）
+        zoomOutDistance: 12.0,              // 增加缩放距离 (从 4.5 增加到 12.0)
+        rotationAngle: Math.PI / 2,         // 增加旋转角度 (从 PI/3 增加到 PI/2)
+        duration: 5.0,                      // 稍微延长持续时间 (从 4.5 增加到 5.0)
         dampingSpeed: 1.5,                  // 插值速度
         rotationAxis: 'y' as const,         // 旋转轴 ('x' | 'y' | 'z')
     },

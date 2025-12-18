@@ -60,6 +60,7 @@ interface PolaroidPhotoProps {
     morphIndex: number;
     totalPhotos: number;
     textureReady?: boolean; // New prop
+    poolsReady?: boolean; // NEW: Pool readiness flag
     instanceId: number; // Unique instance ID for this particle
 
     // NEW: External animation support (optional)
@@ -104,12 +105,12 @@ const getSharedGeometries = () => {
         const frontGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
         const backGeo = new THREE.PlaneGeometry(FRAME.imageSize, FRAME.imageSize);
 
-        // Front: Shift foward
-        frontGeo.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.001);
+        // Front: Shift foward - Increased gap from 0.001 to 0.005 to prevent Z-fighting at distance
+        frontGeo.translate(0, FRAME.imageOffsetY, FRAME.depth / 2 + 0.005);
 
         // Back: Shift backward and rotate
         backGeo.rotateY(Math.PI);
-        backGeo.translate(0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.001);
+        backGeo.translate(0, FRAME.imageOffsetY, -FRAME.depth / 2 - 0.005);
 
         // Merge
         const merged = mergeBufferGeometries([frontGeo, backGeo]);
@@ -136,7 +137,8 @@ export const masterPhotoMaterial = new THREE.ShaderMaterial({
         uDevelop: { value: 0.0 }, // 0.0 = Energy, 1.0 = Photo
         opacity: { value: 0.0 },
         uTime: { value: 0.0 },
-        uBend: { value: 0.0 } // Bending effect
+        uBend: { value: 0.0 }, // Bending effect
+        uAlphaTest: { value: 0.01 } // Handle alpha discard
     },
     vertexShader: `
         varying vec2 vUv;
@@ -175,10 +177,14 @@ export const masterPhotoMaterial = new THREE.ShaderMaterial({
             }
             
             gl_FragColor = vec4(finalColor, opacity);
+            
+            // NEW: Alpha discard to stabilize depth sorting and prevent shimmery edges in the distance
+            if (opacity < 0.01) discard;
         }
     `,
     transparent: true,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide, // NEW: FrontSide only as we have dual-plane geometry (saves 50% frag budget & avoids Z-fighting)
+    depthWrite: true,      // NEW: Explicitly enable to allow proper occlusion between cards
 });
 
 export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
@@ -191,6 +197,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     morphIndex,
     totalPhotos,
     textureReady = false, // Default to false
+    poolsReady = false, // NEW: Default to false
     instanceId,
     useExternalAnimation = false, // NEW: Default to false (backward compatible)
     onRegisterAnimation, // NEW: Optional callback
@@ -255,25 +262,29 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     // OPTIMIZED: Use material pool to reduce creation overhead
 
     // OPTIMIZED: Acquire frame material from pool instead of creating new
-    // This reuses MeshStandardMaterial instances and reduces initialization overhead
-    const frameMat = useMemo(() => {
-        try {
-            return getFrameMaterialPool().acquire();
-        } catch (e) {
-            // Fallback: Create directly if pool not ready
-            console.warn('[PolaroidPhoto] Frame pool fallback');
-            return new THREE.MeshStandardMaterial({
-                color: '#ffffff',
-                roughness: 0.4,
-                metalness: 0.1,
-                emissive: new THREE.Color(0xfffee0),
-                emissiveIntensity: 0,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0,
-            });
+    // Moved to useEffect to avoid rendering before pool is initialized
+    const [frameMat, setFrameMat] = useState<THREE.MeshStandardMaterial | null>(null);
+
+    useEffect(() => {
+        if (poolsReady && !frameMat) {
+            try {
+                setFrameMat(getFrameMaterialPool().acquire());
+            } catch (e) {
+                // Fallback: Create directly if pool not ready (should not happen with poolsReady gate)
+                console.warn('[PolaroidPhoto] Frame pool fallback');
+                setFrameMat(new THREE.MeshStandardMaterial({
+                    color: '#ffffff',
+                    roughness: 0.4,
+                    metalness: 0.1,
+                    emissive: new THREE.Color(0xfffee0),
+                    emissiveIntensity: 0,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0,
+                }));
+            }
         }
-    }, []);
+    }, [poolsReady, frameMat]);
 
     // Photo material - deferred acquisition from pool
     // Only acquire when texture is confirmed cached to avoid fallback clone
@@ -700,6 +711,9 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 const baseX = Math.cos(anim.orbitAngle) * radius;
                 const baseZ = Math.sin(anim.orbitAngle) * radius;
 
+                // NEW: 丝滑过度因子 - 消除进入轨道时的瞬间震动
+                const orbitEntranceFactor = Math.min(hoverTime * 0.66, 1.0);
+
                 // FREEZE bobbing when playing video
                 const yBob = isThisPlayingVideo ? 0 : Math.sin(hoverTime * 0.5 + idx) * 0.3;
 
@@ -708,14 +722,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 const directionZ = baseZ / (radius || 1); // Normalized Z direction
                 const zWithOffset = baseZ + (directionZ * hover.currentZOffset);
 
-                group.position.set(baseX, position[1] + yBob, zWithOffset);
+                group.position.set(baseX, position[1] + (yBob * orbitEntranceFactor), zWithOffset);
 
                 // 2. Calculate Base Rotation (Spinning) & Convert to Quaternion
                 // Stop spinning if Active or Playing Video
                 const shouldFreezeRotation = isThisActive || isThisPlayingVideo;
-                const spinY = shouldFreezeRotation ? rotation[1] : (rotation[1] + hoverTime * 0.15);
-                const spinX = shouldFreezeRotation ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05);
-                const spinZ = shouldFreezeRotation ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05);
+                const spinY = shouldFreezeRotation ? rotation[1] : (rotation[1] + hoverTime * 0.15 * orbitEntranceFactor);
+                const spinX = shouldFreezeRotation ? rotation[0] : (rotation[0] + Math.sin(hoverTime * 0.3 + idx) * 0.05 * orbitEntranceFactor);
+                const spinZ = shouldFreezeRotation ? rotation[2] : (rotation[2] + Math.cos(hoverTime * 0.25 + idx) * 0.05 * orbitEntranceFactor);
 
                 // Reset rotation to ensure FromEuler works cleanly on base state
                 group.rotation.set(0, 0, 0);

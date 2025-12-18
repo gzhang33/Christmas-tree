@@ -232,16 +232,15 @@ export const ScatterText3D: React.FC = () => {
     useEffect(() => {
         const prevMorphState = prevMorphStateRef.current;
 
-        // ONLY trigger when morphing-out completes (explosion finishes)
-        // This prevents showing during the explosion start
+        // NEW: 提早触发动画 - 当爆炸开始 (morphing-out) 时立即启动入场
+        // 之前是等待爆炸完成 (morphing-out -> idle) 后才显示
         if (
-            prevMorphState === 'morphing-out' &&
-            treeMorphState === 'idle' &&
+            treeMorphState === 'morphing-out' &&
             isExploded &&
             landingPhase === 'tree' &&
             !hasShownRef.current // Prevent duplicate triggers
         ) {
-            console.log('[ScatterText3D] Explosion complete, showing 3D scatter text');
+            console.log('[ScatterText3D] Explosion started, showing 3D scatter text earlier');
             setIsVisible(true);
             setStartTime(performance.now() / 1000);
             hasShownRef.current = true;

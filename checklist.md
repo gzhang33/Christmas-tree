@@ -111,3 +111,9 @@
   - **Task:** Update camera movement logic.
   - **Action:** When clicking a photo, move camera directly to center (remove intermediate offset step).
   - **Implementation:** Update camera move logic in [relevant file].
+
+- [x] **[PHOTO-08] personalized photo**
+  - **Task:** ensure  personalized photo can be shown repeatedly in the sea, will not shown the default photo.
+  - **Action:** 
+  - **Implementation:** 
+    

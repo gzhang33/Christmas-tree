@@ -159,5 +159,35 @@ export const PARTICLE_CONFIG = {
         heightSpread: 0.8,       // 高度分布范围
         densityFalloff: 0.6,     // 边缘密度衰减 (0-1, 值越大边缘越稀疏)
     },
+
+    // ------------------------------------------------------------------------
+    // 性能优化配置 (Performance Optimization)
+    // Phase 2: CPU优化与性能监控
+    // ------------------------------------------------------------------------
+    performance: {
+        // PhotoManager优化版本切换
+        useOptimizedPhotoManager: true,  // true = 使用优化版, false = 使用原版
+
+        // 性能监控
+        enablePerformanceMonitor: true,  // 是否启用性能监控（控制台输出）
+        monitorInterval: 5000,            // 监控报告间隔（毫秒）
+
+        // 批处理优化
+        maxVisiblePerFrame: 5,            // 每帧最大可见照片数（防止纹理上传风暴）
+
+        // 预计算优化
+        precomputeConstants: true,        // 是否预计算常量（轨道速度、浮动频率等）
+
+        // Phase 3A: 纹理优化
+        texture: {
+            useOptimizedLoader: true,      // 启用优化的纹理加载器
+            useProgressiveLoading: true,   // 启用渐进式加载（低分辨率 → 高分辨率）
+            enableLOD: true,               // 启用基于距离的LOD
+            defaultQuality: 'medium' as const, // 默认纹理质量
+            preloadQuality: 'preview' as const, // 预加载质量
+            maxConcurrentLoads: 6,         // 最大并发加载数
+            enableMobileOptimization: true, // 移动端自动降质
+        },
+    },
 } as const;
 
