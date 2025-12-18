@@ -66,6 +66,9 @@ export const CameraController: React.FC = () => {
         targetPosition: new THREE.Vector3(),   // target camera position
         initialRotation: 0,       // initial camera rotation angle
         targetRotation: 0,        // target rotation angle
+        initialRadius: 0,         // initial camera distance
+        targetRadius: 0,          // target camera distance
+        initialPhi: 0,            // initial polar angle
     });
 
     // Update default position on window resize to support responsive layout changes
@@ -96,10 +99,15 @@ export const CameraController: React.FC = () => {
                 // Store initial camera state
                 explosionAnim.initialPosition.copy(camera.position);
 
-                // Calculate rotation angles
+                // Calculate initial spherical coordinates
                 tempSpherical.setFromVector3(camera.position);
                 explosionAnim.initialRotation = tempSpherical.theta;
                 explosionAnim.targetRotation = tempSpherical.theta + explosionConfig.rotationAngle;
+                explosionAnim.initialPhi = tempSpherical.phi;
+
+                // Compute target radius (zoom out)
+                explosionAnim.initialRadius = tempSpherical.radius;
+                explosionAnim.targetRadius = tempSpherical.radius + explosionConfig.zoomOutDistance;
 
                 explosionAnim.isAnimating = true;
                 explosionAnim.startTime = -1; // Will be initialized in useFrame from Three.js clock
@@ -140,16 +148,20 @@ export const CameraController: React.FC = () => {
             // Smooth easing function (ease-out cubic)
             const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-            // Interpolate camera rotation (rotate around Y axis)
-            const currentTheta = THREE.MathUtils.lerp(
-                explosionAnim.initialRotation,
-                explosionAnim.targetRotation,
+            // NEW: No rotation during explosion as requested. 
+            // Camera only pulls back (Zoom-out)
+            const currentTheta = explosionAnim.initialRotation;
+
+            // Interpolate camera radius (zoom out)
+            const currentRadius = THREE.MathUtils.lerp(
+                explosionAnim.initialRadius,
+                explosionAnim.targetRadius,
                 easedProgress
             );
 
             // Convert spherical coordinates back to cartesian
-            tempSpherical.setFromVector3(state.camera.position);
-            tempSpherical.theta = currentTheta;
+            // Use the stored initialPhi to maintain the same pitch
+            tempSpherical.set(currentRadius, explosionAnim.initialPhi, currentTheta);
             tempVec3.setFromSpherical(tempSpherical);
             state.camera.position.copy(tempVec3);
 

@@ -245,37 +245,29 @@ export function generateMultiLineTextParticles(
  * 
  * @param result - Original particle result
  * @param targetCount - Target number of particles
+ * @param zOffset - Base Z offset
  * @returns New Float32Array with padded positions
  */
 export function padParticlePositions(
     result: TextParticleResult,
-    targetCount: number
+    targetCount: number,
+    zOffset: number = 5
 ): Float32Array {
     if (result.count >= targetCount) {
         return result.positions;
     }
 
-    export function padParticlePositions(
-        result: TextParticleResult,
-        targetCount: number,
-        zOffset: number = 5
-    ): Float32Array {
-        if (result.count >= targetCount) {
-            return result.positions;
-        }
-
-        // If original result is empty, return random positions near origin
-        if (result.count === 0) {
-            const padded = new Float32Array(targetCount * 3);
-            for (let i = 0; i < targetCount; i++) {
-                padded[i * 3] = (Math.random() - 0.5) * 10;
-                padded[i * 3 + 1] = (Math.random() - 0.5) * 10;
-                padded[i * 3 + 2] = zOffset + Math.random() * 2;
-            }
-            return padded;
-        }
-    }
     const padded = new Float32Array(targetCount * 3);
+
+    // If original result is empty, return random positions near origin
+    if (result.count === 0) {
+        for (let i = 0; i < targetCount; i++) {
+            padded[i * 3] = (Math.random() - 0.5) * 10;
+            padded[i * 3 + 1] = (Math.random() - 0.5) * 10;
+            padded[i * 3 + 2] = zOffset + Math.random() * 2;
+        }
+        return padded;
+    }
 
     // Copy existing positions
     padded.set(result.positions);

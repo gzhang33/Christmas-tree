@@ -338,7 +338,10 @@ export function useUniversalParticleSystem({
     const isMobile = viewport.width < 10;
     const config = LANDING_CONFIG.textParticle;
     const density = isMobile ? config.density.compact : config.density.normal;
-    const worldWidth = isMobile ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
+    const baseWorldWidth = isMobile ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
+
+    // NEW: Adaptive World Width - cap text width to 85% of physical viewport to prevent clipping on thin screens
+    const worldWidth = Math.min(baseWorldWidth, viewport.width * 0.85);
 
     const attributes = useMemo(() => {
         const fontFamily = config.typography.titleFont;

@@ -293,7 +293,7 @@ export const LANDING_CONFIG = {
         text: {
             normal: 'Merry Christmas',     // Single line for desktop
             compact: ['Merry', 'Christmas'], // Two lines for mobile
-            lineSpacing: 1.4,              // Line spacing multiplier for multi-line mode
+            lineSpacing: 1.1,              // Reduced from 1.4 for closer fit
         },
         // 字体配置 (用于 Canvas 采样)
         typography: {

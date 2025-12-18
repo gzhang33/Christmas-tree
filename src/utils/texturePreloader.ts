@@ -3,52 +3,89 @@
  *
  * Manages texture loading with caching and batch preloading
  * to avoid performance spikes during explosion animation.
+ * 
+ * Phase 3A: Integrated with optimized texture loader for progressive loading and LOD
  */
 import * as THREE from 'three';
+import { getOptimizedTextureLoader, TextureQuality } from './optimizedTextureLoader';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 const textureCache = new Map<string, THREE.Texture>();
 const loadingPromises = new Map<string, Promise<THREE.Texture>>();
 
 /**
  * Load a single texture with caching
+ * Phase 3A: Supports optimized progressive loading
  */
-export const loadTexture = (url: string): Promise<THREE.Texture> => {
+export const loadTexture = (url: string, quality?: TextureQuality): Promise<THREE.Texture> => {
+    // 1. 检查同步缓存
     if (textureCache.has(url)) {
         return Promise.resolve(textureCache.get(url)!);
     }
 
+    // 2. 检查是否正在并行加载
     if (loadingPromises.has(url)) {
         return loadingPromises.get(url)!;
     }
 
-    const loader = new THREE.TextureLoader();
-    const promise = new Promise<THREE.Texture>((resolve, reject) => {
-        loader.load(
-            url,
-            (texture) => {
-                loadingPromises.delete(url);
+    const useOptimized = PARTICLE_CONFIG.performance.texture?.useOptimizedLoader ?? false;
+    let promise: Promise<THREE.Texture>;
 
-                // Configure texture properties for consistency
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.generateMipmaps = false;
-                texture.needsUpdate = true;
+    if (useOptimized) {
+        // 使用优化的加载器（支持渐进式加载）
+        const loader = getOptimizedTextureLoader();
+        const targetQuality = quality || (PARTICLE_CONFIG.performance.texture?.defaultQuality as TextureQuality) || TextureQuality.MEDIUM;
+        const useProgressive = PARTICLE_CONFIG.performance.texture?.useProgressiveLoading ?? true;
 
+        if (useProgressive) {
+            promise = loader.loadProgressive(url, targetQuality, (currentQuality, texture) => {
+                // 每次质量升级时更新缓存
                 textureCache.set(url, texture);
-                resolve(texture);
-            },
-            undefined,
-            (error) => {
-                loadingPromises.delete(url);
-                console.error(`Failed to load texture: ${url}`, error);
-                reject(error);
-            }
-        );
+            }).then(texture => {
+                if (!texture) throw new Error(`[TexturePreloader] Progressive load failed: ${url}`);
+                textureCache.set(url, texture);
+                return texture;
+            });
+        } else {
+            promise = loader.loadProgressive(url, targetQuality).then(texture => {
+                if (!texture) throw new Error(`[TexturePreloader] Direct load failed: ${url}`);
+                textureCache.set(url, texture);
+                return texture;
+            });
+        }
+    } else {
+        // 原版加载逻辑（向后兼容）
+        const loader = new THREE.TextureLoader();
+        promise = new Promise<THREE.Texture>((resolve, reject) => {
+            loader.load(
+                url,
+                (texture) => {
+                    // Configure texture properties for consistency
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                    texture.generateMipmaps = false;
+                    texture.needsUpdate = true;
+
+                    textureCache.set(url, texture);
+                    resolve(texture);
+                },
+                undefined,
+                (error) => {
+                    console.error(`Failed to load texture: ${url}`, error);
+                    reject(error);
+                }
+            );
+        });
+    }
+
+    // 统一管理加载状态的清理
+    const finalPromise = promise.finally(() => {
+        loadingPromises.delete(url);
     });
 
-    loadingPromises.set(url, promise);
-    return promise;
+    loadingPromises.set(url, finalPromise);
+    return finalPromise;
 };
 
 /**
