@@ -1706,16 +1706,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         })}
       </group>
 
-      {/* NEW: GPU Texture Warmup - Pre-upload textures to GPU during IDLE time (Plan B Enhanced) */}
-      {/* Only start after tree morphing is complete to avoid competing with animations */}
-      {texturesLoaded && !isExploded && landingPhase === 'tree' && treeMorphState === 'idle' && (
+      {/* NEW: GPU Texture Warmup - Pre-upload textures to GPU during entrance animation */}
+      {/* Start during morphing phase to ensure textures are GPU-ready before user can click */}
+      {texturesLoaded && !isExploded && (landingPhase === 'morphing' || landingPhase === 'tree') && (
         <TextureWarmup
           textureUrls={photoData.urls}
           onWarmupComplete={() => {
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] GPU texture warmup complete');
           }}
           enabled={true}
-          startDelay={500} // Wait 500ms after tree stabilizes before starting warmup
+          startDelay={landingPhase === 'morphing' ? 200 : 500} // Start faster during morphing
         />
       )}
 

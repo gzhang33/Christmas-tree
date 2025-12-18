@@ -48,7 +48,7 @@ export const PARTICLE_CONFIG = {
         ornament: {
             count: {
                 normal: 60,         // 桌面端装饰球数量
-                compact: 25,        // 移动端减少装饰球数量，减轻渲染压力
+                compact: 20,        // 移动端减少装饰球数量，减轻渲染压力
             },
             scale: 3.0,        // 装饰球缩放系数
         },
@@ -176,7 +176,10 @@ export const PARTICLE_CONFIG = {
         monitorInterval: 5000,            // 监控报告间隔（毫秒）
 
         // 批处理优化
-        maxVisiblePerFrame: 5,            // 每帧最大可见照片数（防止纹理上传风暴）
+        maxVisiblePerFrame: {
+            normal: 5,                      // 桌面端每帧最大可见照片数
+            compact: 1,                     // 移动端严格限制为1，防止GPU过载
+        },
 
         // 预计算优化
         precomputeConstants: true,        // 是否预计算常量（轨道速度、浮动频率等）
@@ -188,7 +191,10 @@ export const PARTICLE_CONFIG = {
             enableLOD: true,               // 启用基于距离的LOD
             defaultQuality: 'medium' as const, // 默认纹理质量
             preloadQuality: 'preview' as const, // 预加载质量
-            maxConcurrentLoads: 6,         // 最大并发加载数
+            maxConcurrentLoads: {
+                normal: 6,                 // 桌面端最大并发加载数
+                compact: 2,                // 移动端降低并发，减少内存压力
+            },
             enableMobileOptimization: true, // 移动端自动降质
         },
     },

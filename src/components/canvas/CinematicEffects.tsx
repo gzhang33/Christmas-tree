@@ -52,8 +52,18 @@ export const CinematicEffects: React.FC = () => {
     // Dynamic bloom intensity reduction during explosion peak (mobile only)
     const treeMorphState = useStore((state) => state.treeMorphState);
     const treeProgress = useStore((state) => state.treeProgress);
-    const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.5;
-    const bloomIntensityMultiplier = isExplosionPeak ? 0.4 : (isMobile ? 0.8 : 1.0);
+
+    // CRITICAL FIX: Completely disable post-processing during mobile explosion peak
+    // This prevents GPU overload that causes page crash/reload on mobile devices
+    const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.7;
+
+    // Early exit: Skip entire EffectComposer during mobile explosion peak
+    // This is the most aggressive optimization - eliminates all post-processing overhead
+    if (isExplosionPeak) {
+        return null;
+    }
+
+    const bloomIntensityMultiplier = isMobile ? 0.8 : 1.0;
 
     return (
         <EffectComposer multisampling={isMobile ? 0 : composer.multisampling}>

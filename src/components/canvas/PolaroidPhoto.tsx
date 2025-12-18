@@ -577,8 +577,8 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 anim.startTime = time;
             }
             // Calculate morph progress with stagger
-            // Stagger logic: each photo waits delay = morphIndex * 0.05
-            const delay = morphIndex * 0.05;
+            // Stagger logic: each photo waits delay = morphIndex * staggerDelay (from config)
+            const delay = morphIndex * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
             const startTime = anim.startTime + delay;
             const elapsed = time - startTime;
 
@@ -596,7 +596,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             // === SYNCHRONIZED ARRIVAL LOGIC ===
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
-            const lastPhotoDelay = (totalPhotos - 1) * 0.05;
+            const lastPhotoDelay = (totalPhotos - 1) * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
             const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
 
             const myTotalDuration = globalArrivalTime - delay;
@@ -681,7 +681,7 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
             const minTransitTime = 0.8;
             const ejectionDuration = 0.6;
-            const lastPhotoDelay = (totalPhotos - 1) * 0.05;
+            const lastPhotoDelay = (totalPhotos - 1) * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
             const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
 
             const absoluteArrivalTime = anim.startTime + globalArrivalTime;
@@ -911,15 +911,19 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             {/* Close Button UI - REMOVED per user requirements */}
             {/* The exit mechanism is now: click same photo again, click other photo, or click background */}
 
-            {/* Polaroid Frame */}
-            <mesh geometry={frameGeometry}>
-                <primitive object={materials.frameMat} attach="material" />
-            </mesh>
+            {/* Polaroid Frame - Only render when material is ready */}
+            {materials.frameMat && (
+                <mesh geometry={frameGeometry}>
+                    <primitive object={materials.frameMat} attach="material" />
+                </mesh>
+            )}
 
-            {/* Photo Image - Merged Front & Back */}
-            <mesh position={[0, 0, 0]} geometry={photoGeometry}>
-                <primitive object={materials.photoMat} attach="material" />
-            </mesh>
+            {/* Photo Image - Merged Front & Back - Only render when material is ready */}
+            {materials.photoMat && (
+                <mesh position={[0, 0, 0]} geometry={photoGeometry}>
+                    <primitive object={materials.photoMat} attach="material" />
+                </mesh>
+            )}
         </group>
     );
 }); // Close React.memo

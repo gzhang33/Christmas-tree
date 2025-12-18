@@ -17,6 +17,8 @@ import { useFrame } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { HOVER_CONFIG } from '../../config/interactions';
+import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
+import { PARTICLE_CONFIG } from '../../config/particles';
 import { useStore } from '../../store/useStore';
 import { PhotoAnimationData } from './PhotoManager';
 
@@ -194,14 +196,16 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
                     anim.startTime = time;
                 }
 
-                const delay = photo.morphIndex * 0.05;
+                const delay = photo.morphIndex * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
                 const startTime = anim.startTime + delay;
                 const elapsed = time - startTime;
 
                 if (elapsed >= 0) {
                     if (!group.visible) {
-                        // Mobile: stagger even more to avoid texture upload spike
-                        const maxPerFrame = isMobile ? 2 : 5;
+                        // Use centralized config for per-frame visibility limit
+                        const maxPerFrame = isMobile
+                            ? PARTICLE_CONFIG.performance.maxVisiblePerFrame.compact
+                            : PARTICLE_CONFIG.performance.maxVisiblePerFrame.normal;
                         if (visibleThisFrameRef.current < maxPerFrame) {
                             group.visible = true;
                             visibleThisFrameRef.current += 1;
@@ -231,7 +235,7 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
                 // ... 保持原有的morph动画逻辑
                 const minTransitTime = 0.8;
                 const ejectionDuration = 0.6;
-                const lastPhotoDelay = (photo.totalPhotos - 1) * 0.05;
+                const lastPhotoDelay = (photo.totalPhotos - 1) * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
                 const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
                 const myTotalDuration = globalArrivalTime - delay;
                 const transitionDuration = myTotalDuration - ejectionDuration;
@@ -296,7 +300,7 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
                 const minTransitTime = 0.8;
                 const ejectionDuration = 0.6;
-                const lastPhotoDelay = (photo.totalPhotos - 1) * 0.05;
+                const lastPhotoDelay = (photo.totalPhotos - 1) * PHOTO_WALL_CONFIG.morphTiming.staggerDelay;
                 const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
                 const absoluteArrivalTime = anim.startTime + globalArrivalTime;
 

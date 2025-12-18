@@ -13,7 +13,7 @@ export const PHOTO_WALL_CONFIG = {
      */
     count: {
         normal: 120,    // 桌面端照片数量
-        compact: 40,    // 移动端减少照片数量，减轻内存和组件压力
+        compact: 18,    // 移动端大幅减少照片数量，防止爆炸时内存压力导致页面崩溃
     },
 
     /**
@@ -54,7 +54,7 @@ export const PHOTO_WALL_CONFIG = {
     morphTiming: {
         startDelay: 0.1,        // 动画开始延迟 (秒)
         morphDuration: 1.5,     // 变形动画持续时间 (秒)
-        staggerDelay: 0.02,     // 照片之间的交错延迟 (秒)
+        staggerDelay: 0.06,     // 照片之间的交错延迟 (秒) - 增加以分散GPU负载
         fadeOutDuration: 1.0,   // 淡出动画持续时间 (秒)
     }
 } as const;
