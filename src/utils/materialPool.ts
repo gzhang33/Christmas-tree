@@ -24,6 +24,9 @@ export class MaterialPool {
     private totalCreated: number = 0;
     private totalAcquired: number = 0;
 
+    // NEW: Track disposal state to prevent use-after-dispose errors
+    public isDisposed: boolean = false;
+
     constructor(masterMaterial: THREE.ShaderMaterial) {
         this.masterMaterial = masterMaterial;
     }
@@ -33,6 +36,16 @@ export class MaterialPool {
      * If pool is empty, clone from master material
      */
     acquire(texture: THREE.Texture): THREE.ShaderMaterial {
+        // NEW: Guard against use after disposal
+        if (this.isDisposed) {
+            console.warn('[MaterialPool] Attempted to acquire from disposed pool, creating fallback');
+            const fallback = this.masterMaterial.clone();
+            if (fallback.uniforms?.map) fallback.uniforms.map.value = texture;
+            if (fallback.uniforms?.opacity) fallback.uniforms.opacity.value = 0;
+            if (fallback.uniforms?.uDevelop) fallback.uniforms.uDevelop.value = 0;
+            return fallback;
+        }
+
         let material: THREE.ShaderMaterial;
 
         // Increment usage statistics
@@ -64,9 +77,15 @@ export class MaterialPool {
     release(material: THREE.ShaderMaterial): void {
         if (!material) return;
 
+        // NEW: Guard against release after disposal
+        if (this.isDisposed) {
+            // Silently ignore - material will be GC'd
+            return;
+        }
+
         // 验证材质是否属于此池子（防止外部材质导致计数错误）
         if (!this.ownedMaterials.has(material)) {
-            console.warn('Attempting to release a material not owned by this pool. Ignoring.');
+            // Silently ignore materials from old pools (StrictMode cleanup)
             return;
         }
 
@@ -119,6 +138,9 @@ export class MaterialPool {
         this.pooledMaterials.clear();
         this.ownedMaterials.clear();
         this.activeCount = 0;
+
+        // NEW: Mark as disposed
+        this.isDisposed = true;
     }
     /**
      * Get pool statistics for debugging
@@ -130,7 +152,8 @@ export class MaterialPool {
             totalCreated: this.totalCreated,
             reuseRate: this.totalAcquired > 0
                 ? ((this.totalAcquired - this.totalCreated) / this.totalAcquired * 100).toFixed(1) + '%'
-                : '0%'
+                : '0%',
+            isDisposed: this.isDisposed, // NEW: Include disposal state
         };
     }
 }
@@ -141,22 +164,33 @@ export class MaterialPool {
  */
 let globalPhotoMaterialPool: MaterialPool | null = null;
 
+// NEW: Singleton guard to prevent React StrictMode double-initialization issues
+let poolInitializationId: number = 0;
+
 /**
  * Initialize the global material pool
  * Should be called once with the master material
+ * 
+ * NEW: Implements singleton pattern with React StrictMode protection
+ * - If pool exists and is not disposed, skip reinitialization
+ * - This prevents the double-mount issue where pool is created, disposed, then recreated
  */
 export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preWarmCount: number = 0): void {
-    if (globalPhotoMaterialPool) {
-        const stats = globalPhotoMaterialPool.getStats();
-        if (stats.activeCount > 0) {
-            throw new Error(
-                `Cannot reinitialize pool with ${stats.activeCount} active materials. ` +
-                `Release all materials before reinitializing.`
-            );
-        }
-        globalPhotoMaterialPool.dispose();
+    // NEW: Singleton guard - if pool exists and is healthy, skip reinitialization
+    if (globalPhotoMaterialPool && !globalPhotoMaterialPool.isDisposed) {
+        console.log('[MaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
+        return;
     }
+
+    // If pool exists but is disposed, we need a new one
+    if (globalPhotoMaterialPool && globalPhotoMaterialPool.isDisposed) {
+        console.log('[MaterialPool] Replacing disposed pool with new instance');
+    }
+
+    // Create new pool instance
     globalPhotoMaterialPool = new MaterialPool(masterMaterial);
+    poolInitializationId += 1;
+    const currentInitId = poolInitializationId;
 
     // Pre-warm: Create materials ahead of time to avoid lag during animation
     if (preWarmCount > 0) {
@@ -177,7 +211,7 @@ export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preW
         }
 
         const duration = performance.now() - startTime;
-        console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms`);
+        console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
 
         dummyTexture.dispose();
     }

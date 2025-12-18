@@ -78,15 +78,37 @@ interface PhotoManagerProps {
     isExploded: boolean;
 }
 
+// NEW: Maximum photos that can become visible in a single frame
+// This prevents GPU texture upload storms by rate-limiting visibility changes
+const MAX_VISIBLE_PER_FRAME = 5;
+
 export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }) => {
     const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId);
 
+    // NEW: Track how many photos became visible this frame (reset each frame)
+    const visibleThisFrameRef = useRef<number>(0);
+
+    // NEW: Track explosion start time for coordinated staggering
+    const explosionStartTimeRef = useRef<number | null>(null);
+
     // Single useFrame to manage ALL photo animations
     useFrame((state, delta) => {
-        if (!isExploded) return;
+        if (!isExploded) {
+            // Reset tracking when not exploded
+            explosionStartTimeRef.current = null;
+            return;
+        }
+
+        // NEW: Initialize explosion start time on first exploded frame
+        if (explosionStartTimeRef.current === null) {
+            explosionStartTimeRef.current = state.clock.elapsedTime;
+        }
 
         const time = state.clock.elapsedTime;
         const isAnyHovered = hoveredPhotoInstanceId !== null;
+
+        // NEW: Reset per-frame counter
+        visibleThisFrameRef.current = 0;
 
         // DYNAMIC: Read activePhoto and playingVideoInHover from store each frame
         const currentActivePhoto = useStore.getState().activePhoto;
@@ -211,9 +233,18 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                 const startTime = anim.startTime + delay;
                 const elapsed = time - startTime;
 
-                // Staggered visibility
+                // Staggered visibility with per-frame rate limiting
                 if (elapsed >= 0) {
-                    if (!group.visible) group.visible = true;
+                    if (!group.visible) {
+                        // NEW: Rate limit visibility changes to prevent GPU texture upload storm
+                        if (visibleThisFrameRef.current < MAX_VISIBLE_PER_FRAME) {
+                            group.visible = true;
+                            visibleThisFrameRef.current += 1;
+                        } else {
+                            // Defer this photo to next frame
+                            continue;
+                        }
+                    }
                 } else {
                     if (group.visible) group.visible = false;
                     continue;

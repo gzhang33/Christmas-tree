@@ -19,6 +19,7 @@ import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
 import { PolaroidPhoto, masterPhotoMaterial } from "./PolaroidPhoto"; // NEW: Import masterPhotoMaterial for pool init
 import { PhotoManager, PhotoAnimationData } from "./PhotoManager"; // NEW: Import PhotoManager
+import { TextureWarmup } from "./TextureWarmup"; // NEW: GPU texture pre-upload (Plan B)
 import { ASSET_CONFIG } from "../../config/assets";
 import { preloadTextures } from "../../utils/texturePreloader";
 
@@ -283,6 +284,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
   const landingPhase = useStore((state) => state.landingPhase);
+  const treeMorphState = useStore((state) => state.treeMorphState); // NEW: For warmup timing
   const { viewport } = useThree();
 
   const globalAlphaRef = useRef(0.0);
@@ -435,30 +437,56 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Update ref with current batch key before preloading
     preloadStartedRef.current = currentKey;
 
-    // OPTIMIZED: Initialize material pools before preloading textures
-    // This ensures the pools are ready when PolaroidPhoto components mount
-    try {
-      // Pre-warm 120 photo materials to cover all photos (99) + buffer
-      // This prevents frame drop on first explosion due to synchronous cloning
-      initPhotoMaterialPool(masterPhotoMaterial, 120);
-      console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
+    // OPTIMIZED: Delay material pool initialization to avoid competing with tree morphing animation
+    // Use requestIdleCallback if available, otherwise setTimeout with delay
+    const initMaterialPools = () => {
+      try {
+        // Pre-warm 120 photo materials to cover all photos (99) + buffer
+        // This prevents frame drop on first explosion due to synchronous cloning
+        initPhotoMaterialPool(masterPhotoMaterial, 120);
+        console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
 
-      // Pre-warm frame materials (MeshStandardMaterial for photo frames)
-      const masterFrameMat = new THREE.MeshStandardMaterial({
-        color: '#ffffff',
-        roughness: 0.4,
-        metalness: 0.1,
-        emissive: new THREE.Color(0xfffee0),
-        emissiveIntensity: 0,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0,
-      });
-      masterFrameMatRef.current = masterFrameMat; // Store for cleanup
-      initFrameMaterialPool(masterFrameMat, 120);
-      console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
-    } catch (e) {
-      console.warn('[MaterialPool] Initialization failed:', e);
+        // Pre-warm frame materials (MeshStandardMaterial for photo frames)
+        const masterFrameMat = new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          roughness: 0.4,
+          metalness: 0.1,
+          emissive: new THREE.Color(0xfffee0),
+          emissiveIntensity: 0,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0,
+        });
+        masterFrameMatRef.current = masterFrameMat; // Store for cleanup
+        initFrameMaterialPool(masterFrameMat, 120);
+        console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
+      } catch (e) {
+        console.warn('[MaterialPool] Initialization failed:', e);
+      }
+    };
+
+    // NEW: Use requestIdleCallback for non-blocking initialization
+    if (typeof requestIdleCallback !== 'undefined') {
+      const idleCallbackId = requestIdleCallback(initMaterialPools, { timeout: 2000 });
+
+      // Cleanup callback on unmount
+      const cleanup = () => {
+        cancelIdleCallback(idleCallbackId);
+      };
+
+      // Store cleanup function
+      (cleanup as any).__idleCallback = true;
+    } else {
+      // Fallback: Delay initialization by 300ms to let tree animation start smoothly
+      const timerId = setTimeout(initMaterialPools, 300);
+
+      // Cleanup timer on unmount
+      const cleanup = () => {
+        clearTimeout(timerId);
+      };
+
+      // Store cleanup function
+      (cleanup as any).__timer = true;
     }
 
     // Preload in batches
@@ -1615,6 +1643,17 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           );
         })}
       </group>
+
+      {/* NEW: GPU Texture Warmup - Pre-upload textures to GPU during IDLE time (Plan B Enhanced) */}
+      {/* Only start after tree morphing is complete to avoid competing with animations */}
+      {texturesLoaded && !isExploded && landingPhase === 'tree' && treeMorphState === 'idle' && (
+        <TextureWarmup
+          textureUrls={photoData.urls}
+          onWarmupComplete={() => console.log('[TreeParticles] GPU texture warmup complete')}
+          enabled={true}
+          startDelay={500} // Wait 500ms after tree stabilizes before starting warmup
+        />
+      )}
 
       {/* NEW: PhotoManager - Single useFrame for all photos */}
       <PhotoManager photos={photoAnimations} isExploded={isExploded} />

@@ -15,11 +15,23 @@ export class FrameMaterialPool {
     private totalCreated: number = 0;
     private totalAcquired: number = 0;
 
+    // NEW: Track disposal state to prevent use-after-dispose errors
+    public isDisposed: boolean = false;
+
     constructor(masterMaterial: THREE.MeshStandardMaterial) {
         this.masterMaterial = masterMaterial;
     }
 
     acquire(): THREE.MeshStandardMaterial {
+        // NEW: Guard against use after disposal
+        if (this.isDisposed) {
+            console.warn('[FrameMaterialPool] Attempted to acquire from disposed pool, creating fallback');
+            const fallback = this.masterMaterial.clone();
+            fallback.opacity = 0;
+            fallback.emissiveIntensity = 0;
+            return fallback;
+        }
+
         let material: THREE.MeshStandardMaterial;
         this.totalAcquired++;
 
@@ -43,8 +55,14 @@ export class FrameMaterialPool {
     release(material: THREE.MeshStandardMaterial): void {
         if (!material) return;
 
+        // NEW: Guard against release after disposal
+        if (this.isDisposed) {
+            // Silently ignore - material will be GC'd
+            return;
+        }
+
         if (!this.ownedMaterials.has(material)) {
-            console.warn('[FrameMaterialPool] Attempting to release material not owned by this pool');
+            // Silently ignore materials from old pools (StrictMode cleanup)
             return;
         }
 
@@ -78,7 +96,11 @@ export class FrameMaterialPool {
         this.activeCount = 0;
         this.totalCreated = 0;
         this.totalAcquired = 0;
+
+        // NEW: Mark as disposed
+        this.isDisposed = true;
     }
+
     getStats() {
         return {
             poolSize: this.pool.length,
@@ -86,7 +108,8 @@ export class FrameMaterialPool {
             totalCreated: this.totalCreated,
             reuseRate: this.totalAcquired > 0
                 ? ((this.totalAcquired - this.totalCreated) / this.totalAcquired * 100).toFixed(1) + '%'
-                : '0%'
+                : '0%',
+            isDisposed: this.isDisposed, // NEW: Include disposal state
         };
     }
 }
@@ -96,34 +119,62 @@ export class FrameMaterialPool {
  */
 let globalFrameMaterialPool: FrameMaterialPool | null = null;
 
+// NEW: Singleton guard for StrictMode protection
+let framePoolInitializationId: number = 0;
+
+/**
+ * Initialize the global frame material pool
+ * 
+ * NEW: Implements singleton pattern with React StrictMode protection
+ */
 export function initFrameMaterialPool(masterMaterial: THREE.MeshStandardMaterial, preWarmCount: number = 0): void {
-    if (globalFrameMaterialPool) {
-        const stats = globalFrameMaterialPool.getStats();
-        if (stats.activeCount > 0) {
-            throw new Error(
-                `Cannot reinitialize frame pool with ${stats.activeCount} active materials`
-            );
-        }
-        globalFrameMaterialPool.dispose();
+    // NEW: Singleton guard - if pool exists and is healthy, skip reinitialization
+    if (globalFrameMaterialPool && !globalFrameMaterialPool.isDisposed) {
+        console.log('[FrameMaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
+        return;
+    }
+
+    // If pool exists but is disposed, we need a new one
+    if (globalFrameMaterialPool && globalFrameMaterialPool.isDisposed) {
+        console.log('[FrameMaterialPool] Replacing disposed pool with new instance');
     }
 
     globalFrameMaterialPool = new FrameMaterialPool(masterMaterial);
+    framePoolInitializationId += 1;
+    const currentInitId = framePoolInitializationId;
 
     if (preWarmCount > 0) {
-        const preWarmed: THREE.MeshStandardMaterial[] = [];
-        console.log(`[FrameMaterialPool] Pre-warming ${preWarmCount} materials...`);
+        console.log(`[FrameMaterialPool] Starting staggered pre-warming of ${preWarmCount} materials...`);
         const startTime = performance.now();
+        
+        let createdCount = 0;
+        const BATCH_SIZE = 30; // MeshStandardMaterial 较轻，批次可稍大
 
-        for (let i = 0; i < preWarmCount; i++) {
-            preWarmed.push(globalFrameMaterialPool.acquire());
-        }
+        const processBatch = () => {
+            if (!globalFrameMaterialPool || globalFrameMaterialPool.isDisposed) return;
 
-        for (const mat of preWarmed) {
-            globalFrameMaterialPool.release(mat);
-        }
+            const batchLimit = Math.min(createdCount + BATCH_SIZE, preWarmCount);
+            const preWarmed: THREE.MeshStandardMaterial[] = [];
 
-        const duration = performance.now() - startTime;
-        console.log(`[FrameMaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms`);
+            for (let i = createdCount; i < batchLimit; i++) {
+                preWarmed.push(globalFrameMaterialPool.acquire());
+            }
+
+            for (const mat of preWarmed) {
+                globalFrameMaterialPool.release(mat);
+            }
+
+            createdCount = batchLimit;
+
+            if (createdCount < preWarmCount) {
+                setTimeout(processBatch, 0);
+            } else {
+                const duration = performance.now() - startTime;
+                console.log(`[FrameMaterialPool] Staggered pre-warming complete: ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
+            }
+        };
+
+        setTimeout(processBatch, 150); // 与 Photo 材质池错开启动
     }
 }
 
