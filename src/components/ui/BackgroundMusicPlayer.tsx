@@ -46,12 +46,15 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         const animate = (currentTime: number) => {
             const duration = AUDIO_CONFIG.fadeInDuration;
-            const elapsed = currentTime - startTime;
+            const elapsed = Math.max(0, currentTime - startTime);
             const progress = Math.min(elapsed / duration, 1);
 
             // 使用线性上升，使淡入效果更明显
             const easedProgress = progress;
-            audio.volume = startVolume + (targetVolume - startVolume) * easedProgress;
+            const nextVolume = startVolume + (targetVolume - startVolume) * easedProgress;
+
+            // 严格限制音量范围在 [0, 1] 之间，防止 IndexSizeError
+            audio.volume = Math.min(1, Math.max(0, nextVolume));
 
             if (progress < 1) {
                 fadeTimerRef.current = requestAnimationFrame(animate);
@@ -225,6 +228,43 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
             audio.pause();
         }
     }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
+
+    // 处理页面可见性变化
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!audioRef.current || isMuted) return;
+
+            const audio = audioRef.current;
+            if (document.hidden) {
+                // 页面隐藏时暂停
+                if (!audio.paused) {
+                    stopFadeIn();
+                    audio.pause();
+                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page hidden, music paused');
+                }
+            } else {
+                // 页面可见时，如果之前在播放且有音频源且用户已交互，则恢复
+                if (audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
+                    // 恢复时也使用淡入效果
+                    audio.volume = 0;
+                    audio.play().then(() => {
+                        fadeInVolume(audio);
+                        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page visible, music resumed with fade-in');
+                    }).catch((error) => {
+                        // 忽略因自动播放限制导致的恢复失败
+                        if (error.name !== 'NotAllowedError') {
+                            console.warn('[BackgroundMusicPlayer] Resume on visible failed:', error);
+                        }
+                    });
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isMuted, hasUserInteracted, autoplayBlocked, stopFadeIn, fadeInVolume]);
 
     return (
         <audio
