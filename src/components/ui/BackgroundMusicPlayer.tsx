@@ -226,6 +226,43 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         }
     }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
 
+    // 处理页面可见性变化
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!audioRef.current || isMuted) return;
+
+            const audio = audioRef.current;
+            if (document.hidden) {
+                // 页面隐藏时暂停
+                if (!audio.paused) {
+                    stopFadeIn();
+                    audio.pause();
+                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page hidden, music paused');
+                }
+            } else {
+                // 页面可见时，如果之前在播放且有音频源且用户已交互，则恢复
+                if (audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
+                    // 恢复时也使用淡入效果
+                    audio.volume = 0;
+                    audio.play().then(() => {
+                        fadeInVolume(audio);
+                        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page visible, music resumed with fade-in');
+                    }).catch((error) => {
+                        // 忽略因自动播放限制导致的恢复失败
+                        if (error.name !== 'NotAllowedError') {
+                            console.warn('[BackgroundMusicPlayer] Resume on visible failed:', error);
+                        }
+                    });
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isMuted, hasUserInteracted, autoplayBlocked, stopFadeIn, fadeInVolume]);
+
     return (
         <audio
             ref={audioRef}
