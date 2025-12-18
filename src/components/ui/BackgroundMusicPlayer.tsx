@@ -8,9 +8,7 @@ interface BackgroundMusicPlayerProps {
     onAudioReady?: (audioElement: HTMLAudioElement) => void;
 }
 
-// 音量常量
-const DEFAULT_VOLUME = 0.35;
-const FADE_IN_DURATION = 7000; // 7秒淡入时间
+// 移除硬编码常量，改用 AUDIO_CONFIG
 
 /**
  * 背景音乐播放器组件
@@ -42,16 +40,17 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         const startTime = performance.now();
         const startVolume = 0;
-        const targetVolume = DEFAULT_VOLUME;
+        const targetVolume = AUDIO_CONFIG.defaultVolume;
 
         audio.volume = startVolume;
 
         const animate = (currentTime: number) => {
+            const duration = AUDIO_CONFIG.fadeInDuration;
             const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / FADE_IN_DURATION, 1);
+            const progress = Math.min(elapsed / duration, 1);
 
-            // 使用二次方缓入，效果更自然
-            const easedProgress = progress * progress;
+            // 使用线性上升，使淡入效果更明显
+            const easedProgress = progress;
             audio.volume = startVolume + (targetVolume - startVolume) * easedProgress;
 
             if (progress < 1) {
@@ -84,8 +83,8 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         // 如果正在淡入，不强制设置音量
         if (fadeTimerRef.current) return;
 
-        if (audio.volume !== DEFAULT_VOLUME) {
-            audio.volume = DEFAULT_VOLUME;
+        if (audio.volume !== AUDIO_CONFIG.defaultVolume) {
+            audio.volume = AUDIO_CONFIG.defaultVolume;
         }
     }, []);
 

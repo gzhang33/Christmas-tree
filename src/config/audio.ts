@@ -39,4 +39,8 @@ export const AUDIO_CONFIG = {
     ] as const, // removed AudioOption[] type assertion to let it infer tuple/readonly if needed, or stick to type
 
     defaultId: 'jingle-bells-classical',
+    // 默认音量 (0.0 到 1.0)
+    defaultVolume: 0.35,
+    // 淡入时长 (毫秒)
+    fadeInDuration: 10000,
 } as const;

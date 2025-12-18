@@ -38,7 +38,7 @@ export const PERFORMANCE_CONFIG = {
         /** 默认粒子总数 - 响应式配置 */
         defaultCount: {
             normal: 400000,
-            compact: 200000,
+            compact: 300000,
         },
     },
 
@@ -54,8 +54,8 @@ export const PERFORMANCE_CONFIG = {
          * 移动端: 需要保持较高密度以确保文字清晰
          */
         titleSamplingDensity: {
-            normal: 4,  // 桌面端: 4px 间距 (密度增加，更清晰)
-            compact: 3, // 移动端: 3px 间距 (密度增加，更清晰)
+            normal: 4,  // 桌面端(密度增加，更清晰)
+            compact: 3, // 移动端(密度增加，更清晰)
         },
 
         /**
@@ -65,8 +65,8 @@ export const PERFORMANCE_CONFIG = {
          * 移动端需要更高密度以确保 "Merry Christmas" 和用户名清晰显示
          */
         particleGenerationDensity: {
-            normal: 4,  // 桌面端: 4px 间距
-            compact: 3, // 移动端: 3px 间距
+            normal: 4,  // 桌面端
+            compact: 3, // 移动端
         },
 
         /**
