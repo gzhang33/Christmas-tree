@@ -119,7 +119,7 @@ export const UsernameTransition: React.FC = () => {
                                 opacity: 1,
                                 scale: 0.72,
                                 transition: {
-                                    duration: 1.5,
+                                    duration: 1.2,
                                     ease: [0.43, 0.13, 0.23, 0.96]
                                 }
                             }}

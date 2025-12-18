@@ -212,7 +212,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
         switch (currentPhase) {
             case 0: // forming
-                duration = anim.formDuration;
+                duration = isMobile ? anim.formDuration.compact : anim.formDuration.normal;
                 progress = Math.min(elapsed / duration, 1.0);
                 if (progress >= 1.0 && landingPhase !== 'morphing') {
                     transitionToPhase(1, time);
