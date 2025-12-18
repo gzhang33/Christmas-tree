@@ -50,8 +50,14 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
         isIdle: false,
     });
 
-    // RAF animation ID for camera reset animation
-    const animationIdRef = useRef<number | null>(null);
+    // Track reset animation state
+    const resetAnimRef = useRef<{
+        startTime: number;
+        startPos: THREE.Vector3;
+        initialPos: THREE.Vector3;
+        initialLookAt: THREE.Vector3;
+        isAnimating: boolean;
+    } | null>(null);
 
     // MagicDust moved to SceneContainer
 
@@ -88,61 +94,47 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
     useEffect(() => {
         // Detect transition from exploded (true) to tree (false)
         if (prevIsExplodedRef.current && !isExploded) {
-            // Cancel any existing animation to avoid overlap
-            if (animationIdRef.current !== null) {
-                cancelAnimationFrame(animationIdRef.current);
-                animationIdRef.current = null;
-            }
-
-            // Smoothly animate camera back to initial position
-            const initialPos = new THREE.Vector3(...getResponsiveValue(CAMERA_CONFIG.default.position));
-            const initialLookAt = new THREE.Vector3(0, 0, 0);
-
-            // Use manual lerp with requestAnimationFrame for smooth transition
-            const startPos = camera.position.clone();
-            const startTime = Date.now();
-            const duration = CAMERA_CONFIG.transition.resetAnimationDuration; // 重置动画持续时间
-
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                // Ease out cubic
-                const eased = 1 - Math.pow(1 - progress, 3);
-
-                camera.position.lerpVectors(startPos, initialPos, eased);
-                // Limit camera z position to maximum value
-                if (camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
-                    camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
-                }
-                camera.lookAt(initialLookAt);
-
-                if (progress < 1) {
-                    animationIdRef.current = requestAnimationFrame(animate);
-                } else {
-                    animationIdRef.current = null;
-                }
+            resetAnimRef.current = {
+                startTime: Date.now(),
+                startPos: camera.position.clone(),
+                initialPos: new THREE.Vector3(...getResponsiveValue(CAMERA_CONFIG.default.position)),
+                initialLookAt: new THREE.Vector3(0, 0, 0),
+                isAnimating: true,
             };
-
-            animationIdRef.current = requestAnimationFrame(animate);
         }
 
         prevIsExplodedRef.current = isExploded;
-
-        // Cleanup: cancel animation on unmount or when isExploded changes
-        return () => {
-            if (animationIdRef.current !== null) {
-                cancelAnimationFrame(animationIdRef.current);
-                animationIdRef.current = null;
-            }
-        };
     }, [isExploded, camera]);
 
     // === PERFORMANCE: Dynamic post-processing toggle ===
     // Moved to CinematicEffects.tsx
 
-    // === CONSOLIDATED useFrame: Camera Drift Only (Lighting moved to SceneContainer) ===
+    // === CONSOLIDATED useFrame ===
     useFrame((state, delta) => {
+        // Handle Camera Reset Animation (Priority)
+        if (resetAnimRef.current?.isAnimating) {
+            const anim = resetAnimRef.current;
+            const elapsed = Date.now() - anim.startTime;
+            const duration = CAMERA_CONFIG.transition.resetAnimationDuration;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+
+            camera.position.lerpVectors(anim.startPos, anim.initialPos, eased);
+            // Limit camera z position to maximum value
+            if (camera.position.z > CAMERA_CONFIG.limits.maxZPosition) {
+                camera.position.z = CAMERA_CONFIG.limits.maxZPosition;
+            }
+            camera.lookAt(anim.initialLookAt);
+
+            if (progress >= 1) {
+                anim.isAnimating = false;
+                resetAnimRef.current = null;
+            }
+            return; // Exclusive control during reset
+        }
+
         // Skip all camera manipulation when a photo is active (during rotating/zooming animation)
         // CameraController has exclusive control during this time
         if (activePhoto) return;
@@ -172,6 +164,7 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
         <>
             <DreiOrbitControls
                 ref={controlsRef}
+                makeDefault
                 enabled={visible && !activePhoto && !playingVideoInHover} // Disable controls when hidden, looking at photo, or playing hover video
                 enablePan={SCENE_CONFIG.orbitControls.enablePan}
                 minDistance={SCENE_CONFIG.orbitControls.minDistance}

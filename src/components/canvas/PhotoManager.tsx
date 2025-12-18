@@ -13,6 +13,7 @@ import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { HOVER_CONFIG } from '../../config/interactions';
 import { useStore } from '../../store/useStore';
+import { getGyroscopeTilt } from '../../hooks/useGyroscope';
 
 // Scratch objects to avoid GC (reused across all photos)
 const dummyObj = new THREE.Object3D();
@@ -217,6 +218,22 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
 
             hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
             hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
+
+            // === GYROSCOPE TILT FOR HOVERED PHOTO (Mobile) ===
+            // If this photo is hovered and gyroscope is active, apply device tilt
+            const gyro = getGyroscopeTilt();
+            if (hover.isHovered && gyro.isActive) {
+                const gyroMultiplier = HOVER_CONFIG.gyroscope.tiltMultiplier;
+                // Map gyroscope tilt to photo tilt (similar to mouse hover effect)
+                hover.targetTiltY = -gyro.tiltX * HOVER_CONFIG.tiltMaxAngle * gyroMultiplier;
+                hover.targetTiltX = gyro.tiltY * HOVER_CONFIG.tiltMaxAngle * gyroMultiplier;
+
+                // Debug: Log once per second when gyro is actively applied
+                if (Math.floor(time) !== Math.floor(time - delta)) {
+                    console.log(`[Gyroscope] Applied to photo #${photo.instanceId}: tiltX=${hover.targetTiltX.toFixed(3)}, tiltY=${hover.targetTiltY.toFixed(3)}`);
+                }
+            }
+
             hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
             hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
 

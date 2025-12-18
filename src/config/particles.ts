@@ -168,8 +168,8 @@ export const PARTICLE_CONFIG = {
         // PhotoManager优化版本切换
         useOptimizedPhotoManager: true,  // true = 使用优化版, false = 使用原版
 
-        // 性能监控
-        enablePerformanceMonitor: true,  // 是否启用性能监控（控制台输出）
+        // 调试与监控
+        enableDebugLogs: false,           // 控制台总开关（性能报告 + 调试日志）
         monitorInterval: 5000,            // 监控报告间隔（毫秒）
 
         // 批处理优化

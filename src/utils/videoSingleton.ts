@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 /**
  * Singleton Video Manager
@@ -31,7 +32,7 @@ export const initVideoSingleton = (): void => {
     const appendVideo = () => {
         if (video && document.body) {
             document.body.appendChild(video);
-            console.log('[VideoSingleton] Video element appended to DOM');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[VideoSingleton] Video element appended to DOM');
         }
     };
 
@@ -59,7 +60,7 @@ export const initVideoSingleton = (): void => {
 
     isInitialized = true;
     // currentUrl remains null until a URL is assigned
-    console.log('[VideoSingleton] Initialized global video resources');
+    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[VideoSingleton] Initialized global video resources');
 };
 export const playVideo = (url: string): Promise<void> => {
     // Ensure initialization

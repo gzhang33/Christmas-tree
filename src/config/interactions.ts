@@ -30,6 +30,19 @@ export const INTERACTION_CONFIG = {
             transitionSpeed: 8,        // 深度过渡速度 (lerp factor)
             maxRenderOrder: 9999,      // 激活/悬停照片的最大渲染顺序
         },
+
+        // ========================================================================
+        // 移动端陀螺仪效果 (Mobile Gyroscope Effect)
+        // ========================================================================
+        gyroscope: {
+            enabled: true,             // 启用陀螺仪效果
+            mobileOnly: false,         // false = 支持 DevTools Sensors 调试; true = 仅移动端
+            sensitivity: 0.8,          // 灵敏度 (0.5 = 低, 1.0 = 高)
+            smoothing: 0.15,           // 平滑系数 (0.1 = 非常平滑, 0.3 = 响应快)
+            deadzone: 0.05,            // 死区 (忽略微小倾斜)
+            maxAngle: 45,              // 最大响应角度 (度)
+            tiltMultiplier: 0.6,       // 倾斜效果强度乘数
+        },
     },
 
     // ========================================================================

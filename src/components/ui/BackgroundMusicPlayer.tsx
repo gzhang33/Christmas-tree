@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import { AUDIO_CONFIG } from '../../config/audio';
+import { PARTICLE_CONFIG } from '../../config/particles';
 
 interface BackgroundMusicPlayerProps {
     isMuted?: boolean;
@@ -52,9 +53,9 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         try {
             await audio.play();
             setAutoplayBlocked(false);
-            console.log('[BackgroundMusicPlayer] Playing music');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Playing music');
         } catch (error) {
-            console.log('[BackgroundMusicPlayer] Autoplay prevented, waiting for user interaction');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Autoplay prevented, waiting for user interaction');
             setAutoplayBlocked(true);
         }
     }, [ensureVolume]);
@@ -77,7 +78,7 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
         const handleInteraction = () => {
             setHasUserInteracted(true);
-            console.log('[BackgroundMusicPlayer] User interaction detected');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] User interaction detected');
 
             if (audioRef.current && !isMuted) {
                 ensureVolume(audioRef.current);

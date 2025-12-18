@@ -86,10 +86,18 @@
     - Removed close button per requirements - exit via: click same photo / other photo / background
     - Camera stays static - no movement or animation when clicking to play video
 
-- [ ] **[PHOTO-03] Mobile Gyroscope**
+- [x] **[PHOTO-03] Mobile Gyroscope**
   - **Task:** Add `DeviceOrientation` event listener.
   - **Action:** Map device tilt (Beta/Gamma) to slight photo container offset, simulating the tilt effect of images when the mouse hovers over them. 
   - **Goal:**Implement the gyroscope effect on the mobile phone side
+  - **Implementation:**
+    - Created `useGyroscope.ts` hook with DeviceOrientation API support and iOS 13+ permission handling
+    - Added gyroscope configuration in `interactions.ts` (`gyroscope` with `sensitivity: 0.8`, `smoothing: 0.15`, `tiltMultiplier: 0.6`)
+    - Integrated global gyroscope listener in `App.tsx` via `initGlobalGyroscope()`
+    - Modified `PhotoManager.tsx` and `PolaroidPhoto.tsx` to apply gyroscope tilt to hovered photos using `getGyroscopeTilt()`
+    - Device Beta (front-back tilt) maps to photo tiltX, Gamma (left-right) maps to tiltY
+    - Smoothing and deadzone ensure natural, stable tilt response
+
 - [x] **[PHOTO-04] personalized photo**
   - **Task:** ensure  personalized photo can be shown repeatedly in the sea, will not shown the default photo.
   - **Action:** 

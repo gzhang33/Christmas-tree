@@ -425,7 +425,9 @@ export function useUniversalParticleSystem({
         const dustColor = dustColors[1] || dustColors[0] || PARTICLE_CONFIG.magicDust.colors[1] || '#b150e4';
         const { colors, sizes, flickerPhases } = generateDustColors(totalCount, dustColor);
 
-        console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, dust budget: ${dustParticleCount})`);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+            console.log(`[UniversalParticleSystem] Generated ${totalCount} particles (title: ${titleData.count}, dust budget: ${dustParticleCount})`);
+        }
 
         return {
             positions: allPositions,

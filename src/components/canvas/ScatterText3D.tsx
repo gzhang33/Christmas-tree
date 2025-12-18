@@ -16,6 +16,7 @@ import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
+import { PARTICLE_CONFIG } from '../../config/particles';
 
 // Configuration for 3D scatter effect
 const SCATTER_3D_CONFIG = {
@@ -39,7 +40,9 @@ const SCATTER_3D_CONFIG = {
     font: {
         size: 1.2,
         sizeVariance: 0.4,
-        // Uses default troika font (no custom woff required)
+        // Using a validated local copy of the star font to ensure stability 
+        // and resolve the DataView bounds error from corrupted downloads.
+        url: '/front/ScatterFont.ttf',
     },
     // Colors (hex for Three.js)
     colors: [
@@ -196,6 +199,7 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
     return (
         <Text
             ref={meshRef}
+            font={SCATTER_3D_CONFIG.font.url}
             fontSize={instance.fontSize}
             color={instance.color}
             anchorX="center"
@@ -240,7 +244,7 @@ export const ScatterText3D: React.FC = () => {
             landingPhase === 'tree' &&
             !hasShownRef.current // Prevent duplicate triggers
         ) {
-            console.log('[ScatterText3D] Explosion started, showing 3D scatter text earlier');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ScatterText3D] Explosion started, showing 3D scatter text earlier');
             setIsVisible(true);
             setStartTime(performance.now() / 1000);
             hasShownRef.current = true;
@@ -248,7 +252,7 @@ export const ScatterText3D: React.FC = () => {
 
         // Hide when tree is reset
         if (!isExploded && isVisible) {
-            console.log('[ScatterText3D] Tree reset, hiding 3D scatter text');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ScatterText3D] Tree reset, hiding 3D scatter text');
             setIsVisible(false);
             hasShownRef.current = false; // Reset for next explosion
         }

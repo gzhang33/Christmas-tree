@@ -3,6 +3,7 @@ import './src/index.css';
 import { createRoot } from 'react-dom/client';
 import { Analytics } from "@vercel/analytics/react";
 import App from './src/App.tsx';
+import { PARTICLE_CONFIG } from './src/config/particles';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -13,6 +14,6 @@ const root = createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <App />
-    <Analytics />
+    <Analytics debug={PARTICLE_CONFIG.performance.enableDebugLogs} />
   </React.StrictMode>
 );

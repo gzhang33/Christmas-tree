@@ -146,7 +146,7 @@ export const GiftBoxes: React.FC = () => {
     // Log when models are loaded
     useEffect(() => {
         const gltfArray = Array.isArray(giftGltfs) ? giftGltfs : [giftGltfs];
-        if (gltfArray.length > 0) {
+        if (gltfArray.length > 0 && PARTICLE_CONFIG.performance.enableDebugLogs) {
             console.log(`[GiftBoxes] ${GIFT_MODELS.length} GLB models loaded in phase: ${landingPhase}`);
         }
     }, [giftGltfs, landingPhase]);

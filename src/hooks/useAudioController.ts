@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 export const useAudioController = (initialVolume = 0.35) => {
     // Audio segment configuration: play from 45s to end, then loop
@@ -22,7 +23,7 @@ export const useAudioController = (initialVolume = 0.35) => {
         // Set initial playback position to 45 seconds when audio can play
         const handleCanPlay = () => {
             if (!hasSetInitialTime && audio.currentTime < LOOP_START_TIME) {
-                console.log('[Audio] Setting initial time to 45s');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[Audio] Setting initial time to 45s');
                 audio.currentTime = LOOP_START_TIME;
                 hasSetInitialTime = true;
             }
@@ -32,7 +33,7 @@ export const useAudioController = (initialVolume = 0.35) => {
         const handleTimeUpdate = () => {
             // When audio reaches the end, loop back to 45 seconds
             if (!isNaN(audio.duration) && audio.duration > LOOP_START_TIME && audio.currentTime >= audio.duration - 0.5) {
-                console.log('[Audio] Looping back to 45s');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[Audio] Looping back to 45s');
                 audio.currentTime = LOOP_START_TIME;
                 audio.play().catch(e => console.warn('Loop play failed:', e));
             }
@@ -43,7 +44,7 @@ export const useAudioController = (initialVolume = 0.35) => {
             try {
                 // Ensure we start from 45 seconds
                 if (audio.currentTime < LOOP_START_TIME) {
-                    console.log('[Audio] User interaction - setting time to 45s');
+                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[Audio] User interaction - setting time to 45s');
                     audio.currentTime = LOOP_START_TIME;
                 }
                 await audio.play();
@@ -68,7 +69,7 @@ export const useAudioController = (initialVolume = 0.35) => {
                 autoplayMutedRef.current = false;
                 // Don't set isMuted to false here - respect user's explicit mute preference
             } catch (err) {
-                console.log('Audio autoplay prevented. Waiting for user interaction.');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('Audio autoplay prevented. Waiting for user interaction.');
                 // Set browser mute flag but don't update user-facing isMuted state
                 audio.muted = true;
                 autoplayMutedRef.current = true;

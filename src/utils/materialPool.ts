@@ -14,6 +14,7 @@
  */
 
 import * as THREE from 'three';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 export class MaterialPool {
     private pool: THREE.ShaderMaterial[] = [];
@@ -178,13 +179,13 @@ let poolInitializationId: number = 0;
 export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preWarmCount: number = 0): void {
     // NEW: Singleton guard - if pool exists and is healthy, skip reinitialization
     if (globalPhotoMaterialPool && !globalPhotoMaterialPool.isDisposed) {
-        console.log('[MaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[MaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
         return;
     }
 
     // If pool exists but is disposed, we need a new one
     if (globalPhotoMaterialPool && globalPhotoMaterialPool.isDisposed) {
-        console.log('[MaterialPool] Replacing disposed pool with new instance');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[MaterialPool] Replacing disposed pool with new instance');
     }
 
     // Create new pool instance
@@ -197,7 +198,7 @@ export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preW
         const dummyTexture = new THREE.Texture(); // Minimal texture for initialization
         const preWarmed: THREE.ShaderMaterial[] = [];
 
-        console.log(`[MaterialPool] Pre-warming ${preWarmCount} materials...`);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[MaterialPool] Pre-warming ${preWarmCount} materials...`);
         const startTime = performance.now();
 
         for (let i = 0; i < preWarmCount; i++) {
@@ -211,7 +212,7 @@ export function initPhotoMaterialPool(masterMaterial: THREE.ShaderMaterial, preW
         }
 
         const duration = performance.now() - startTime;
-        console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[MaterialPool] Pre-warmed ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
 
         dummyTexture.dispose();
     }

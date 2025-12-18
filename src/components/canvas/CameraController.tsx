@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
 import { CAMERA_CONFIG, PERFORMANCE_CONFIG } from '../../config/performance';
+import { PARTICLE_CONFIG } from '../../config/particles';
 import { isMobileDevice, getResponsiveValue } from '../../utils/responsiveUtils';
 
 // Scratch objects for spherical coordinate calculations
@@ -92,7 +93,7 @@ export const CameraController: React.FC = () => {
         // Detect transition to 'morphing-out' (explosion starts)
         if (treeMorphState === 'morphing-out' && prevTreeMorphStateRef.current !== 'morphing-out') {
             if (explosionConfig.enabled && !activePhoto) {
-                console.log('[CameraController] Explosion detected, starting cinematic camera animation');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[CameraController] Explosion detected, starting cinematic camera animation');
 
                 const explosionAnim = explosionAnimRef.current;
 
@@ -171,7 +172,7 @@ export const CameraController: React.FC = () => {
             // Complete animation when duration is reached
             if (progress >= 1.0) {
                 explosionAnim.isAnimating = false;
-                console.log('[CameraController] Explosion camera animation complete');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[CameraController] Explosion camera animation complete');
             }
 
             // Skip other camera logic while explosion animation is active

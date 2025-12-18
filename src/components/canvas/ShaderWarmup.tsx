@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
+import { PARTICLE_CONFIG } from '../../config/particles';
 
 export const ShaderWarmup: React.FC = () => {
     const { gl, scene, camera } = useThree();
@@ -38,14 +39,14 @@ export const ShaderWarmup: React.FC = () => {
                     try {
                         // Force shader compilation for all scene objects
                         gl.compile(scene, camera);
-                        console.log('[ShaderWarmup] Phase 1: Scene shaders compiled');
+                        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ShaderWarmup] Phase 1: Scene shaders compiled');
 
                         // Force a render to compile EffectComposer shaders
                         frameId3 = requestAnimationFrame(() => {
                             try {
                                 gl.render(scene, camera);
                                 hasWarmedUp.current = true;
-                                console.log('[ShaderWarmup] Phase 2: Full render warmup complete');
+                                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ShaderWarmup] Phase 2: Full render warmup complete');
                             } catch (error) {
                                 console.warn('[ShaderWarmup] Render warmup failed:', error);
                                 hasWarmedUp.current = true;

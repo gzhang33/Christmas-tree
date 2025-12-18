@@ -24,6 +24,7 @@ import { useStore } from '../../store/useStore';
 import { ASSET_CONFIG } from '../../config/assets';
 import { getPhotoMaterialPool } from '../../utils/materialPool'; // NEW: Material pool for optimization
 import { getFrameMaterialPool } from '../../utils/frameMaterialPool'; // NEW: Frame material pool
+import { getGyroscopeTilt } from '../../hooks/useGyroscope'; // GYROSCOPE: Mobile tilt effect
 
 // Scratch objects to avoid GC (for rotation math)
 const dummyObj = new THREE.Object3D();
@@ -553,6 +554,17 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
 
         hover.currentScale = THREE.MathUtils.lerp(hover.currentScale, hover.targetScale, lerpFactor);
         hover.rotationMultiplier = THREE.MathUtils.lerp(hover.rotationMultiplier, hover.targetRotationMultiplier, lerpFactor);
+
+        // === GYROSCOPE TILT FOR HOVERED PHOTO (Mobile) ===
+        // If this photo is hovered and gyroscope is active, apply device tilt
+        const gyro = getGyroscopeTilt();
+        if (hover.isHovered && gyro.isActive) {
+            const gyroMultiplier = HOVER_CONFIG.gyroscope.tiltMultiplier;
+            // Map gyroscope tilt to photo tilt (similar to mouse hover effect)
+            hover.targetTiltY = -gyro.tiltX * HOVER_CONFIG.tiltMaxAngle * gyroMultiplier;
+            hover.targetTiltX = gyro.tiltY * HOVER_CONFIG.tiltMaxAngle * gyroMultiplier;
+        }
+
         hover.tiltX = THREE.MathUtils.lerp(hover.tiltX, hover.targetTiltX, tiltLerpFactor);
         hover.tiltY = THREE.MathUtils.lerp(hover.tiltY, hover.targetTiltY, tiltLerpFactor);
 

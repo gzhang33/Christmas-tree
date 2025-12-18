@@ -14,6 +14,7 @@ import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
 import { SceneContainer } from './components/layout/SceneContainer';
 import { useShareSystem } from './hooks/useShareSystem';
 import { PARTICLE_CONFIG } from './config/particles';
+import { initGlobalGyroscope } from './hooks/useGyroscope';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -128,6 +129,12 @@ function App() {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Initialize global gyroscope listener for mobile tilt effects
+  useEffect(() => {
+    const cleanup = initGlobalGyroscope();
+    return cleanup;
   }, []);
 
   // Keyboard shortcut for performance panel (` key or F3)

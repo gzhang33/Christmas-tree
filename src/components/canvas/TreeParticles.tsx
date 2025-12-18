@@ -294,7 +294,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Phase 2: 性能监控 (始终初始化，通过内部逻辑控制启用)
   const performanceMonitor = usePerformanceMonitor('PhotoWall');
   useEffect(() => {
-    if (!PARTICLE_CONFIG.performance.enablePerformanceMonitor) {
+    if (!PARTICLE_CONFIG.performance.enableDebugLogs) {
       performanceMonitor.disable();
     } else {
       performanceMonitor.enable();
@@ -458,7 +458,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Pre-warm 120 photo materials to cover all photos (99) + buffer
         // This prevents frame drop on first explosion due to synchronous cloning
         initPhotoMaterialPool(masterPhotoMaterial, 120);
-        console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[MaterialPool] Initialized with master material and 120 pre-warmed instances');
 
         // Pre-warm frame materials (MeshStandardMaterial for photo frames)
         const masterFrameMat = new THREE.MeshStandardMaterial({
@@ -474,7 +474,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         });
         masterFrameMatRef.current = masterFrameMat; // Store for cleanup
         initFrameMaterialPool(masterFrameMat, 120);
-        console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Initialized with 120 pre-warmed instances');
 
         // NEW: Mark as initialized
         setPoolsInitialized(true);
@@ -521,7 +521,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
       try {
         disposePhotoMaterialPool(true, true); // NEW: silent=true
-        console.log('[MaterialPool] Disposed');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[MaterialPool] Disposed');
       } catch (e) {
         console.warn('[MaterialPool] Disposal failed:', e);
       }
@@ -529,7 +529,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       try {
         // User manually reverted this function to 1 argument
         disposeFrameMaterialPool(true);
-        console.log('[FrameMaterialPool] Disposed');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Disposed');
       } catch (e) {
         console.warn('[FrameMaterialPool] Disposal failed:', e);
       }
@@ -538,7 +538,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       if (masterFrameMatRef.current) {
         masterFrameMatRef.current.dispose();
         masterFrameMatRef.current = null;
-        console.log('[FrameMaterialPool] Master material disposed');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Master material disposed');
       }
 
       // Reset readiness flags
@@ -1234,12 +1234,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   useEffect(() => {
     // Detect explosion start: transition from tree (false) to photo sea (true)
     if (isExploded && !prevIsExplodedRef.current) {
-      console.log('[TreeParticles] Starting explosion animation (morphing-out)');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Starting explosion animation (morphing-out)');
       useStore.getState().setTreeMorphState('morphing-out');
     }
     // Detect reset: transition from photo sea (true) back to tree (false)
     if (!isExploded && prevIsExplodedRef.current) {
-      console.log('[TreeParticles] Starting reset animation (morphing-in)');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Starting reset animation (morphing-in)');
       useStore.getState().setTreeMorphState('morphing-in');
     }
 
@@ -1298,7 +1298,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       }
     });
 
-    console.log('[TreeParticles] Breathing Animation:', enableBreathing ? 'ENABLED' : 'DISABLED');
+    if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+      console.log('[TreeParticles] Breathing Animation:', enableBreathing ? 'ENABLED' : 'DISABLED');
+    }
 
   }, [
     PARTICLE_CONFIG.animation.enableBreathing,
@@ -1323,7 +1325,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
     // === ENTRANCE ANIMATION: Detect phase change to 'morphing' ===
     if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {
-      console.log('[TreeParticles] Entrance animation started (morphing phase)');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Entrance animation started (morphing phase)');
       progressRef.current = 0.61; // Start from exploded state
       targetProgressRef.current = 0.0; // Target is tree form
       animationCompletionFlags.current.entranceComplete = false;
@@ -1367,7 +1369,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       (progressNearTarget || progressRef.current < 0.1)
     ) {
       animationCompletionFlags.current.entranceComplete = true;
-      console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
       useStore.getState().setLandingPhase('tree');
       useStore.getState().setTreeMorphState('idle');
     }
@@ -1381,7 +1383,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       (progressNearTarget || progressRef.current > 0.8)
     ) {
       animationCompletionFlags.current.explosionComplete = true;
-      console.log('[TreeParticles] Explosion animation complete, setting to idle');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Explosion animation complete, setting to idle');
       useStore.getState().setTreeMorphState('idle');
     }
 
@@ -1403,7 +1405,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       (progressNearTarget || progressRef.current < 0.1)
     ) {
       animationCompletionFlags.current.resetComplete = true;
-      console.log('[TreeParticles] Reset animation complete, setting to idle');
+      if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Reset animation complete, setting to idle');
       useStore.getState().setTreeMorphState('idle');
     }
 
@@ -1415,8 +1417,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       animationCompletionFlags.current.resetComplete = false;
     }
 
-    // Update progress in store for debug monitoring
-    useStore.getState().setTreeProgress(progressRef.current);
+    // Update progress in store for debug monitoring (throttled for performance)
+    const currentProgress = progressRef.current;
+    if (Math.abs(useStore.getState().treeProgress - currentProgress) > 0.01) {
+      useStore.getState().setTreeProgress(currentProgress);
+    }
 
     // Update all shader materials with new uniform values
     const materials = [
@@ -1457,7 +1462,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     }
   });
 
-  const treeKey = `tree-${particleCount}-${treeColor}`;
+  const treeKey = 'tree - ' + particleCount + '-' + treeColor;
 
   // NEW: Custom Double-tap detection for mobile (onDoubleClick is unreliable on touch)
   const lastClickTimeRef = useRef(0);
@@ -1475,7 +1480,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Double-tap/Double-click detected (within 300ms)
         if (diff < 300) {
           if (isExploded) {
-            console.log('[TreeParticles] Double-tap detected - Restoring tree');
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Double-tap detected - Restoring tree');
             onParticlesClick();
           }
           return;
@@ -1490,7 +1495,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       {materialsReady && (
         <>
           {/* === ENTITY LAYER (Normal Blending + Depth Write) === */}
-          <points key={`entity-${treeKey}`} ref={entityLayerRef}>
+          <points key={'entity - ' + treeKey} ref={entityLayerRef}>
             <bufferGeometry>
               <bufferAttribute
                 attach="attributes-position"
@@ -1685,7 +1690,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       {texturesLoaded && !isExploded && landingPhase === 'tree' && treeMorphState === 'idle' && (
         <TextureWarmup
           textureUrls={photoData.urls}
-          onWarmupComplete={() => console.log('[TreeParticles] GPU texture warmup complete')}
+          onWarmupComplete={() => {
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] GPU texture warmup complete');
+          }}
           enabled={true}
           startDelay={500} // Wait 500ms after tree stabilizes before starting warmup
         />

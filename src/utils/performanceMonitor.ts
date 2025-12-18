@@ -16,6 +16,7 @@
 import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 interface PerformanceStats {
     fps: number;
@@ -66,29 +67,31 @@ class PerformanceMonitor {
             memoryMB = (performance as any).memory.usedJSHeapSize / 1048576;
         }
 
-        console.group('🎄 Performance Report');
-        console.log(`📊 FPS: ${fps.toFixed(1)} (Target: 60)`);
-        console.log(`⏱️  Frame Time: ${avgFrameTime.toFixed(2)}ms (Min: ${minFrameTime.toFixed(2)}ms, Max: ${maxFrameTime.toFixed(2)}ms)`);
-        console.log(`🎨 Draw Calls: ${info.render.calls}`);
-        console.log(`🔺 Triangles: ${info.render.triangles.toLocaleString()}`);
-        console.log(`🖼️  Textures: ${info.memory.textures}`);
-        console.log(`📦 Geometries: ${info.memory.geometries}`);
-        if (memoryMB > 0) {
-            console.log(`💾 Memory: ${memoryMB.toFixed(1)}MB`);
-        }
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+            console.group('🎄 Performance Report');
+            console.log(`📊 FPS: ${fps.toFixed(1)} (Target: 60)`);
+            console.log(`⏱️  Frame Time: ${avgFrameTime.toFixed(2)}ms (Min: ${minFrameTime.toFixed(2)}ms, Max: ${maxFrameTime.toFixed(2)}ms)`);
+            console.log(`🎨 Draw Calls: ${info.render.calls}`);
+            console.log(`🔺 Triangles: ${info.render.triangles.toLocaleString()}`);
+            console.log(`🖼️  Textures: ${info.memory.textures}`);
+            console.log(`📦 Geometries: ${info.memory.geometries}`);
+            if (memoryMB > 0) {
+                console.log(`💾 Memory: ${memoryMB.toFixed(1)}MB`);
+            }
 
-        // 性能评级
-        if (fps >= 58) {
-            console.log('✅ Performance: Excellent');
-        } else if (fps >= 50) {
-            console.log('⚠️  Performance: Good');
-        } else if (fps >= 40) {
-            console.log('🟡 Performance: Acceptable');
-        } else {
-            console.log('❌ Performance: Poor');
-        }
+            // 性能评级
+            if (fps >= 58) {
+                console.log('✅ Performance: Excellent');
+            } else if (fps >= 50) {
+                console.log('⚠️  Performance: Good');
+            } else if (fps >= 40) {
+                console.log('🟡 Performance: Acceptable');
+            } else {
+                console.log('❌ Performance: Poor');
+            }
 
-        console.groupEnd();
+            console.groupEnd();
+        }
     }
 
     reset() {
@@ -99,15 +102,11 @@ class PerformanceMonitor {
 
 export const usePerformanceMonitor = (label: string = 'Scene') => {
     const monitorRef = useRef<PerformanceMonitor>(new PerformanceMonitor());
-    const enabled = useRef(true); // 可通过全局变量控制
+    const enabled = useRef<boolean>(PARTICLE_CONFIG.performance.enableDebugLogs); // Use the unified flag
 
     useEffect(() => {
-        console.log(`🚀 Performance Monitor Started: ${label}`);
-        console.log('📝 Reports will be logged every 5 seconds');
-
-        return () => {
-            console.log(`🛑 Performance Monitor Stopped: ${label}`);
-        };
+        // Sync ref with config if it changes
+        enabled.current = PARTICLE_CONFIG.performance.enableDebugLogs;
     }, [label]);
 
     useFrame((state, delta) => {
@@ -144,11 +143,13 @@ export const measurePerformance = (label: string, fn: () => void, iterations = 1
     const total = end - start;
     const average = total / iterations;
 
-    console.group(`⏱️  Performance Test: ${label}`);
-    console.log(`Iterations: ${iterations}`);
-    console.log(`Total Time: ${total.toFixed(2)}ms`);
-    console.log(`Average Time: ${average.toFixed(4)}ms`);
-    console.groupEnd();
+    if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+        console.group(`⏱️  Performance Test: ${label}`);
+        console.log(`Iterations: ${iterations}`);
+        console.log(`Total Time: ${total.toFixed(2)}ms`);
+        console.log(`Average Time: ${average.toFixed(4)}ms`);
+        console.groupEnd();
+    }
 
     return { total, average };
 };
@@ -170,21 +171,37 @@ export const comparePerformance = (
     fnB: () => void,
     iterations = 1000
 ) => {
-    console.group(`🆚 Performance Comparison: ${label}`);
+    if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+        console.group(`🆚 Performance Comparison: ${label}`);
 
-    const resultA = measurePerformance('Version A', fnA, iterations);
-    const resultB = measurePerformance('Version B', fnB, iterations);
+        const resultA = measurePerformance('Version A', fnA, iterations);
+        const resultB = measurePerformance('Version B', fnB, iterations);
 
-    const improvement = ((resultA.average - resultB.average) / resultA.average) * 100;
+        const improvement = ((resultA.average - resultB.average) / resultA.average) * 100;
 
-    console.log('\n📊 Comparison Result:');
-    if (improvement > 0) {
-        console.log(`✅ Version B is ${improvement.toFixed(1)}% faster`);
-    } else {
-        console.log(`❌ Version B is ${Math.abs(improvement).toFixed(1)}% slower`);
+        console.log('\n📊 Comparison Result:');
+        if (improvement > 0) {
+            console.log(`✅ Version B is ${improvement.toFixed(1)}% faster`);
+        } else {
+            console.log(`❌ Version B is ${Math.abs(improvement).toFixed(1)}% slower`);
+        }
+
+        console.groupEnd();
+        return { improvement, resultA: resultA as any, resultB: resultB as any };
     }
 
-    console.groupEnd();
+    // fallback if logs disabled
+    const startA = performance.now();
+    for (let i = 0; i < iterations; i++) fnA();
+    const avgA = (performance.now() - startA) / iterations;
 
-    return { improvement, resultA, resultB };
+    const startB = performance.now();
+    for (let i = 0; i < iterations; i++) fnB();
+    const avgB = (performance.now() - startB) / iterations;
+
+    return {
+        improvement: ((avgA - avgB) / avgA) * 100,
+        resultA: { total: 0, average: avgA } as any,
+        resultB: { total: 0, average: avgB } as any
+    };
 };

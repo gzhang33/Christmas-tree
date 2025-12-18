@@ -63,7 +63,10 @@ export const Snow: React.FC<SnowProps> = ({
     const { animation: aCfg, particles: pCfg } = SNOW_CONFIG;
     const time = state.clock.getElapsedTime();
 
-    particles.forEach((particle, i) => {
+    const pArr = particles;
+    const count = pArr.length;
+    for (let i = 0; i < count; i++) {
+      const particle = pArr[i];
       // 1. Update Position (Free fall + Sway)
       particle.position.y -= particle.velocity * speed;
 
@@ -100,8 +103,8 @@ export const Snow: React.FC<SnowProps> = ({
       dummy.scale.set(particle.scale, particle.scale, particle.scale);
       dummy.updateMatrix();
 
-      mesh.current!.setMatrixAt(i, dummy.matrix);
-    });
+      mesh.current.setMatrixAt(i, dummy.matrix);
+    }
 
     mesh.current.instanceMatrix.needsUpdate = true;
   });

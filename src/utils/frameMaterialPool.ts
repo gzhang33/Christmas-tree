@@ -5,6 +5,7 @@
  */
 
 import * as THREE from 'three';
+import { PARTICLE_CONFIG } from '../config/particles';
 
 export class FrameMaterialPool {
     private pool: THREE.MeshStandardMaterial[] = [];
@@ -130,13 +131,13 @@ let framePoolInitializationId: number = 0;
 export function initFrameMaterialPool(masterMaterial: THREE.MeshStandardMaterial, preWarmCount: number = 0): void {
     // NEW: Singleton guard - if pool exists and is healthy, skip reinitialization
     if (globalFrameMaterialPool && !globalFrameMaterialPool.isDisposed) {
-        console.log('[FrameMaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Pool already initialized, skipping reinitialization (StrictMode protection)');
         return;
     }
 
     // If pool exists but is disposed, we need a new one
     if (globalFrameMaterialPool && globalFrameMaterialPool.isDisposed) {
-        console.log('[FrameMaterialPool] Replacing disposed pool with new instance');
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[FrameMaterialPool] Replacing disposed pool with new instance');
     }
 
     globalFrameMaterialPool = new FrameMaterialPool(masterMaterial);
@@ -144,9 +145,9 @@ export function initFrameMaterialPool(masterMaterial: THREE.MeshStandardMaterial
     const currentInitId = framePoolInitializationId;
 
     if (preWarmCount > 0) {
-        console.log(`[FrameMaterialPool] Starting staggered pre-warming of ${preWarmCount} materials...`);
+        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[FrameMaterialPool] Starting staggered pre-warming of ${preWarmCount} materials...`);
         const startTime = performance.now();
-        
+
         let createdCount = 0;
         const BATCH_SIZE = 30; // MeshStandardMaterial 较轻，批次可稍大
 
@@ -170,7 +171,7 @@ export function initFrameMaterialPool(masterMaterial: THREE.MeshStandardMaterial
                 setTimeout(processBatch, 0);
             } else {
                 const duration = performance.now() - startTime;
-                console.log(`[FrameMaterialPool] Staggered pre-warming complete: ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[FrameMaterialPool] Staggered pre-warming complete: ${preWarmCount} materials in ${duration.toFixed(1)}ms (init #${currentInitId})`);
             }
         };
 

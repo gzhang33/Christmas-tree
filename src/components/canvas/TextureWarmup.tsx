@@ -12,6 +12,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getCachedTexture } from '../../utils/texturePreloader';
+import { PARTICLE_CONFIG } from '../../config/particles';
 
 interface TextureWarmupProps {
     /** Array of texture URLs to pre-warm on GPU */
@@ -70,7 +71,7 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
             // Create shared micro-geometry
             microGeometryRef.current = new THREE.PlaneGeometry(0.001, 0.001);
 
-            console.log(`[TextureWarmup] Starting delayed warmup for ${textureUrls.length} textures`);
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[TextureWarmup] Starting delayed warmup for ${textureUrls.length} textures`);
         }, startDelay);
 
         return () => clearTimeout(timer);
@@ -125,10 +126,12 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
         // Check if warmup is complete
         if (currentIndexRef.current >= queue.length) {
             const duration = performance.now() - (startTimeRef.current || 0);
-            console.log(
-                `[TextureWarmup] Completed: ${queue.length} textures in ${duration.toFixed(1)}ms ` +
-                `(avg ${(duration / queue.length).toFixed(1)}ms per texture)`
-            );
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+                console.log(
+                    `[TextureWarmup] Completed: ${queue.length} textures in ${duration.toFixed(1)}ms ` +
+                    `(avg ${(duration / queue.length).toFixed(1)}ms per texture)`
+                );
+            }
 
             setWarmupComplete(true);
             onWarmupComplete?.();
