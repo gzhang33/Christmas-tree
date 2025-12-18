@@ -48,7 +48,7 @@ export const PARTICLE_CONFIG = {
         ornament: {
             count: {
                 normal: 60,         // 桌面端装饰球数量
-                compact: 25,        // 移动端减少装饰球数量，减轻渲染压力
+                compact: 20,        // 移动端减少装饰球数量，减轻渲染压力
             },
             scale: 3.0,        // 装饰球缩放系数
         },

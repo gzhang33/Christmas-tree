@@ -911,15 +911,19 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             {/* Close Button UI - REMOVED per user requirements */}
             {/* The exit mechanism is now: click same photo again, click other photo, or click background */}
 
-            {/* Polaroid Frame */}
-            <mesh geometry={frameGeometry}>
-                <primitive object={materials.frameMat} attach="material" />
-            </mesh>
+            {/* Polaroid Frame - Only render when material is ready */}
+            {materials.frameMat && (
+                <mesh geometry={frameGeometry}>
+                    <primitive object={materials.frameMat} attach="material" />
+                </mesh>
+            )}
 
-            {/* Photo Image - Merged Front & Back */}
-            <mesh position={[0, 0, 0]} geometry={photoGeometry}>
-                <primitive object={materials.photoMat} attach="material" />
-            </mesh>
+            {/* Photo Image - Merged Front & Back - Only render when material is ready */}
+            {materials.photoMat && (
+                <mesh position={[0, 0, 0]} geometry={photoGeometry}>
+                    <primitive object={materials.photoMat} attach="material" />
+                </mesh>
+            )}
         </group>
     );
 }); // Close React.memo

@@ -55,7 +55,7 @@ export const PERFORMANCE_CONFIG = {
          */
         titleSamplingDensity: {
             normal: 4,  // 桌面端(密度增加，更清晰)
-            compact: 6, // 移动端: 减小密度（从3->6）以极大降低渲染压力
+            compact: 7, // 移动端: 减小密度， 以极大降低渲染压力
         },
 
         /**
