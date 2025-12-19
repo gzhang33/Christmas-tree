@@ -19,9 +19,7 @@ export const ASSET_CONFIG = {
   /**
    * Audio assets
    */
-  audio: {
-    allIWantForChristmas: '/audio/All-I-Want-for-Christmas-Is-You.mp3',
-  },
+  audio: {},
   /**
    * Font assets
    */

@@ -16,11 +16,7 @@ export const AUDIO_CONFIG = {
             name: 'No Music',
             path: '',
         },
-        {
-            id: 'all-i-want',
-            name: 'All I Want for Christmas',
-            path: '/audio/All-I-Want-for-Christmas-Is-You.mp3',
-        },
+
         {
             id: 'jingle-bells',
             name: 'Jingle Bells',
