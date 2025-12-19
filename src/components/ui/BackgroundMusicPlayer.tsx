@@ -229,40 +229,91 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         }
     }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
 
-    // 处理页面可见性变化
+    // 处理页面可见性变化 (增强移动端支持)
     useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (!audioRef.current || isMuted) return;
+        // Track if we were playing before going to background
+        let wasPlayingBeforeHide = false;
 
+        const pauseMusic = () => {
+            if (!audioRef.current || isMuted) return;
             const audio = audioRef.current;
-            if (document.hidden) {
-                // 页面隐藏时暂停
-                if (!audio.paused) {
-                    stopFadeIn();
-                    audio.pause();
-                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page hidden, music paused');
-                }
-            } else {
-                // 页面可见时，如果之前在播放且有音频源且用户已交互，则恢复
-                if (audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
-                    // 恢复时也使用淡入效果
-                    audio.volume = 0;
-                    audio.play().then(() => {
-                        fadeInVolume(audio);
-                        if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Page visible, music resumed with fade-in');
-                    }).catch((error) => {
-                        // 忽略因自动播放限制导致的恢复失败
-                        if (error.name !== 'NotAllowedError') {
-                            console.warn('[BackgroundMusicPlayer] Resume on visible failed:', error);
-                        }
-                    });
-                }
+            if (!audio.paused) {
+                wasPlayingBeforeHide = true;
+                stopFadeIn();
+                audio.pause();
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Music paused (background)');
             }
         };
 
+        const resumeMusic = () => {
+            if (!audioRef.current || isMuted) return;
+            const audio = audioRef.current;
+            // Only resume if we were playing before and conditions are met
+            if (wasPlayingBeforeHide && audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
+                wasPlayingBeforeHide = false;
+                audio.volume = 0;
+                audio.play().then(() => {
+                    fadeInVolume(audio);
+                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Music resumed with fade-in');
+                }).catch((error) => {
+                    if (error.name !== 'NotAllowedError') {
+                        console.warn('[BackgroundMusicPlayer] Resume failed:', error);
+                    }
+                });
+            }
+        };
+
+        // Primary: visibilitychange
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                pauseMusic();
+            } else {
+                resumeMusic();
+            }
+        };
+
+        // iOS Safari: pagehide/pageshow for app switching
+        const handlePageHide = () => {
+            pauseMusic();
+        };
+
+        const handlePageShow = () => {
+            if (!document.hidden) {
+                resumeMusic();
+            }
+        };
+
+        // Fallback: blur/focus for mobile edge cases
+        const handleBlur = () => {
+            // Delay to avoid false positives from input focus
+            setTimeout(() => {
+                if (document.hidden) {
+                    pauseMusic();
+                }
+            }, 100);
+        };
+
+        const handleFocus = () => {
+            if (!document.hidden) {
+                resumeMusic();
+            }
+        };
+
+        // Add all listeners
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('webkitvisibilitychange', handleVisibilityChange);
+        window.addEventListener('pagehide', handlePageHide);
+        window.addEventListener('pageshow', handlePageShow);
+        window.addEventListener('blur', handleBlur);
+        window.addEventListener('focus', handleFocus);
+
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('webkitvisibilitychange', handleVisibilityChange);
+            window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('pageshow', handlePageShow);
+            window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('focus', handleFocus);
         };
     }, [isMuted, hasUserInteracted, autoplayBlocked, stopFadeIn, fadeInVolume]);
 
