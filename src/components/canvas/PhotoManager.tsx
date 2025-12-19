@@ -94,9 +94,33 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
 
     // Single useFrame to manage ALL photo animations
     useFrame((state, delta) => {
+        // === RESET PATH: Staggered hiding to prevent GPU spike ===
         if (!isExploded) {
-            // Reset tracking when not exploded
             explosionStartTimeRef.current = null;
+
+            // Stagger hiding: use responsive rate limit to spread GPU unload
+            // Note: In non-optimized PhotoManager, we use a simpler rate limit
+            const MAX_HIDE_PER_FRAME = 10;
+            let hiddenThisFrame = 0;
+
+            for (const photo of photos) {
+                const group = photo.groupRef.current;
+                if (!group) continue;
+
+                // Already hidden, skip
+                if (!group.visible) continue;
+
+                // Rate limit hiding
+                if (hiddenThisFrame >= MAX_HIDE_PER_FRAME) break;
+
+                // Hide and reset material opacity
+                group.visible = false;
+                if (photo.frameMaterial) photo.frameMaterial.opacity = 0;
+                if (photo.photoMaterial) photo.photoMaterial.uniforms.opacity.value = 0;
+
+                hiddenThisFrame++;
+            }
+
             return;
         }
 

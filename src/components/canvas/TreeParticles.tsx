@@ -42,6 +42,7 @@ interface TreeParticlesProps {
   config: AppConfig;
   onParticlesClick: () => void;
   photos: PhotoData[];
+  visible?: boolean; // NEW: Controls overall visibility/activation
 }
 
 // === TEXTURE FACTORY ===
@@ -246,6 +247,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   config,
   onParticlesClick,
   photos,
+  visible = true, // Default to true
 }) => {
   // Global State
   const treeColor = useStore((state) => state.treeColor);
@@ -1352,8 +1354,14 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ) {
       animationCompletionFlags.current.entranceComplete = true;
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
-      useStore.getState().setLandingPhase('tree');
-      useStore.getState().setTreeMorphState('idle');
+
+      // DEFER state updates to next idle period to avoid blocking current frame
+      const updateState = () => {
+        useStore.getState().setLandingPhase('tree');
+        useStore.getState().setTreeMorphState('idle');
+      };
+      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
+      else setTimeout(updateState, 0);
     }
 
     // === EXPLOSION ANIMATION COMPLETION (morphing-out) ===
@@ -1366,7 +1374,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ) {
       animationCompletionFlags.current.explosionComplete = true;
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Explosion animation complete, setting to idle');
-      useStore.getState().setTreeMorphState('idle');
+
+      const updateState = () => {
+        useStore.getState().setTreeMorphState('idle');
+      };
+      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
+      else setTimeout(updateState, 0);
     }
 
     // Reset explosion completion flag when starting new explosion
@@ -1387,7 +1400,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ) {
       animationCompletionFlags.current.resetComplete = true;
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Reset animation complete, setting to idle');
-      useStore.getState().setTreeMorphState('idle');
+
+      const updateState = () => {
+        useStore.getState().setTreeMorphState('idle');
+      };
+      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
+      else setTimeout(updateState, 0);
     }
 
     // === MOBILE OPTIMIZATION: Throttled Photo Activation ===
@@ -1402,6 +1420,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       // Reset flag when leaving morphing-in state
       animationCompletionFlags.current.resetComplete = false;
     }
+
+    // === UPDATE GLOBAL ALPHA (MODERN SMOOTH FADE) ===
+    const targetAlpha = visible ? 1.0 : 0.0;
+    // Fast fade in for tree entrance, slow fade for background pre-warm
+    const alphaLerpSpeed = visible ? 3.0 : 10.0;
+    const currentAlpha = entityMaterialRef.current?.uniforms.uGlobalAlpha.value || 0;
+    const newAlpha = THREE.MathUtils.lerp(currentAlpha, targetAlpha, Math.min(delta * alphaLerpSpeed, 1.0));
+
+    if (entityMaterialRef.current) entityMaterialRef.current.uniforms.uGlobalAlpha.value = newAlpha;
+    if (treeBaseMaterialRef.current) treeBaseMaterialRef.current.uniforms.uGlobalAlpha.value = newAlpha;
 
     // Update progress in store for debug monitoring (throttled for performance)
     const currentProgress = progressRef.current;
@@ -1427,9 +1455,6 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
           mat.uniforms.uTime.value = time;
           if (mat.uniforms.uIsEntrance) {
             mat.uniforms.uIsEntrance.value = landingPhase === 'morphing' ? 1.0 : 0.0;
-          }
-          if (mat.uniforms.uGlobalAlpha) {
-            mat.uniforms.uGlobalAlpha.value = 1.0;
           }
         }
       });
@@ -1473,6 +1498,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   return (
     <group
       ref={rootRef}
+      visible={visible || (entityMaterialRef.current && entityMaterialRef.current.uniforms.uGlobalAlpha.value > 0.001)}
       onClick={(e) => {
         e.stopPropagation();
 

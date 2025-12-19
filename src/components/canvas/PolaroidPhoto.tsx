@@ -398,8 +398,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
             if (materials.frameMat) materials.frameMat.opacity = 0;
             if (materials.photoMat) materials.photoMat.uniforms.opacity.value = 0;
 
-            // Hide immediately on collapse
-            if (groupRef.current) groupRef.current.visible = false;
+            // Hide immediately on collapse, ONLY if not using external manager
+            // If useExternalAnimation is true, PhotoManager will handle staggered hiding
+            if (!useExternalAnimation && groupRef.current) {
+                groupRef.current.visible = false;
+            }
         }
     }, [isExploded, url, particleStartPosition, materials, textureReady]);
 

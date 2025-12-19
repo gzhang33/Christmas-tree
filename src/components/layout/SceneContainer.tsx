@@ -292,7 +292,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                     )}
 
                     {/* Tree Experience - Grouped in Suspense for synchronized loading */}
-                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                    {(landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <React.Suspense fallback={null}>
                             <Experience
                                 uiState={uiState}

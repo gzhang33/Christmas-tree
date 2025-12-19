@@ -186,6 +186,8 @@ export const CameraController: React.FC = () => {
             if (progress >= 1.0) {
                 explosionAnim.isAnimating = false;
                 if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[CameraController] Explosion camera animation complete');
+                // Unlock reset when explosion camera animation ends
+                useStore.getState().setResetLock(false);
             }
 
             // Skip other camera logic while explosion animation is active
@@ -227,6 +229,8 @@ export const CameraController: React.FC = () => {
                     // After animation completes, reset flag to allow user control
                     hadActivePhoto.current = false;
                     photoClosedTime.current = null;
+                    // Unlock reset when camera return animation completes
+                    useStore.getState().setResetLock(false);
                 }
             }
 

@@ -106,8 +106,12 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
                 hiddenDuringResetRef.current = 0;
             }
 
-            // Stagger hiding: max 10 photos per frame to spread GPU unload
-            const MAX_HIDE_PER_FRAME = 10;
+            // Stagger hiding: use responsive rate limit to spread GPU unload
+            const isMobile = isMobileViewport(state.viewport.width);
+            const MAX_HIDE_PER_FRAME = isMobile
+                ? PARTICLE_CONFIG.performance.maxHidePerFrame.compact
+                : PARTICLE_CONFIG.performance.maxHidePerFrame.normal;
+
             let hiddenThisFrame = 0;
 
             for (const photo of photos) {

@@ -161,13 +161,16 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
             }
         }
     });
+    const isResetLocked = useStore((state) => state.isResetLocked);
 
     return (
         <>
+            {/* === CAMERA & CONTROLS === */}
             <DreiOrbitControls
                 ref={controlsRef}
                 makeDefault
-                enabled={visible && !activePhoto && !playingVideoInHover} // Disable controls when hidden, looking at photo, or playing hover video
+                enabled={visible && !activePhoto && !playingVideoInHover && !isResetLocked} // Locked during reset
+                enableRotate={true}
                 enablePan={SCENE_CONFIG.orbitControls.enablePan}
                 minDistance={SCENE_CONFIG.orbitControls.minDistance}
                 maxDistance={CAMERA_CONFIG.limits.maxDistance}
@@ -184,7 +187,13 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
             {/* <MagicDust /> moved to SceneContainer for persistence */}
 
             {/* === THE TREE === */}
-            <TreeParticles isExploded={isExploded} config={config} onParticlesClick={toggleExplosion} photos={photos} />
+            <TreeParticles
+                isExploded={isExploded}
+                config={config}
+                onParticlesClick={toggleExplosion}
+                photos={photos}
+                visible={visible} // Pass visibility down
+            />
 
             {/* === LIGHTBOX OVERLAY === */}
             <CameraController />

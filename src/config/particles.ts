@@ -181,6 +181,10 @@ export const PARTICLE_CONFIG = {
             normal: 5,                      // 桌面端每帧最大可见照片数
             compact: 1,                     // 移动端严格限制为1，防止GPU过载
         },
+        maxHidePerFrame: {
+            normal: 10,                     // 桌面端每帧最大隐藏照片数
+            compact: 5,                      // 移动端降低隐藏速率，保持帧率平稳
+        },
 
         // 预计算优化
         precomputeConstants: true,        // 是否预计算常量（轨道速度、浮动频率等）

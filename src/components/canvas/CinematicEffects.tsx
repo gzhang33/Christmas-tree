@@ -58,26 +58,27 @@ export const CinematicEffects: React.FC = () => {
     const treeMorphState = useStore((state) => state.treeMorphState);
     const treeProgress = useStore((state) => state.treeProgress);
 
-    // CRITICAL FIX: Completely disable post-processing during mobile explosion peak
-    // This prevents GPU overload that causes page crash/reload on mobile devices
+    // CRITICAL FIX: Instead of unmounting EffectComposer, we only disable heavy passes.
+    // This prevents the "black screen" flash caused by GPU re-initializing the composer.
     const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.7;
 
-    // Early exit: Skip entire EffectComposer during mobile explosion peak
-    // This is the most aggressive optimization - eliminates all post-processing overhead
-    if (isExplosionPeak) {
-        return null;
-    }
+    // Use a ref to smoothly transition intensity to avoid desktop frame drops from sudden multiplier changes
+    const intensityFactorRef = useRef(1.0);
+    useFrame((_, delta) => {
+        const target = isExplosionPeak ? 0.0 : 1.0;
+        intensityFactorRef.current = THREE.MathUtils.lerp(intensityFactorRef.current, target, Math.min(delta * 10, 1));
+    });
 
     const bloomIntensityMultiplier = isMobile ? 0.8 : 1.0;
 
     return (
         <EffectComposer multisampling={isMobile ? 0 : composer.multisampling}>
-            {/* Primary Bloom - Dynamically reduced during explosion peak on mobile */}
+            {/* Primary Bloom - Dynamically zeroed during explosion peak on mobile */}
             <Bloom
                 luminanceThreshold={bloom.primary.luminanceThreshold}
                 luminanceSmoothing={bloom.primary.luminanceSmoothing}
                 mipmapBlur={bloom.primary.mipmapBlur}
-                intensity={bloom.primary.intensity * bloomIntensityMultiplier}
+                intensity={bloom.primary.intensity * bloomIntensityMultiplier * intensityFactorRef.current}
                 radius={bloom.primary.radius}
             />
 
@@ -87,7 +88,7 @@ export const CinematicEffects: React.FC = () => {
                     luminanceThreshold={bloom.secondary.luminanceThreshold}
                     luminanceSmoothing={bloom.secondary.luminanceSmoothing}
                     mipmapBlur={bloom.secondary.mipmapBlur}
-                    intensity={bloom.secondary.intensity}
+                    intensity={bloom.secondary.intensity * intensityFactorRef.current}
                     radius={bloom.secondary.radius}
                 />
             )}
