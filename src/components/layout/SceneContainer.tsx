@@ -186,7 +186,20 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                     }}
                     onPointerMissed={() => {
                         // Clear active photo and hover preview when clicking outside any object
-                        const { setActivePhoto, setHoveredPhoto } = useStore.getState();
+                        const { setActivePhoto, setHoveredPhoto, isExploded, resetExplosion } = useStore.getState();
+
+                        // NEW: Global Double-tap detection for background
+                        const now = Date.now();
+                        const lastClick = (window as any)._lastBackgroundClick || 0;
+                        (window as any)._lastBackgroundClick = now;
+
+                        if (now - lastClick < 400) {
+                            if (isExploded) {
+                                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[SceneContainer] Background double-tap detected - Restoring tree');
+                                resetExplosion();
+                            }
+                        }
+
                         setActivePhoto(null);
                         setHoveredPhoto(null);
                     }}

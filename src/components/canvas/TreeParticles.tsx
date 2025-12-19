@@ -1476,8 +1476,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         const diff = now - lastClickTimeRef.current;
         lastClickTimeRef.current = now;
 
-        // Double-tap/Double-click detected (within 300ms)
-        if (diff < 300) {
+        // Double-tap/Double-click detected (increased to 400ms for mobile reliability)
+        if (diff < 400) {
           if (isExploded) {
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Double-tap detected - Restoring tree');
             onParticlesClick();
