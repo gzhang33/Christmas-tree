@@ -862,10 +862,14 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 // Double-tap on photo restores tree (mobile users expect this behavior)
                 // Priority: Double-tap detection takes precedence over all other interactions
                 if (isDoubleTap) {
-                    // Double-tap detected - restore tree
-                    setPlayingVideoInHover(null);
-                    setHoveredPhoto(null);
-                    resetExplosion();
+                    // Check if reset is already in progress (prevents jank from duplicate calls)
+                    const isResetLocked = useStore.getState().isResetLocked;
+                    if (!isResetLocked) {
+                        // Double-tap detected - restore tree
+                        setPlayingVideoInHover(null);
+                        setHoveredPhoto(null);
+                        resetExplosion();
+                    }
                     return;
                 }
 

@@ -131,6 +131,8 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
             if (progress >= 1) {
                 anim.isAnimating = false;
                 resetAnimRef.current = null;
+                // Release reset lock after animation completes
+                useStore.getState().setResetLock(false);
             }
             return; // Exclusive control during reset
         }

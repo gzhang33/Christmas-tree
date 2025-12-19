@@ -19,6 +19,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
     const userName = useStore((state) => state.userName);
     const setUserName = useStore((state) => state.setUserName);
     const setLandingPhase = useStore((state) => state.setLandingPhase);
+    const setPhotoCount = useStore((state) => state.setPhotoCount);
 
     // Generate Share URL
     const generateShareUrl = useCallback(() => {
@@ -37,6 +38,9 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 const data = decodeState(shareCode);
 
                 if (data) {
+                    // Only restore known config items and verify value ranges
+                    const safeConfig: Partial<AppConfig> = {};
+
                     // Restore Username first
                     if (data.u && typeof data.u === 'string') {
                         setUserName(data.u);
@@ -67,8 +71,6 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
 
                     // Restore Config
                     if (data.cfg) {
-                        // Only restore known config items and verify value ranges
-                        const safeConfig: Partial<AppConfig> = {};
                         if (typeof data.cfg.snowDensity === 'number' && data.cfg.snowDensity >= 0 && data.cfg.snowDensity <= 10000) {
                             safeConfig.snowDensity = data.cfg.snowDensity;
                         }
@@ -104,8 +106,8 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                     }
 
                     // NEW: Sync store photoCount if restored from URL
-                    if (data.cfg?.photoCount) {
-                        useStore.getState().setPhotoCount(data.cfg.photoCount);
+                    if (safeConfig.photoCount !== undefined) {
+                        setPhotoCount(safeConfig.photoCount);
                     }
                 }
             } catch (error) {
@@ -122,7 +124,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 }
             }
         }
-    }, [setPhotos, setConfig, setTreeColor, setSelectedAudioId, setUserName, setLandingPhase]); // 依赖所有 setter 函数
+    }, [setPhotos, setConfig, setTreeColor, setSelectedAudioId, setUserName, setLandingPhase, setPhotoCount]); // 依赖所有 setter 函数
 
     return { generateShareUrl };
 };

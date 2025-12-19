@@ -5,7 +5,7 @@ export interface AppConfig {
   explosionRadius: number;
   snowSpeed: number;
   windStrength: number;
-  photoCount: number;
+  photoCount?: number;
 }
 
 export interface PhotoData {

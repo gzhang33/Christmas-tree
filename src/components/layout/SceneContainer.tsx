@@ -228,6 +228,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                             setHoveredPhoto,
                             setPlayingVideoInHover,
                             isExploded,
+                            isResetLocked,
                             resetExplosion
                         } = useStore.getState();
 
@@ -243,7 +244,8 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         (window as any)._lastGlobalClick = now;
 
                         if (now - lastClick < doubleTapThreshold) {
-                            if (isExploded) {
+                            // Only reset if exploded AND not already resetting (prevents jank)
+                            if (isExploded && !isResetLocked) {
                                 if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[SceneContainer] Background double-tap detected - Restoring tree');
                                 resetExplosion();
                             }

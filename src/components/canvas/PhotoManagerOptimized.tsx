@@ -91,11 +91,49 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
         photosByState.current = { morphing, orbiting, active };
     }, [photos]);
 
+    // Track how many photos we've hidden during reset (for staggered hiding)
+    const hiddenDuringResetRef = useRef<number>(0);
+    const resetStartedRef = useRef<boolean>(false);
+
     useFrame((state, delta) => {
+        // === RESET PATH: Staggered hiding to prevent GPU spike ===
         if (!isExploded) {
             explosionStartTimeRef.current = null;
+
+            // Mark reset started
+            if (!resetStartedRef.current) {
+                resetStartedRef.current = true;
+                hiddenDuringResetRef.current = 0;
+            }
+
+            // Stagger hiding: max 10 photos per frame to spread GPU unload
+            const MAX_HIDE_PER_FRAME = 10;
+            let hiddenThisFrame = 0;
+
+            for (const photo of photos) {
+                const group = photo.groupRef.current;
+                if (!group) continue;
+
+                // Already hidden, skip
+                if (!group.visible) continue;
+
+                // Rate limit hiding
+                if (hiddenThisFrame >= MAX_HIDE_PER_FRAME) break;
+
+                // Hide and reset material opacity
+                group.visible = false;
+                if (photo.frameMaterial) photo.frameMaterial.opacity = 0;
+                if (photo.photoMaterial) photo.photoMaterial.uniforms.opacity.value = 0;
+
+                hiddenThisFrame++;
+                hiddenDuringResetRef.current++;
+            }
+
             return;
         }
+
+        // Reset the reset flag when exploding again
+        resetStartedRef.current = false;
 
         if (explosionStartTimeRef.current === null) {
             explosionStartTimeRef.current = state.clock.elapsedTime;
