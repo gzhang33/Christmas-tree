@@ -49,19 +49,11 @@ export const Floor: React.FC = () => {
             onClick={(e) => {
                 e.stopPropagation();
 
-                // NEW: Exit hover video playback mode
-                if (playingVideoInHover) {
-                    setPlayingVideoInHover(null);
-                    setHoveredPhoto(null);
-                    return;
-                }
-
-                // Close active photo if open
-                if (activePhoto) {
-                    setActivePhoto(null);
-                }
-                // Clear hover preview (for mobile tap-to-preview)
+                // Clear all interaction states when clicking the floor
+                const { setActivePhoto, setHoveredPhoto, setPlayingVideoInHover } = useStore.getState();
+                setActivePhoto(null);
                 setHoveredPhoto(null);
+                setPlayingVideoInHover(null);
             }}
         >
             <circleGeometry args={[SCENE_CONFIG.floor.radius, SCENE_CONFIG.floor.segments]} />

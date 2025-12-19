@@ -321,7 +321,7 @@ export const ScatterText3D: React.FC = () => {
     if (!userName || instances.length === 0) return null;
 
     return (
-        <group>
+        <group raycast={() => null}>
             {instances.map((instance) => (
                 <TextInstance3D
                     key={instance.id}

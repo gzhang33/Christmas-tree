@@ -186,7 +186,13 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                     }}
                     onPointerMissed={() => {
                         // Clear active photo and hover preview when clicking outside any object
-                        const { setActivePhoto, setHoveredPhoto, isExploded, resetExplosion } = useStore.getState();
+                        const {
+                            setActivePhoto,
+                            setHoveredPhoto,
+                            setPlayingVideoInHover,
+                            isExploded,
+                            resetExplosion
+                        } = useStore.getState();
 
                         // NEW: Global Double-tap detection for background
                         const now = Date.now();
@@ -202,6 +208,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
 
                         setActivePhoto(null);
                         setHoveredPhoto(null);
+                        setPlayingVideoInHover(null);
                     }}
                 >
                     {/* Global Environment & Lighting - Persistent across phases */}

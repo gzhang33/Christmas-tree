@@ -73,6 +73,7 @@ export const SnowFloor: React.FC<SnowFloorProps> = ({
             ref={meshRef}
             args={[undefined, undefined, count]}
             position={SCENE_CONFIG.floor.position as [number, number, number]}
+            raycast={() => null} // Disable raycasting to allow clicks to pass through to the floor or trigger onPointerMissed
         >
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial

@@ -1488,6 +1488,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         // Single click logic
         if (!isExploded) {
           onParticlesClick();
+        } else {
+          // NEW: In exploded state, single clicking a particle also clears previews
+          const { setHoveredPhoto, setPlayingVideoInHover, setActivePhoto } = useStore.getState();
+          setHoveredPhoto(null);
+          setPlayingVideoInHover(null);
+          setActivePhoto(null);
         }
       }}
     >

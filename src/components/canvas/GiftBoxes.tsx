@@ -170,7 +170,7 @@ export const GiftBoxes: React.FC = () => {
     }
 
     return (
-        <group>
+        <group raycast={() => null}>
             {giftPositions.map((gift, i) => {
                 // Deterministically pick a model based on index
                 const modelIndex = i % gltfArray.length;

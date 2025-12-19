@@ -261,7 +261,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
     }
 
     return (
-        <points key={attributes.count}>
+        <points key={attributes.count} raycast={() => null}>
             <bufferGeometry ref={geometryRef}>
                 {/* Position (dummy for Three.js, actual position calculated in shader) */}
                 <bufferAttribute
