@@ -4,7 +4,7 @@
 
 一个基于 **React**、**Three.js** 和 **React Three Fiber** 构建的节日氛围十足、高性能的 3D 交互项目。这棵可自定义的圣诞树能瞬间化作一片充满回忆的照片星空。
 
-![项目横幅](path/to/hero_banner.png)
+![项目横幅](public\readmeimg\hero.png)
 
 ## ✨ 核心功能
 
@@ -49,22 +49,22 @@
 
 ### **入场动画与文字变形**
 体验文字“蒸发”并聚合成魔法尘埃，最终由尘埃构筑成圣诞树的震撼视觉效果。
-> ![截图：入场动画](path/to/entrance_screenshot.png)
-> *示例：输入“Antigravity”后，名字将变形成一棵流动的圣诞树。*
+> ![截图：入场动画](public\readmeimg\tree_idle.png)
+> *示例：输入“username”后，名字将变形成一棵流动的圣诞树。*
 
 ### **爆炸照片墙**
 点击圣诞树使其粒子散开，进入 3D 球形照片墙模式，查看所有珍藏的回忆。
-> ![截图：圣诞树爆炸效果](path/to/explosion_screenshot.png)
+> ![截图：圣诞树爆炸效果](public\readmeimg\photo_sea.png)
 > *交互：单击爆炸，双击还原。悬停在照片上可放大预览或播放视频。*
 
 ### **自定义控制面板**
 侧边面板支持微调场景中的每一个细节。
-> ![截图：UI 控制面板](path/to/controls_screenshot.png)
+> ![截图：UI 控制面板](public\readmeimg\control_pannel.png)
 > *示例：将树体颜色切换为“宝蓝色”，配以“金色”尘埃。*
 
 ### **实时性能监控**
-为开发者和高级用户准备的实时数据面板（通过 `` ` `` 或 `F3` 键切换）。
-> ![截图：性能监控](path/to/monitor_screenshot.png)
+为开发者和高级用户准备的实时数据面板（通过`F4` 键切换）。
+> ![截图：性能监控](public\readmeimg\performance.png)
 
 ---
 
