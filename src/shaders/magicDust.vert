@@ -5,7 +5,7 @@
  * Synchronized with TreeParticles dissipation animation using shared config uniforms.
  * 
  * All animation parameters are received from PARTICLE_CONFIG.dissipation
- * and TREE_SHAPE_CONFIG in treeUtils.ts to ensure perfect synchronization.
+ * and TREE_SHAPE_CONFIG in treeUtils.ts to ensure synchronization.
  */
 
 // === UNIFORMS ===
@@ -32,6 +32,7 @@ uniform float uGrowAmount;          // Size growth amount
 uniform float uShrinkAmount;        // Size shrink amount
 uniform float uFadeStart;           // Progress to start fading out
 uniform float uFadeEnd;             // Progress to be fully faded
+uniform float uSpeedVariation;      // Variance for individual speed
 
 // === ATTRIBUTES ===
 attribute float aSpiralT;
@@ -94,8 +95,9 @@ void main() {
   float erosionNoise = aRandom; 
   float heightDelay = aErosionFactor; 
   
-  // Trigger logic matching TreeParticles: (uProgress * multiplier) - offsets
-  float trigger = (uProgress * uProgressMultiplier) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
+  // Trigger logic matching TreeParticles: (uProgress * multiplier * speed) - offsets
+  float individualSpeed = 1.0 + (aRandom - 0.4) * uSpeedVariation;
+  float trigger = (uProgress * uProgressMultiplier * individualSpeed) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
   float localProgress = clamp(trigger, 0.0, 1.0);
   float easedProgress = smoothstep(0.0, 1.0, localProgress);
   

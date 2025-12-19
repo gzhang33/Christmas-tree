@@ -7,10 +7,10 @@
  * Extended with:
  * - Photo particle support (isPhotoParticle attribute)
  * - Fade-out for non-photo particles during explosion
- * - Synchronized dissipation animation via config uniforms
+ * - Synchronized dissipation animation via config uniforms with configurable variance
  *
  * All dissipation animation parameters are received from PARTICLE_CONFIG.dissipation
- * to ensure perfect synchronization with MagicDust particles.
+ * to ensure synchronization with MagicDust particles.
  *
  * @source docs/architecture.md#5-novel-pattern-designs
  */
@@ -51,6 +51,7 @@ uniform float uShrinkAmount;        // Size shrink amount
 uniform float uFadeStart;           // Progress to start fading out
 uniform float uFadeEnd;             // Progress to be fully faded
 uniform float uExplosionFlash;      // Burst intensity
+uniform float uSpeedVariation;      // Variance for individual speed
 
 // === ATTRIBUTES ===
 attribute vec3 positionStart;   // Tree shape position (P0)
@@ -120,8 +121,10 @@ void main() {
   if (shouldCoreLayerStay) {
     trigger = 0.0; // Core layer stays in place during explosion
   } else {
-    // Add individual speed variation (0.8 to 1.3)
-    float individualSpeed = 0.8 + aRandom * 0.5;
+    // Add individual speed variation (controlled by uSpeedVariation)
+    // Formula: 1.0 + (aRandom - 0.4) * uSpeedVariation 
+    // When uSpeedVariation=0.5, this becomes 0.8 + aRandom * 0.5 (range 0.8 to 1.3)
+    float individualSpeed = 1.0 + (aRandom - 0.4) * uSpeedVariation;
     trigger = (uProgress * uProgressMultiplier * individualSpeed) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
   }
   float localProgress = clamp(trigger, 0.0, 1.0);

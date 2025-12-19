@@ -36,7 +36,9 @@ interface ScatterTextInstance3D {
  * Blessing messages for variety
  */
 const getBlessing = (userName: string, index: number) => {
-    const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    // 如果用户名为空，使用默认名称
+    const safeName = userName.trim() || 'Friend';
+    const capitalizedName = safeName.charAt(0).toUpperCase() + safeName.slice(1);
     const blessings = [
         `Merry Christmas, ${capitalizedName}!`,
         `圣诞快乐❄, ${capitalizedName}!`,
@@ -47,7 +49,6 @@ const getBlessing = (userName: string, index: number) => {
     ];
     return blessings[index % blessings.length];
 };
-
 /**
  * Generate random 3D scatter positions with radial distribution
  */

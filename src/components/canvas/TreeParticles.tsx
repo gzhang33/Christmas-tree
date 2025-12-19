@@ -167,6 +167,7 @@ const createParticleShaderMaterial = (
       uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
       uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
       uExplosionFlash: { value: 0.0 }, // Burst of light during explosion
+      uSpeedVariation: { value: PARTICLE_CONFIG.dissipation.speedVariation },
     },
     transparent: true,
     depthWrite: false,
@@ -1158,6 +1159,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
             uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
             uExplosionFlash: { value: 0.0 },
+            uSpeedVariation: { value: PARTICLE_CONFIG.dissipation.speedVariation },
           },
           transparent: true,
           depthWrite: false,

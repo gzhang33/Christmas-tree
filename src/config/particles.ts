@@ -87,6 +87,7 @@ export const PARTICLE_CONFIG = {
         progressMultiplier: 2.6,  // uProgress 的缩放系数，确保覆盖完整动画范围
         noiseInfluence: 0.3,      // 随机噪声对触发时间的影响 (0-1)
         heightInfluence: 1.0,     // 高度延迟对触发时间的影响 (自上而下消散)
+        speedVariation: 0.5,      // 个体速度差异系数 (0 = 完全同步, 0.5 = 原始变异)
 
         // 运动物理参数 (Movement Physics)
         upForce: 15.0,            // 向上浮力

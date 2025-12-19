@@ -60,6 +60,7 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
     shrinkAmount: configShrinkAmount,
     fadeStart: configFadeStart,
     fadeEnd: configFadeEnd,
+    speedVariation: configSpeedVariation,
   } = PARTICLE_CONFIG.dissipation;
 
   // Get landing phase for synchronized entrance animation
@@ -188,11 +189,12 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
     uShrinkAmount: { value: configShrinkAmount },
     uFadeStart: { value: configFadeStart },
     uFadeEnd: { value: configFadeEnd },
+    uSpeedVariation: { value: configSpeedVariation },
   }), [
     meteorTexture, treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset,
     configProgressMultiplier, configNoiseInfluence, configHeightInfluence,
     configUpForce, configDriftAmplitude, configGrowPeakProgress,
-    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd
+    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd, configSpeedVariation
   ]);
 
   // Explicitly update uniforms when config changes
@@ -214,12 +216,13 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
       materialRef.current.uniforms.uShrinkAmount.value = configShrinkAmount;
       materialRef.current.uniforms.uFadeStart.value = configFadeStart;
       materialRef.current.uniforms.uFadeEnd.value = configFadeEnd;
+      materialRef.current.uniforms.uSpeedVariation.value = configSpeedVariation;
     }
   }, [
     treeHeight, treeBottomY, configSpiralTurns, configRadiusOffset,
     configProgressMultiplier, configNoiseInfluence, configHeightInfluence,
     configUpForce, configDriftAmplitude, configGrowPeakProgress,
-    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd
+    configGrowAmount, configShrinkAmount, configFadeStart, configFadeEnd, configSpeedVariation
   ]);
 
   // Update color buffer when magicDustColor changes (avoid full remount)
