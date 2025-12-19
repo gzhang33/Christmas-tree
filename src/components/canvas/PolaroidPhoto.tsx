@@ -210,10 +210,11 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
     // Actions - use selector to avoid re-renders (this is stable)
     const setHoveredPhoto = useStore(state => state.setHoveredPhoto);
     const setActivePhoto = useStore(state => state.setActivePhoto);
-    const setPlayingVideoInHover = useStore(state => state.setPlayingVideoInHover); // NEW
+    const setPlayingVideoInHover = useStore(state => state.setPlayingVideoInHover);
+    const resetExplosion = useStore(state => state.resetExplosion); // For double-tap restore
     const activePhoto = useStore(state => state.activePhoto);
     const hoveredPhotoInstanceId = useStore(state => state.hoveredPhotoInstanceId); // Need current hover state for click logic
-    const playingVideoInHover = useStore(state => state.playingVideoInHover); // NEW
+    const playingVideoInHover = useStore(state => state.playingVideoInHover);
 
     // Identify memory ID from URL
     const memoryId = useMemo(() => {
@@ -844,6 +845,23 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 if (!isExploded || !groupRef.current) return;
 
                 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+                // === GLOBAL DOUBLE-TAP DETECTION (Cross-Component) ===
+                // Update global timestamp for cross-component double-tap detection
+                // This allows double-tap where first tap lands on photo and second tap lands on
+                // background/particles to still restore the tree
+                const now = Date.now();
+                const lastClick = (window as any)._lastGlobalClick || 0;
+                (window as any)._lastGlobalClick = now;
+
+                // Double-tap on photo also restores tree (mobile users expect this behavior)
+                if (now - lastClick < 400) {
+                    // Double-tap detected - restore tree
+                    setPlayingVideoInHover(null);
+                    setHoveredPhoto(null);
+                    resetExplosion();
+                    return;
+                }
 
                 // === CHECK CURRENT PLAYING STATE ===
                 const isThisPlayingVideo = playingVideoInHover?.instanceId === instanceId;

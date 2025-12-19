@@ -226,10 +226,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                             resetExplosion
                         } = useStore.getState();
 
-                        // NEW: Global Double-tap detection for background
+                        // Global Double-tap detection: Uses shared timestamp with TreeParticles
+                        // Allows double-taps where first tap lands on particles and second on background
                         const now = Date.now();
-                        const lastClick = (window as any)._lastBackgroundClick || 0;
-                        (window as any)._lastBackgroundClick = now;
+                        const lastClick = (window as any)._lastGlobalClick || 0;
+                        (window as any)._lastGlobalClick = now;
 
                         if (now - lastClick < 400) {
                             if (isExploded) {

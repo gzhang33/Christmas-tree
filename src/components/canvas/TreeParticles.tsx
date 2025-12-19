@@ -1464,8 +1464,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
 
   const treeKey = 'tree - ' + particleCount + '-' + treeColor;
 
-  // NEW: Custom Double-tap detection for mobile (onDoubleClick is unreliable on touch)
-  const lastClickTimeRef = useRef(0);
+  // Double-tap detection: Use global timestamp for cross-component compatibility
+  // This allows double-taps where first tap lands on one component (e.g., photo)
+  // and second tap lands here to still register as double-tap for tree restoration
 
   return (
     <group
@@ -1474,11 +1475,12 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         e.stopPropagation();
 
         const now = Date.now();
-        const diff = now - lastClickTimeRef.current;
-        lastClickTimeRef.current = now;
+        const lastClick = (window as any)._lastGlobalClick || 0;
+        (window as any)._lastGlobalClick = now;
 
         // Double-tap/Double-click detected (increased to 400ms for mobile reliability)
-        if (diff < 400) {
+        // Uses global timestamp for cross-component double-tap detection
+        if (now - lastClick < 400) {
           if (isExploded) {
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Double-tap detected - Restoring tree');
             onParticlesClick();
