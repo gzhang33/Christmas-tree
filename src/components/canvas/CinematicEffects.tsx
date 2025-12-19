@@ -5,6 +5,7 @@ import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
 import { POST_PROCESSING_CONFIG } from '../../config';
+import { isMobileViewport, isMobileDevice } from '../../utils/responsiveUtils';
 
 export const CinematicEffects: React.FC = () => {
     const isExploded = useStore((state) => state.isExploded);
@@ -46,8 +47,12 @@ export const CinematicEffects: React.FC = () => {
     const { bloom, vignette, chromaticAberration, composer } = POST_PROCESSING_CONFIG;
     const { viewport } = useThree();
 
-    // Detection for mobile (consistent with other components)
-    const isMobile = viewport.width < 10;
+    // Detection for mobile using standardized threshold
+    // Fallback to isMobileDevice() when viewport is not yet initialized (width = 0)
+    // This prevents conditional rendering flip-flop during initial mount
+    const isMobile = viewport.width > 0
+        ? isMobileViewport(viewport.width)
+        : isMobileDevice();
 
     // Dynamic bloom intensity reduction during explosion peak (mobile only)
     const treeMorphState = useStore((state) => state.treeMorphState);

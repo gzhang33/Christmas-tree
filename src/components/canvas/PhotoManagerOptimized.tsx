@@ -21,6 +21,7 @@ import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { useStore } from '../../store/useStore';
 import { PhotoAnimationData } from './PhotoManager';
+import { isMobileViewport } from '../../utils/responsiveUtils';
 
 // 性能优化：复用对象池
 const tempMatrix = new THREE.Matrix4();
@@ -102,7 +103,7 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
         const time = state.clock.elapsedTime;
         const isAnyHovered = hoveredPhotoInstanceId !== null;
-        const isMobile = state.viewport.width < 10;
+        const isMobile = isMobileViewport(state.viewport.width);
         visibleThisFrameRef.current = 0; // Restore missing line
 
         const currentActivePhoto = useStore.getState().activePhoto;

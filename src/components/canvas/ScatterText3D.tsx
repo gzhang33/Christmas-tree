@@ -23,6 +23,7 @@ import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
 import { PARTICLE_CONFIG } from '../../config/particles';
 import { SCATTER_CONFIG } from '../../config';
+import { isMobileViewport, isMobileDevice } from '../../utils/responsiveUtils';
 
 // Configuration for 3D scatter effect
 const CONFIG = SCATTER_CONFIG.threeDimensional;
@@ -235,7 +236,11 @@ export const ScatterText3D: React.FC = () => {
     const prevMorphStateRef = useRef(treeMorphState);
     const hasTriggeredRef = useRef(false);
     const entranceTimerRef = useRef<number | null>(null);
-    const isMobile = useMemo(() => viewport.width < 10, [viewport.width]);
+    // Fallback to isMobileDevice() when viewport is not yet initialized
+    const isMobile = useMemo(
+        () => viewport.width > 0 ? isMobileViewport(viewport.width) : isMobileDevice(),
+        [viewport.width]
+    );
 
     // Mobile config with fallback
     const mobileConfig = (CONFIG as any).mobile || { entranceDelay: 150, enableFontPrewarm: true };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from '../canvas/Experience';
 import { Snow } from '../canvas/Snow';
@@ -54,6 +54,27 @@ const PerformanceMonitorWrapper: React.FC<{
         updateData(data);
         onUpdateRef.current({ ...data, particleCount });
     }} />;
+};
+
+/**
+ * FrameloopController
+ * 
+ * Drives the render loop when frameloop="demand".
+ * Continuously calls invalidate() to request new frames,
+ * but stops when isAppInBackground=true to release GPU resources.
+ */
+const FrameloopController: React.FC = () => {
+    const isAppInBackground = useStore((state) => state.isAppInBackground);
+    const { invalidate } = useThree();
+
+    useFrame(() => {
+        // Only request next frame if app is in foreground
+        if (!isAppInBackground) {
+            invalidate();
+        }
+    });
+
+    return null;
 };
 
 /**
@@ -173,6 +194,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         fov: CAMERA_CONFIG.default.fov
                     }}
                     dpr={isMobile ? 1 : [1, 1.5]} // Performance: Lock to 1.0 on mobile to avoid rendering excessive pixels on high-DPI screens
+                    frameloop="demand" // Render on-demand; FrameloopController calls invalidate() every frame unless in background
                     gl={{
                         antialias: false, // Performance: Disable MSAA if not critical (Bloom smooths edges)
                         toneMappingExposure: 1.08,
@@ -270,6 +292,9 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         particleCount={estimatedParticleCount}
                         onUpdate={onPerformanceUpdate}
                     />
+
+                    {/* Frameloop Controller - Drives render loop, pauses in background */}
+                    <FrameloopController />
 
                     {/* Consolidated Post-Processing Effects */}
                     <CinematicEffects />

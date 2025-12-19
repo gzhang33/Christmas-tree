@@ -14,6 +14,7 @@ import {
 } from "../../config/photoConfig";
 import { generatePhotoPositions } from "../../utils/photoUtils";
 import { getTreeRadius, calculateErosionFactor } from "../../utils/treeUtils";
+import { getResponsiveValue, isMobileViewport } from "../../utils/responsiveUtils";
 import { ORNAMENT_CONFIG, type OrnamentType } from "../../config";
 
 import particleVertexShader from "../../shaders/particle.vert?raw";
@@ -386,8 +387,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       console.warn('[PhotoWorker] Error:', err);
       worker.terminate();
     };
-    const isMobile = viewport.width < 10;
-    const photoCount = isMobile ? PHOTO_WALL_CONFIG.count.compact : PHOTO_WALL_CONFIG.count.normal;
+    // Use standardized responsive detection for photo count
+    const photoCount = getResponsiveValue(PHOTO_WALL_CONFIG.count);
 
     worker.postMessage({
       count: photoCount,
@@ -422,8 +423,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // Use requestIdleCallback if available, otherwise setTimeout with delay
     const initMaterialPools = () => {
       try {
-        const isMobile = viewport.width < 10;
-        const poolSize = isMobile ? PHOTO_WALL_CONFIG.count.compact + 20 : PHOTO_WALL_CONFIG.count.normal + 20;
+        // Use standardized responsive detection for pool size
+        const poolSize = getResponsiveValue(PHOTO_WALL_CONFIG.count) + 20;
 
         // Pre-warm photo materials
         initPhotoMaterialPool(masterPhotoMaterial, poolSize);
@@ -759,8 +760,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     };
 
     let attempts = 0;
-    const isMobile = viewport.width < 10;
-    const maxItems = isMobile ? PARTICLE_CONFIG.rendering.ornament.count.compact : PARTICLE_CONFIG.rendering.ornament.count.normal;
+    // Use standardized responsive detection for ornament count
+    const maxItems = getResponsiveValue(PARTICLE_CONFIG.rendering.ornament.count);
     const baseScale = PARTICLE_CONFIG.rendering.ornament.scale;
     let placedCount = 0;
 
@@ -1413,7 +1414,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     ];
 
     // Mobile optimization: Skip non-critical updates during explosion peak
-    const isMobile = viewport.width < 10;
+    const isMobile = isMobileViewport(viewport.width);
     const explosionJustStarted = isExploded && currentMorphState === 'morphing-out' && progressRef.current < 0.3;
     const shouldSkipUpdates = isMobile && explosionJustStarted;
 

@@ -21,6 +21,7 @@ import { PARTICLE_CONFIG, TREE_SHAPE_CONFIG } from '../../config/particles';
 import { useUniversalParticleSystem } from '../../hooks/useUniversalParticleSystem';
 import universalParticleVertexShader from '../../shaders/universalParticle.vert?raw';
 import universalParticleFragmentShader from '../../shaders/universalParticle.frag?raw';
+import { getResponsiveValue } from '../../utils/responsiveUtils';
 
 interface UniversalParticleSystemProps {
     title?: string | readonly string[];
@@ -61,10 +62,9 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
     const morphStartTimeRef = useRef(0);
     const currentPhaseRef = useRef<number>(0);
 
-    // Responsive config
-    const isMobile = viewport.width < 10;
+    // Responsive config using standardized detection
     const config = LANDING_CONFIG.textParticle;
-    const baseSize = isMobile ? config.baseSize.compact : config.baseSize.normal;
+    const baseSize = getResponsiveValue(config.baseSize);
 
     // Generate unified particle attributes
     const attributes = useUniversalParticleSystem({
@@ -212,7 +212,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
         switch (currentPhase) {
             case 0: // forming
-                duration = isMobile ? anim.formDuration.compact : anim.formDuration.normal;
+                duration = getResponsiveValue(anim.formDuration);
                 progress = Math.min(elapsed / duration, 1.0);
                 if (progress >= 1.0 && landingPhase !== 'morphing') {
                     transitionToPhase(1, time);

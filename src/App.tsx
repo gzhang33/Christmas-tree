@@ -15,6 +15,7 @@ import { SceneContainer } from './components/layout/SceneContainer';
 import { useShareSystem } from './hooks/useShareSystem';
 import { PARTICLE_CONFIG } from './config/particles';
 import { initGlobalGyroscope } from './hooks/useGyroscope';
+import { useBackgroundHandler } from './hooks/useBackgroundHandler';
 import './index.css';
 
 // === POST-PROCESSING PIPELINE (Per Specification) ===
@@ -33,6 +34,9 @@ function App() {
   const landingPhase = useStore((state) => state.landingPhase);
   const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId);
   const treeMorphState = useStore((state) => state.treeMorphState);
+
+  // Background handler - pauses music/video/rendering when tab is hidden
+  useBackgroundHandler();
 
   // Local State (not in global store)
   const [photos, setPhotos] = useState<PhotoData[]>([]);

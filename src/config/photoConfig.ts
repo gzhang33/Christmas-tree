@@ -13,7 +13,7 @@ export const PHOTO_WALL_CONFIG = {
      */
     count: {
         normal: 100,    // 桌面端照片数量
-        compact: 18,    // 移动端大幅减少照片数量，防止爆炸时内存压力导致页面崩溃
+        compact: 65,    // 移动端大幅减少照片数量，防止爆炸时内存压力导致页面崩溃
     },
 
     /**

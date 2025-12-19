@@ -33,6 +33,7 @@ export interface FlowSlice {
     activeParticleCount: number; // Total particles currently rendered in scene (tree + snow + magic dust)
     textParticlePhase: TextParticlePhase; // Current text particle animation phase
     textParticleProgress: number; // Animation progress within current phase (0.0 - 1.0)
+    isAppInBackground: boolean; // True when page is hidden (tab switched / minimized)
     setUserName: (name: string) => void;
     setLandingPhase: (phase: LandingPhase) => void;
     setUsernameTransitionComplete: (complete: boolean) => void;
@@ -42,6 +43,7 @@ export interface FlowSlice {
     setActiveParticleCount: (count: number) => void;
     setTextParticlePhase: (phase: TextParticlePhase) => void;
     setTextParticleProgress: (progress: number) => void;
+    setIsAppInBackground: (inBackground: boolean) => void;
 }
 
 export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) => ({
@@ -54,6 +56,7 @@ export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) 
     activeParticleCount: 0,
     textParticlePhase: 'hidden',
     textParticleProgress: 0.0,
+    isAppInBackground: false,
     setUserName: (name) => set({ userName: name }),
     setLandingPhase: (phase) => set({ landingPhase: phase, usernameTransitionComplete: false }),
     setUsernameTransitionComplete: (complete) => set({ usernameTransitionComplete: complete }),
@@ -63,5 +66,6 @@ export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) 
     setActiveParticleCount: (count) => set({ activeParticleCount: count }),
     setTextParticlePhase: (phase) => set({ textParticlePhase: phase }),
     setTextParticleProgress: (progress) => set({ textParticleProgress: progress }),
+    setIsAppInBackground: (inBackground) => set({ isAppInBackground: inBackground }),
 });
 

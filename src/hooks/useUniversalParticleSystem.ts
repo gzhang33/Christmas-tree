@@ -13,6 +13,7 @@ import { useThree } from '@react-three/fiber';
 import { LANDING_CONFIG } from '../config/landing';
 import { PARTICLE_CONFIG } from '../config/particles';
 import { useStore } from '../store/useStore';
+import { getResponsiveValue } from '../utils/responsiveUtils';
 
 interface TextParticleData {
     positions: Float32Array;
@@ -334,15 +335,14 @@ export function useUniversalParticleSystem({
         ) * 6 // *6 for trail density, matching original MagicDust
     );
 
-    // Responsive config detection using window width for layout choices (consistent with SceneContainer)
-    const isMobileLayout = viewport.width < 10 || (typeof window !== 'undefined' && window.innerWidth < LANDING_CONFIG.title.breakpoints.mobile);
+    // Responsive config detection using standardized getResponsiveValue for consistent behavior
     const config = LANDING_CONFIG.textParticle;
-    const density = isMobileLayout ? config.density.compact : config.density.normal;
-    const baseWorldWidth = isMobileLayout ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
+    const density = getResponsiveValue(config.density);
+    const baseWorldWidth = getResponsiveValue(config.layout.worldWidth);
 
     // Responsive layout params
-    const titleY = isMobileLayout ? config.layout.titleY.compact : config.layout.titleY.normal;
-    const usernameY = isMobileLayout ? config.layout.usernameY.compact : config.layout.usernameY.normal;
+    const titleY = getResponsiveValue(config.layout.titleY);
+    const usernameY = getResponsiveValue(config.layout.usernameY);
 
     // NEW: Adaptive World Width - cap text width to 85% of physical viewport to prevent clipping on thin screens
     const worldWidth = Math.min(baseWorldWidth, viewport.width * 0.85);
