@@ -230,9 +230,14 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         // Allows double-taps where first tap lands on particles and second on background
                         const now = Date.now();
                         const lastClick = (window as any)._lastGlobalClick || 0;
+
+                        // Increased threshold for iOS compatibility (300ms touch delay + margin)
+                        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                        const doubleTapThreshold = isTouch ? 600 : 400;
+
                         (window as any)._lastGlobalClick = now;
 
-                        if (now - lastClick < 400) {
+                        if (now - lastClick < doubleTapThreshold) {
                             if (isExploded) {
                                 if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[SceneContainer] Background double-tap detected - Restoring tree');
                                 resetExplosion();

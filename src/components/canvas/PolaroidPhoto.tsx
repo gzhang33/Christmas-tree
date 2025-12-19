@@ -847,15 +847,21 @@ export const PolaroidPhoto: React.FC<PolaroidPhotoProps> = React.memo(({
                 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
                 // === GLOBAL DOUBLE-TAP DETECTION (Cross-Component) ===
-                // Update global timestamp for cross-component double-tap detection
-                // This allows double-tap where first tap lands on photo and second tap lands on
-                // background/particles to still restore the tree
+                // Check double-tap BEFORE updating timestamp to ensure accurate detection
+                // iOS Safari has ~300ms touch delay which can extend perceived tap intervals
                 const now = Date.now();
                 const lastClick = (window as any)._lastGlobalClick || 0;
+
+                // Increased threshold to 600ms for iOS compatibility (300ms touch delay + margin)
+                const doubleTapThreshold = isTouch ? 600 : 400;
+                const isDoubleTap = now - lastClick < doubleTapThreshold;
+
+                // Update global timestamp for cross-component double-tap detection
                 (window as any)._lastGlobalClick = now;
 
-                // Double-tap on photo also restores tree (mobile users expect this behavior)
-                if (now - lastClick < 400) {
+                // Double-tap on photo restores tree (mobile users expect this behavior)
+                // Priority: Double-tap detection takes precedence over all other interactions
+                if (isDoubleTap) {
                     // Double-tap detected - restore tree
                     setPlayingVideoInHover(null);
                     setHoveredPhoto(null);

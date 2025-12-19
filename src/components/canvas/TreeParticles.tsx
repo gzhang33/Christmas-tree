@@ -1478,9 +1478,13 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         const lastClick = (window as any)._lastGlobalClick || 0;
         (window as any)._lastGlobalClick = now;
 
-        // Double-tap/Double-click detected (increased to 400ms for mobile reliability)
+        // Increased threshold for iOS compatibility (300ms touch delay + margin)
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const doubleTapThreshold = isTouch ? 600 : 400;
+
+        // Double-tap/Double-click detected
         // Uses global timestamp for cross-component double-tap detection
-        if (now - lastClick < 400) {
+        if (now - lastClick < doubleTapThreshold) {
           if (isExploded) {
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Double-tap detected - Restoring tree');
             onParticlesClick();
