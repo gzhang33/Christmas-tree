@@ -3,130 +3,94 @@ import { useStore } from '../store/useStore';
 import { stopVideo } from '../utils/videoSingleton';
 import { PARTICLE_CONFIG } from '../config/particles';
 
+// Global flag to bypass React rendering cycle for immediate access in high-frequency loops (like useFrame)
+// This is critical for iOS where the process might be suspended almost immediately.
+declare global {
+    interface Window {
+        __IS_BACKGROUND__: boolean;
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.__IS_BACKGROUND__ = false;
+}
+
 /**
  * useBackgroundHandler
  * 
- * Centralized handler for page visibility changes with full mobile support.
- * When the page goes to background (tab hidden / app switched / window minimized):
- * 1. Sets isAppInBackground = true in store (triggers Canvas frameloop pause)
- * 2. Pauses video playback
- * 
- * Mobile-specific handling:
- * - iOS Safari: `pagehide`/`pageshow` events for app switching
- * - Android Chrome: `blur`/`focus` as fallback
- * - Legacy iOS: `webkitvisibilitychange` for older Safari versions
- * 
- * Note: Music pause is handled by BackgroundMusicPlayer component directly.
- * 
- * This hook should be called once at the App level.
+ * Aggressive handler for iOS Safari 17/18 visibility and resource management.
  */
 export function useBackgroundHandler(): void {
     const setIsAppInBackground = useStore((state) => state.setIsAppInBackground);
 
-    // Track current state to avoid redundant updates
-    const isBackgroundRef = useRef(false);
-
     useEffect(() => {
-        const setBackground = (isHidden: boolean) => {
-            // Avoid redundant state updates
-            if (isBackgroundRef.current === isHidden) return;
-            isBackgroundRef.current = isHidden;
+        const updateState = (isHidden: boolean) => {
+            if (window.__IS_BACKGROUND__ === isHidden) return;
 
-            // Update global state
+            // 1. Set global flag IMMEDIATELY (synchronous)
+            window.__IS_BACKGROUND__ = isHidden;
+
+            // 2. Immediate side effects
+            if (isHidden) {
+                stopVideo();
+            }
+
+            // 3. Update React state
             setIsAppInBackground(isHidden);
 
-            if (isHidden) {
-                // === ENTERING BACKGROUND ===
-                if (PARTICLE_CONFIG.performance.enableDebugLogs) {
-                    console.log('[BackgroundHandler] Page hidden - pausing resources');
-                }
-
-                // Pause video (if playing)
-                // Note: stopVideo() pauses but doesn't dispose, allowing quick resume
-                stopVideo();
-
-            } else {
-                // === RETURNING TO FOREGROUND ===
-                if (PARTICLE_CONFIG.performance.enableDebugLogs) {
-                    console.log('[BackgroundHandler] Page visible - resuming resources');
-                }
-
-                // Video will be resumed by GlobalVideoController based on activePhoto/playingVideoInHover state
-                // No action needed here as the state-driven controller handles it
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+                console.log(`[BackgroundHandler] ${isHidden ? 'Background' : 'Foreground'} detected`);
             }
         };
 
-        // Primary: visibilitychange (works on most modern browsers)
         const handleVisibilityChange = () => {
-            setBackground(document.hidden);
+            // Use visibilityState for maximum reliability on iOS 17+
+            updateState(document.visibilityState === 'hidden');
         };
 
-        // iOS Safari: pagehide/pageshow for app switching
-        // These fire more reliably on iOS when switching between apps
-        const handlePageHide = () => {
-            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
-                console.log('[BackgroundHandler] pagehide event');
-            }
-            setBackground(true);
-        };
-
-        const handlePageShow = (event: PageTransitionEvent) => {
-            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
-                console.log('[BackgroundHandler] pageshow event, persisted:', event.persisted);
-            }
-            // Only resume if the page was actually persisted (bfcache) or is now visible
-            if (!document.hidden) {
-                setBackground(false);
+        const handlePageTransition = (e: PageTransitionEvent | Event) => {
+            if (e.type === 'pagehide') {
+                updateState(true);
+            } else if (e.type === 'pageshow') {
+                // If returning from bfcache, check visibility
+                updateState(document.visibilityState === 'hidden');
             }
         };
 
-        // Fallback: blur/focus for edge cases on mobile
-        // Some Android browsers may not fire visibilitychange reliably
+        // iOS specific: 'blur' can be a precursor to swiping up
         const handleBlur = () => {
-            // Only treat as background if document is also hidden
-            // This prevents false positives from input focus changes
+            // Short timeout to differentiate between input focus and app switching
             setTimeout(() => {
-                if (document.hidden) {
-                    setBackground(true);
+                if (document.hidden || document.visibilityState === 'hidden') {
+                    updateState(true);
                 }
-            }, 100);
+            }, 50);
         };
 
         const handleFocus = () => {
-            // Always check actual visibility state
             if (!document.hidden) {
-                setBackground(false);
+                updateState(false);
             }
         };
 
-        // Set initial state based on current visibility
-        if (document.hidden) {
-            isBackgroundRef.current = true;
-            setIsAppInBackground(true);
+        // Attach all reliable events
+        document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true });
+        window.addEventListener('pagehide', handlePageTransition, { passive: true });
+        window.addEventListener('pageshow', handlePageTransition, { passive: true });
+        window.addEventListener('blur', handleBlur, { passive: true });
+        window.addEventListener('focus', handleFocus, { passive: true });
+
+        // Initial check
+        if (document.visibilityState === 'hidden') {
+            updateState(true);
         }
-
-        // Add all event listeners
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // iOS Safari specific: also listen for webkit prefix (older iOS versions)
-        document.addEventListener('webkitvisibilitychange', handleVisibilityChange);
-
-        // Page lifecycle events (especially important for iOS app switching)
-        window.addEventListener('pagehide', handlePageHide);
-        window.addEventListener('pageshow', handlePageShow);
-
-        // Window focus events as fallback
-        window.addEventListener('blur', handleBlur);
-        window.addEventListener('focus', handleFocus);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            document.removeEventListener('webkitvisibilitychange', handleVisibilityChange);
-            window.removeEventListener('pagehide', handlePageHide);
-            window.removeEventListener('pageshow', handlePageShow);
+            window.removeEventListener('pagehide', handlePageTransition);
+            window.removeEventListener('pageshow', handlePageTransition);
             window.removeEventListener('blur', handleBlur);
             window.removeEventListener('focus', handleFocus);
         };
     }, [setIsAppInBackground]);
 }
-

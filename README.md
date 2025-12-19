@@ -1,35 +1,108 @@
-# 3D experience Christmas tree with exploration to memories.
+# 🎄 Interactive 3D Christmas Tree
 
-English | [中文](README.zh.md)
+A festive, high-performance 3D interactive experience built with **React**, **Three.js**, and **React Three Fiber**. This project features a customizable Christmas tree that transforms into a galaxy of memories.
 
-A festive 3D experience built with React, Vite, and React Three Fiber. The app renders an interactive cosmic Christmas tree with particle effects, ambient music, and performance monitoring. Use this README to set up the project locally and understand the available scripts.
+![Project Hero Banner](path/to/hero_banner.png)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1vk29u3Po_2fsqMqmKm6yd2buaXrokV1x
+## ✨ Core Features
 
-## Features
+### 🌟 1. Interactive 3D Particles & Explosion
+The tree is composed of thousands of dynamic particles that "breathe" and sway. With a single click, the tree explodes into a cinematic cloud of photos, revealing hidden memories.
+- **Natural Motion**: GPU-accelerated breathing and swaying animations.
+- **Explosion Physics**: Smooth transition from tree shape to a spherical photo wall using Bezier curves.
+- **Double-Click Restore**: Seamlessly rebuild the tree from any state.
+- **Action Hint**: Subtle, breathing UI prompts to guide user interaction.
 
-- Interactive 3D Christmas tree with animated particles, lights, and explosions
-- Ambient music with mute/unmute controls and keyboard shortcuts for performance overlay
-- Uploadable photos that become ornaments on the tree
-- Configurable tree color, particle count, snow density, rotation speed, and more via on-screen controls
-- Built-in performance monitor (FPS, frame time, draw calls, and memory usage)
+### 🎨 2. Real-time Customization
+Personalize your Christmas experience through a sleek dashboard.
+- **Visuals**: Adjust tree color, magic dust color, and snow density/speed.
+- **Performance**: Dynamic particle count control to match your device's power.
+- **Physics**: Change rotation speed and ornament (photo) scale in real-time.
 
-## Prerequisites
+### 📸 3. Dynamic Photo Ornaments
+Upload your own photos to make the tree truly yours.
+- **Image Support**: Local file uploads or remote Cloudinary URLs.
+- **Video Memories**: Support for MP4/WebP video ornaments that play when hovered.
+- **Smart Distribution**: Photos are procedurally placed as ornaments on the tree surface.
 
-- Node.js 18 or later
-- npm (comes with Node.js)
+### 🔗 4. Sharing & Persistence (Cloudinary Integration)
+Generate a unique link to share your customized tree and uploaded memories with friends.
+- **One-Click Share**: Encodes all configurations and photo URLs into a sharable link.
+- **Auto-Loading**: Opening a share link automatically restores the specific colors, music, and memories.
 
-## Quick start
+### 🚀 5. Performance & Mobile Optimization
+Engineered for a buttery-smooth 60 FPS experience on both Desktop and Mobile.
+- **Resource Management**: Automatically pauses rendering and audio when the tab is in background.
+- **Optimized Caching**: Hybrid LRU-Memory texture cache to prevent crashes on low-end devices.
+- **Responsive Scaling**: Automatic adjustment of particle counts and texture quality based on screen size.
+- **Font Pre-warming**: Prevents flickering on mobile during text-heavy transitions.
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Run the app locally:
-   ```bash
-   npm run dev
-   ```
-3. Open the printed local URL in your browser (default: http://localhost:5173).
+### 🎵 6. Immersive Audio Experience
+- **Music Selection**: Curated festive tracks with smooth volume fading.
+- **Auto-Play Handling**: Intelligent interaction detection to comply with browser audio policies.
+
+---
+
+## 📸 Feature Showcase
+
+### **Greeting & Morphing Intro**
+Experience a "Vaporize" text effect where your name dissolves into magic dust to form the tree.
+> ![Screenshot: Entrance Animation](path/to/entrance_screenshot.png)
+> *Example: Entering "Antigravity" triggers a cinematic morphing sequence.*
+
+### **Explosion & Photo Wall**
+Click the tree to scatter the particles and display your uploaded memories in a 3D sphere.
+> ![Screenshot: Tree Explosion](path/to/explosion_screenshot.png)
+> *Interaction: Click once to explode. Hover over photos to preview or play videos.*
+
+### **Customization Dashboard**
+Tweak every detail of your festive scene with the side control panel.
+> ![Screenshot: UI Controls](path/to/controls_screenshot.png)
+> *Example: Changing the tree to 'Royal Blue' with 'Golden' magic dust.*
+
+### **Performance Monitoring**
+Real-time monitoring for developers and power users (Toggle with `` ` `` or `F3`).
+> ![Screenshot: Performance Monitor](path/to/monitor_screenshot.png)
+
+---
+
+## 🛠 Project Structure
+
+```bash
+src/
+├── components/
+│   ├── canvas/      # 3D Elements (Tree, Snow, MagicDust, etc.)
+│   ├── ui/          # 2D Interface (Controls, Modals, ActionHints)
+│   └── layout/      # Page structure and Canvas containers
+├── config/          # Centralized configuration (Particles, Audio, Assets)
+├── shaders/         # Custom GLSL shaders for particle effects
+├── store/           # Global state management via Zustand
+└── utils/           # Helper functions (Responsive, Cloudinary, Texture)
+```
+
+## 💻 Tech Stack
+
+- **Framework**: React 18 + Vite
+- **3D Engine**: Three.js
+- **React Bridge**: React Three Fiber (R3F)
+- **Helpers**: @react-three/drei
+- **Animations**: Framer Motion
+- **State**: Zustand
+- **Styling**: Tailwind CSS
+- **Media**: Cloudinary (Global Hosting)
+
+---
+
+## 🚀 Getting Started
+
+1.  **Clone the repo**
+2.  **Install dependencies**: `npm install`
+3.  **Setup Environment**: Create a `.env` file with your Cloudinary credentials (optional).
+    ```env
+    VITE_CLOUDINARY_CLOUD_NAME=your_name
+    VITE_CLOUDINARY_UPLOAD_PRESET=your_preset
+    ```
+4.  **Run locally**: `npm run dev`
 
 ## Configuration (Cloudinary)
 

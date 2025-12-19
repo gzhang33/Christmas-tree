@@ -67,19 +67,24 @@ const PerformanceMonitorWrapper: React.FC<{
  * so we use a useEffect to call invalidate() once to kickstart the loop.
  */
 const FrameloopController: React.FC = () => {
-    const isAppInBackground = useStore((state) => state.isAppInBackground);
+    const isAppInBackgroundStore = useStore((state) => state.isAppInBackground);
     const { invalidate } = useThree();
+
+    // Combined foreground check: Use global flag for immediate response + store for React reactivity
+    const isActuallyHidden = () => {
+        return (typeof window !== 'undefined' && window.__IS_BACKGROUND__) || isAppInBackgroundStore;
+    };
 
     // Kickstart frameloop when returning from background
     useEffect(() => {
-        if (!isAppInBackground) {
+        if (!isActuallyHidden()) {
             invalidate();
         }
-    }, [isAppInBackground, invalidate]);
+    }, [isAppInBackgroundStore, invalidate]);
 
     useFrame(() => {
         // Only request next frame if app is in foreground
-        if (!isAppInBackground) {
+        if (!isActuallyHidden()) {
             invalidate();
         }
     });

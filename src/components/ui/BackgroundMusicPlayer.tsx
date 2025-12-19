@@ -229,91 +229,78 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
         }
     }, [isMuted, hasUserInteracted, autoplayBlocked, ensureVolume]);
 
-    // 处理页面可见性变化 (增强移动端支持)
-    useEffect(() => {
-        // Track if we were playing before going to background
-        let wasPlayingBeforeHide = false;
+    // 处理页面可见性变化 (针对 iOS 17/18 深度优化)
+    const wasPlayingBeforeHideRef = useRef(false);
 
+    useEffect(() => {
         const pauseMusic = () => {
             if (!audioRef.current || isMuted) return;
             const audio = audioRef.current;
             if (!audio.paused) {
-                wasPlayingBeforeHide = true;
+                wasPlayingBeforeHideRef.current = true;
                 stopFadeIn();
                 audio.pause();
-                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Music paused (background)');
+                if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Sync Pause on background');
             }
         };
 
         const resumeMusic = () => {
             if (!audioRef.current || isMuted) return;
             const audio = audioRef.current;
-            // Only resume if we were playing before and conditions are met
-            if (wasPlayingBeforeHide && audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
-                wasPlayingBeforeHide = false;
+
+            // 只有在进入后台前正在播放，且当前是可见状态时才恢复
+            if (wasPlayingBeforeHideRef.current && audio.paused && audio.src && (hasUserInteracted || !autoplayBlocked)) {
+                wasPlayingBeforeHideRef.current = false;
                 audio.volume = 0;
+
+                // 尝试播放 (iOS 可能在此报错 NotAllowedError)
                 audio.play().then(() => {
                     fadeInVolume(audio);
-                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Music resumed with fade-in');
+                    if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[BackgroundMusicPlayer] Sync Resume from background');
                 }).catch((error) => {
-                    if (error.name !== 'NotAllowedError') {
-                        console.warn('[BackgroundMusicPlayer] Resume failed:', error);
+                    // 如果自动播放被拦截，标记为 autoplayBlocked 并在控制台警告
+                    if (error.name === 'NotAllowedError') {
+                        setAutoplayBlocked(true);
                     }
+                    console.warn('[BackgroundMusicPlayer] Resume failed on iOS:', error);
                 });
             }
         };
 
-        // Primary: visibilitychange
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
+        const handleVisibilityProxy = () => {
+            // 使用同步 document.visibilityState
+            if (document.visibilityState === 'hidden') {
                 pauseMusic();
             } else {
                 resumeMusic();
             }
         };
 
-        // iOS Safari: pagehide/pageshow for app switching
-        const handlePageHide = () => {
-            pauseMusic();
-        };
-
-        const handlePageShow = () => {
-            if (!document.hidden) {
-                resumeMusic();
-            }
-        };
-
-        // Fallback: blur/focus for mobile edge cases
-        const handleBlur = () => {
-            // Delay to avoid false positives from input focus
-            setTimeout(() => {
-                if (document.hidden) {
-                    pauseMusic();
+        const handlePageTransition = (e: PageTransitionEvent | Event) => {
+            if (e.type === 'pagehide') {
+                pauseMusic();
+            } else if (e.type === 'pageshow') {
+                if (document.visibilityState !== 'hidden') {
+                    resumeMusic();
                 }
-            }, 100);
-        };
-
-        const handleFocus = () => {
-            if (!document.hidden) {
-                resumeMusic();
             }
         };
 
-        // Add all listeners
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        document.addEventListener('webkitvisibilitychange', handleVisibilityChange);
-        window.addEventListener('pagehide', handlePageHide);
-        window.addEventListener('pageshow', handlePageShow);
-        window.addEventListener('blur', handleBlur);
-        window.addEventListener('focus', handleFocus);
+        // 统一添加监听器
+        document.addEventListener('visibilitychange', handleVisibilityProxy);
+        window.addEventListener('pagehide', handlePageTransition);
+        window.addEventListener('pageshow', handlePageTransition);
+
+        // 针对某些 iOS WebViews 的兜底
+        window.addEventListener('blur', pauseMusic);
+        window.addEventListener('focus', resumeMusic);
 
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            document.removeEventListener('webkitvisibilitychange', handleVisibilityChange);
-            window.removeEventListener('pagehide', handlePageHide);
-            window.removeEventListener('pageshow', handlePageShow);
-            window.removeEventListener('blur', handleBlur);
-            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityProxy);
+            window.removeEventListener('pagehide', handlePageTransition);
+            window.removeEventListener('pageshow', handlePageTransition);
+            window.removeEventListener('blur', pauseMusic);
+            window.removeEventListener('focus', resumeMusic);
         };
     }, [isMuted, hasUserInteracted, autoplayBlocked, stopFadeIn, fadeInVolume]);
 
