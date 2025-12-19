@@ -263,6 +263,7 @@ function App() {
           text="Click"
           subText="点击"
           position="bottom-center"
+          onClick={triggerExplosion}
         />
 
         {/* Photo Sea Hint - Double click to restore (only in Photo Sea idle state) */}
@@ -271,6 +272,7 @@ function App() {
           text="Double Click to restore"
           subText="双击还原"
           position="bottom-center"
+          onDoubleClick={resetExplosion}
         />
 
         {/* Debug Store Panel (F4 to toggle) */}
