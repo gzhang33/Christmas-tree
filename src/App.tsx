@@ -5,7 +5,7 @@ import { LandingFlowController } from './components/ui/LandingFlowController.tsx
 import { ClickPrompt } from './components/ui/ClickPrompt.tsx';
 import { ActionHint } from './components/ui/ActionHint.tsx';
 import { LandingTitle } from './components/ui/LandingTitle.tsx';
-import { UsernameTransition } from './components/ui/UsernameTransition.tsx';
+import UsernameTransition from './components/ui/UsernameTransition.tsx';
 import { BackgroundMusicPlayer } from './components/ui/BackgroundMusicPlayer.tsx';
 import { AppConfig, PhotoData, UIState } from './types.ts';
 import { PerformanceOverlay } from './components/canvas/PerformanceMonitor.tsx';

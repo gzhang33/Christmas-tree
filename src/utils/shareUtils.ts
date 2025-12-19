@@ -5,6 +5,7 @@ export interface ShareableState {
     c: string;   // tree color
     cfg: Partial<AppConfig>; // config
     a?: string;  // audio id (optional)
+    u?: string;  // username (optional)
 }
 
 /**
@@ -14,7 +15,8 @@ export const encodeState = (
     photos: PhotoData[],
     treeColor: string,
     config: AppConfig,
-    selectedAudioId?: string
+    selectedAudioId?: string,
+    userName?: string | null
 ): string => {
     const state: ShareableState = {
         p: photos.map(photo => photo.url),
@@ -30,6 +32,11 @@ export const encodeState = (
     // Add audio ID if specified
     if (selectedAudioId) {
         state.a = selectedAudioId;
+    }
+
+    // Add username if specified
+    if (userName) {
+        state.u = userName;
     }
 
     try {
@@ -92,6 +99,12 @@ export const decodeState = (encoded: string): ShareableState | null => {
         // Validate 'cfg' (config) is OPTIONAL but if present must be an object
         if (data.cfg && (typeof data.cfg !== 'object' || Array.isArray(data.cfg))) {
             console.warn("Invalid share state: 'cfg' must be an object");
+            return null;
+        }
+
+        // Validate 'u' (username) is OPTIONAL but if present must be a string
+        if (data.u && typeof data.u !== 'string') {
+            console.warn("Invalid share state: 'u' must be a string");
             return null;
         }
 

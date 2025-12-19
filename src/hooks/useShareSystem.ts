@@ -16,13 +16,16 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
     const treeColor = useStore((state) => state.treeColor); // Need current color for sharing
     const selectedAudioId = useStore((state) => state.selectedAudioId); // Audio selection
     const setSelectedAudioId = useStore((state) => state.setSelectedAudioId);
+    const userName = useStore((state) => state.userName);
+    const setUserName = useStore((state) => state.setUserName);
+    const setLandingPhase = useStore((state) => state.setLandingPhase);
 
     // Generate Share URL
     const generateShareUrl = useCallback(() => {
-        const shareCode = encodeState(photos, treeColor, config, selectedAudioId);
+        const shareCode = encodeState(photos, treeColor, config, selectedAudioId, userName);
         const baseUrl = window.location.origin + window.location.pathname;
         return `${baseUrl}?s=${shareCode}`;
-    }, [photos, config, treeColor, selectedAudioId]);
+    }, [photos, config, treeColor, selectedAudioId, userName]);
 
     // Restore from URL on mount
     useEffect(() => {
@@ -34,6 +37,13 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 const data = decodeState(shareCode);
 
                 if (data) {
+                    // Restore Username first
+                    if (data.u && typeof data.u === 'string') {
+                        setUserName(data.u);
+                        // If we have a username from the link, skip the input phase
+                        setLandingPhase('entrance');
+                    }
+
                     // Restore Photos
                     if (data.p && Array.isArray(data.p)) {
                         // Validate URL format
@@ -104,7 +114,7 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                 }
             }
         }
-    }, [setPhotos, setConfig, setTreeColor, setSelectedAudioId]); // 依赖所有 setter 函数
+    }, [setPhotos, setConfig, setTreeColor, setSelectedAudioId, setUserName, setLandingPhase]); // 依赖所有 setter 函数
 
     return { generateShareUrl };
 };

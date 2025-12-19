@@ -334,11 +334,15 @@ export function useUniversalParticleSystem({
         ) * 6 // *6 for trail density, matching original MagicDust
     );
 
-    // Responsive config detection
-    const isMobile = viewport.width < 10;
+    // Responsive config detection using window width for layout choices (consistent with SceneContainer)
+    const isMobileLayout = viewport.width < 10 || (typeof window !== 'undefined' && window.innerWidth < LANDING_CONFIG.title.breakpoints.mobile);
     const config = LANDING_CONFIG.textParticle;
-    const density = isMobile ? config.density.compact : config.density.normal;
-    const baseWorldWidth = isMobile ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
+    const density = isMobileLayout ? config.density.compact : config.density.normal;
+    const baseWorldWidth = isMobileLayout ? config.layout.worldWidth.compact : config.layout.worldWidth.normal;
+
+    // Responsive layout params
+    const titleY = isMobileLayout ? config.layout.titleY.compact : config.layout.titleY.normal;
+    const usernameY = isMobileLayout ? config.layout.usernameY.compact : config.layout.usernameY.normal;
 
     // NEW: Adaptive World Width - cap text width to 85% of physical viewport to prevent clipping on thin screens
     const worldWidth = Math.min(baseWorldWidth, viewport.width * 0.85);
@@ -358,7 +362,7 @@ export function useUniversalParticleSystem({
                 fontFamily,
                 density,
                 worldWidth,
-                config.layout.titleY
+                titleY
             );
         } else {
             // Multi-line mode (mobile) - title is readonly string[]
@@ -368,7 +372,7 @@ export function useUniversalParticleSystem({
                 fontFamily,
                 density,
                 worldWidth,
-                config.layout.titleY,
+                titleY,
                 lineSpacing
             );
         }
@@ -440,7 +444,7 @@ export function useUniversalParticleSystem({
             count: totalCount,
             textParticleCount, // Track how many are from text (vs extra dust particles)
         };
-    }, [title, density, worldWidth, config.layout.titleY, dustColors, dustParticleCount]);
+    }, [title, density, worldWidth, titleY, dustColors, dustParticleCount]);
 
     return attributes;
 }
