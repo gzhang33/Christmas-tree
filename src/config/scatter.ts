@@ -72,5 +72,10 @@ export const SCATTER_CONFIG = {
             '#FFC864', // Warm gold
             '#FFF5C8', // Cream gold
         ],
+        // Mobile optimization: stagger ScatterText3D entrance to avoid GPU peak collision
+        mobile: {
+            entranceDelay: 150,       // ms delay after explosion starts before text appears
+            enableFontPrewarm: true,  // Pre-mount text with opacity:0 in tree phase
+        },
     }
 } as const;

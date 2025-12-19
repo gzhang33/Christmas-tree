@@ -10,9 +10,14 @@
  * - Animated entrance with spring physics
  * - Fades out when tree restores
  * - NO particle systems - pure geometry
+ *
+ * Mobile Optimization (v2):
+ * - Pre-mount text during tree phase with opacity:0 for font glyph warmup
+ * - Staggered entrance delay to avoid GPU peak collision during explosion
+ * - Prevents black screen flicker on mobile devices
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
@@ -92,16 +97,19 @@ function generateScatterInstances3D(count: number, userName: string): ScatterTex
 
 interface TextInstance3DProps {
     instance: ScatterTextInstance3D;
-    isVisible: boolean;
+    isAnimating: boolean;  // Renamed: controls animation playback
+    isPrewarm: boolean;    // NEW: True when pre-mounting for font warmup (opacity:0)
     startTime: number;
 }
 
 /**
  * Individual 3D text instance with animation and billboarding
+ * Supports prewarm mode for font glyph caching
  */
 const TextInstance3D: React.FC<TextInstance3DProps> = ({
     instance,
-    isVisible,
+    isAnimating,
+    isPrewarm,
     startTime,
 }) => {
     const meshRef = useRef<THREE.Group>(null);
@@ -116,6 +124,14 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
 
     useFrame((state) => {
         if (!meshRef.current || !materialRef.current) return;
+
+        // Prewarm mode: keep invisible but rendered for font texture upload
+        if (isPrewarm) {
+            materialRef.current.opacity = 0;
+            // Position offscreen to avoid any visual artifacts
+            meshRef.current.position.set(0, -1000, 0);
+            return;
+        }
 
         const elapsed = state.clock.elapsedTime - startTime;
         const animState = animStateRef.current;
@@ -132,7 +148,7 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
         const localElapsed = elapsed - instance.delay;
         animState.hasStarted = true;
 
-        if (isVisible) {
+        if (isAnimating) {
             // Fade in animation
             const fadeProgress = Math.min(localElapsed / CONFIG.animation.fadeInDuration, 1);
             const eased = 1 - Math.pow(1 - fadeProgress, 3); // Ease out cubic
@@ -196,55 +212,113 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
 };
 
 /**
- * Main ScatterText3D component
+ * Main ScatterText3D component with mobile optimization
+ *
+ * Lifecycle:
+ * 1. [tree phase, !isExploded] Pre-mount instances with opacity:0 for font warmup
+ * 2. [explosion trigger] Wait entranceDelay (mobile only) to avoid GPU peak
+ * 3. [isAnimating=true] Animate entrance and floating
+ * 4. [!isExploded] Fade out and reset
  */
 export const ScatterText3D: React.FC = () => {
     const userName = useStore((state) => state.userName);
     const treeMorphState = useStore((state) => state.treeMorphState);
     const isExploded = useStore((state) => state.isExploded);
     const landingPhase = useStore((state) => state.landingPhase);
+    const { viewport } = useThree();
 
-    const [isVisible, setIsVisible] = useState(false);
+    // State management for phased rendering
+    const [isPrewarmActive, setIsPrewarmActive] = useState(false);  // Font warmup phase
+    const [isAnimating, setIsAnimating] = useState(false);          // Animation phase
     const [startTime, setStartTime] = useState(0);
+
     const prevMorphStateRef = useRef(treeMorphState);
-    const hasShownRef = useRef(false); // Track if already shown to prevent duplicate triggers
+    const hasTriggeredRef = useRef(false);
+    const entranceTimerRef = useRef<number | null>(null);
+    const isMobile = useMemo(() => viewport.width < 10, [viewport.width]);
 
-    // Detect when explosion animation completes
+    // Mobile config with fallback
+    const mobileConfig = (CONFIG as any).mobile || { entranceDelay: 150, enableFontPrewarm: true };
+
+    // PHASE 1: Pre-warm font during tree phase (before explosion)
+    // Mount text instances with opacity:0 to force font glyph texture upload
     useEffect(() => {
-        const prevMorphState = prevMorphStateRef.current;
+        if (
+            landingPhase === 'tree' &&
+            !isExploded &&
+            userName &&
+            mobileConfig.enableFontPrewarm &&
+            !isPrewarmActive
+        ) {
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+                console.log('[ScatterText3D] Starting font prewarm phase');
+            }
+            setIsPrewarmActive(true);
+        }
+    }, [landingPhase, isExploded, userName, isPrewarmActive, mobileConfig.enableFontPrewarm]);
 
-        // NEW: 提早触发动画 - 当爆炸开始 (morphing-out) 时立即启动入场
-        // 之前是等待爆炸完成 (morphing-out -> idle) 后才显示
+    // PHASE 2: Trigger animation on explosion with optional delay
+    useEffect(() => {
+        // Detect explosion start
         if (
             treeMorphState === 'morphing-out' &&
             isExploded &&
             landingPhase === 'tree' &&
-            !hasShownRef.current // Prevent duplicate triggers
+            !hasTriggeredRef.current
         ) {
-            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ScatterText3D] Explosion started, showing 3D scatter text earlier');
-            setIsVisible(true);
-            setStartTime(performance.now() / 1000);
-            hasShownRef.current = true;
+            hasTriggeredRef.current = true;
+
+            // Mobile: delay entrance to avoid GPU peak collision
+            const delay = isMobile ? mobileConfig.entranceDelay : 0;
+
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+                console.log(`[ScatterText3D] Explosion detected, starting animation in ${delay}ms`);
+            }
+
+            entranceTimerRef.current = window.setTimeout(() => {
+                setIsAnimating(true);
+                setStartTime(performance.now() / 1000);
+                setIsPrewarmActive(false); // Exit prewarm mode
+            }, delay);
         }
 
         // Hide when tree is reset
-        if (!isExploded && isVisible) {
-            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[ScatterText3D] Tree reset, hiding 3D scatter text');
-            setIsVisible(false);
-            hasShownRef.current = false; // Reset for next explosion
+        if (!isExploded && (isAnimating || isPrewarmActive)) {
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) {
+                console.log('[ScatterText3D] Tree reset, hiding text');
+            }
+            setIsAnimating(false);
+            setIsPrewarmActive(false);
+            hasTriggeredRef.current = false;
+
+            // Clear any pending entrance timer
+            if (entranceTimerRef.current) {
+                clearTimeout(entranceTimerRef.current);
+                entranceTimerRef.current = null;
+            }
         }
 
         prevMorphStateRef.current = treeMorphState;
-    }, [treeMorphState, isExploded, landingPhase, isVisible]);
+    }, [treeMorphState, isExploded, landingPhase, isAnimating, isPrewarmActive, isMobile, mobileConfig.entranceDelay]);
 
-    // Generate scatter instances
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (entranceTimerRef.current) {
+                clearTimeout(entranceTimerRef.current);
+            }
+        };
+    }, []);
+
+    // Generate scatter instances - memoized to avoid regeneration
+    // Create during prewarm OR animation phase
     const instances = useMemo(() => {
-        if (!isVisible || !userName) return [];
+        if ((!isPrewarmActive && !isAnimating) || !userName) return [];
         return generateScatterInstances3D(CONFIG.instanceCount, userName);
-    }, [isVisible, userName]);
+    }, [isPrewarmActive, isAnimating, userName]);
 
-
-    if (instances.length === 0 || !userName) return null;
+    // Early exit if no username or no instances needed
+    if (!userName || instances.length === 0) return null;
 
     return (
         <group>
@@ -252,7 +326,8 @@ export const ScatterText3D: React.FC = () => {
                 <TextInstance3D
                     key={instance.id}
                     instance={instance}
-                    isVisible={isVisible}
+                    isAnimating={isAnimating}
+                    isPrewarm={isPrewarmActive && !isAnimating}
                     startTime={startTime}
                 />
             ))}

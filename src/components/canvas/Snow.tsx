@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SNOW_CONFIG, SNOW_DEFAULTS } from '../../config/snow';
+import { useStore } from '../../store/useStore';
 
 interface SnowProps {
   count?: number;
@@ -21,6 +22,12 @@ export const Snow: React.FC<SnowProps> = ({
 
   // Use the shared hook for consistent texture
   const snowflakeTexture = useSnowTexture();
+
+  // Subscribe to morphing state for throttling during explosion
+  const treeMorphState = useStore((state) => state.treeMorphState);
+
+  // Frame skip counter for throttling during explosion peak
+  const frameSkipRef = useRef(0);
 
   // Initialize particle data
   const particles = useMemo(() => {
@@ -59,6 +66,17 @@ export const Snow: React.FC<SnowProps> = ({
 
   useFrame((state) => {
     if (!mesh.current) return;
+
+    // MOBILE OPTIMIZATION: Throttle snow updates during explosion peak
+    // During 'morphing-out', skip every other frame to give GPU headroom for photo burst
+    if (treeMorphState === 'morphing-out') {
+      frameSkipRef.current++;
+      if (frameSkipRef.current % 2 !== 0) {
+        return; // Skip this frame
+      }
+    } else {
+      frameSkipRef.current = 0; // Reset when not morphing
+    }
 
     const { animation: aCfg, particles: pCfg } = SNOW_CONFIG;
     const time = state.clock.getElapsedTime();
@@ -125,3 +143,4 @@ export const Snow: React.FC<SnowProps> = ({
     </instancedMesh>
   );
 };
+
