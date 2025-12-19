@@ -2,7 +2,7 @@
 
 A festive, high-performance 3D interactive experience built with **React**, **Three.js**, and **React Three Fiber**. This project features a customizable Christmas tree that transforms into a galaxy of memories.
 
-![Project Hero Banner](path/to/hero_banner.png)
+![Project Hero Banner](public/readmeimg/hero.png)
 
 ## ✨ Core Features
 
@@ -47,22 +47,22 @@ Engineered for a buttery-smooth 60 FPS experience on both Desktop and Mobile.
 
 ### **Greeting & Morphing Intro**
 Experience a "Vaporize" text effect where your name dissolves into magic dust to form the tree.
-> ![Screenshot: Entrance Animation](path/to/entrance_screenshot.png)
+> ![Screenshot: Entrance Animation](public/readmeimg/tree_idle.png)
 > *Example: Entering "Antigravity" triggers a cinematic morphing sequence.*
 
 ### **Explosion & Photo Wall**
 Click the tree to scatter the particles and display your uploaded memories in a 3D sphere.
-> ![Screenshot: Tree Explosion](path/to/explosion_screenshot.png)
+> ![Screenshot: Tree Explosion](public/readmeimg/photo_sea.png)
 > *Interaction: Click once to explode. Hover over photos to preview or play videos.*
 
 ### **Customization Dashboard**
 Tweak every detail of your festive scene with the side control panel.
-> ![Screenshot: UI Controls](path/to/controls_screenshot.png)
+> ![Screenshot: UI Controls](public/readmeimg/control_pannel.png)
 > *Example: Changing the tree to 'Royal Blue' with 'Golden' magic dust.*
 
 ### **Performance Monitoring**
-Real-time monitoring for developers and power users (Toggle with `` ` `` or `F3`).
-> ![Screenshot: Performance Monitor](path/to/monitor_screenshot.png)
+Real-time monitoring for developers and power users (Toggle with`F4`).
+> ![Screenshot: Performance Monitor](public/readmeimg/performance.png)
 
 ---
 
