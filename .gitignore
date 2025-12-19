@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 /docs
+
+# AI Agent folders
+.agent/
+.gemini/
