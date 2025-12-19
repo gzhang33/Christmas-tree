@@ -5,25 +5,31 @@
  * to avoid performance spikes during explosion animation.
  * 
  * Phase 3A: Integrated with optimized texture loader for progressive loading and LOD
+ * Phase 3B: Integrated with HybridTextureCache for LRU + memory budget management
  */
 import * as THREE from 'three';
 import { getOptimizedTextureLoader, TextureQuality } from './optimizedTextureLoader';
+import { getHybridTextureCache, disposeHybridTextureCache } from './hybridTextureCache';
 import { PARTICLE_CONFIG } from '../config/particles';
 
-const textureCache = new Map<string, THREE.Texture>();
+// Loading promises map (for deduplication)
 const loadingPromises = new Map<string, Promise<THREE.Texture>>();
 
 /**
  * Load a single texture with caching
  * Phase 3A: Supports optimized progressive loading
+ * Phase 3B: Uses HybridTextureCache for intelligent memory management
  */
 export const loadTexture = (url: string, quality?: TextureQuality): Promise<THREE.Texture> => {
-    // 1. 检查同步缓存
-    if (textureCache.has(url)) {
-        return Promise.resolve(textureCache.get(url)!);
+    const cache = getHybridTextureCache();
+
+    // 1. Check hybrid cache (updates LRU tracking automatically)
+    const cached = cache.get(url);
+    if (cached) {
+        return Promise.resolve(cached);
     }
 
-    // 2. 检查是否正在并行加载
+    // 2. Check if already loading (deduplication)
     if (loadingPromises.has(url)) {
         return loadingPromises.get(url)!;
     }
@@ -32,29 +38,29 @@ export const loadTexture = (url: string, quality?: TextureQuality): Promise<THRE
     let promise: Promise<THREE.Texture>;
 
     if (useOptimized) {
-        // 使用优化的加载器（支持渐进式加载）
+        // Use optimized loader (supports progressive loading)
         const loader = getOptimizedTextureLoader();
         const targetQuality = quality || (PARTICLE_CONFIG.performance.texture?.defaultQuality as TextureQuality) || TextureQuality.MEDIUM;
         const useProgressive = PARTICLE_CONFIG.performance.texture?.useProgressiveLoading ?? true;
 
         if (useProgressive) {
             promise = loader.loadProgressive(url, targetQuality, (currentQuality, texture) => {
-                // 每次质量升级时更新缓存
-                textureCache.set(url, texture);
+                // Update cache on each quality upgrade
+                cache.set(url, texture, currentQuality);
             }).then(texture => {
                 if (!texture) throw new Error(`[TexturePreloader] Progressive load failed: ${url}`);
-                textureCache.set(url, texture);
+                cache.set(url, texture, targetQuality);
                 return texture;
             });
         } else {
             promise = loader.loadProgressive(url, targetQuality).then(texture => {
                 if (!texture) throw new Error(`[TexturePreloader] Direct load failed: ${url}`);
-                textureCache.set(url, texture);
+                cache.set(url, texture, targetQuality);
                 return texture;
             });
         }
     } else {
-        // 原版加载逻辑（向后兼容）
+        // Original loading logic (backward compatible)
         const loader = new THREE.TextureLoader();
         promise = new Promise<THREE.Texture>((resolve, reject) => {
             loader.load(
@@ -67,7 +73,7 @@ export const loadTexture = (url: string, quality?: TextureQuality): Promise<THRE
                     texture.generateMipmaps = false;
                     texture.needsUpdate = true;
 
-                    textureCache.set(url, texture);
+                    cache.set(url, texture);
                     resolve(texture);
                 },
                 undefined,
@@ -79,7 +85,7 @@ export const loadTexture = (url: string, quality?: TextureQuality): Promise<THRE
         });
     }
 
-    // 统一管理加载状态的清理
+    // Unified loading state cleanup
     const finalPromise = promise.finally(() => {
         loadingPromises.delete(url);
     });
@@ -122,24 +128,40 @@ export const preloadTextures = async (
 
 /**
  * Get cached texture synchronously (returns null if not loaded)
+ * Updates LRU tracking on access
  */
 export const getCachedTexture = (url: string): THREE.Texture | null => {
-    return textureCache.get(url) || null;
+    return getHybridTextureCache().get(url);
 };
 
 /**
  * Check if texture is cached
  */
 export const isTextureCached = (url: string): boolean => {
-    return textureCache.has(url);
+    return getHybridTextureCache().has(url);
 };
 
 /**
- * Clear texture cache
+ * Remove a specific texture from cache
+ */
+export const removeFromCache = (url: string): boolean => {
+    return getHybridTextureCache().delete(url);
+};
+
+/**
+ * Clear texture cache (dispose all textures and free GPU memory)
  */
 export const clearTextureCache = (): void => {
-    textureCache.forEach((texture) => texture.dispose());
-    textureCache.clear();
+    getHybridTextureCache().clear();
+    loadingPromises.clear();
+};
+
+/**
+ * Dispose the texture cache completely
+ * Call this when unmounting the application
+ */
+export const disposeTextureCache = (): void => {
+    disposeHybridTextureCache();
     loadingPromises.clear();
 };
 
@@ -147,5 +169,12 @@ export const clearTextureCache = (): void => {
  * Get texture cache size
  */
 export const getTextureCacheSize = (): number => {
-    return textureCache.size;
+    return getHybridTextureCache().getStats().totalEntries;
+};
+
+/**
+ * Get detailed cache statistics
+ */
+export const getTextureCacheStats = () => {
+    return getHybridTextureCache().getStats();
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { getTextureCacheStats } from '../../utils/texturePreloader';
 
 interface PerformanceData {
     fps: number;
@@ -36,6 +37,18 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
     const treeMorphState = useStore((state) => state.treeMorphState);
     const treeProgress = useStore((state) => state.treeProgress) ?? 0;
     const activeParticleCount = useStore((state) => state.activeParticleCount) ?? 0;
+
+    // Texture cache stats (updated every second when visible)
+    const [cacheStats, setCacheStats] = useState<ReturnType<typeof getTextureCacheStats> | null>(null);
+
+    useEffect(() => {
+        if (!isVisible) return;
+        // Update cache stats periodically when panel is visible
+        const updateStats = () => setCacheStats(getTextureCacheStats());
+        updateStats();
+        const interval = setInterval(updateStats, 1000);
+        return () => clearInterval(interval);
+    }, [isVisible]);
     /**
      * Unified state display logic:
      * - When treeMorphState is active (not idle), show morphing state as priority
@@ -231,6 +244,46 @@ export const DebugStore: React.FC<DebugStoreProps> = ({ performanceData }) => {
                                 </span>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Texture Cache Statistics */}
+            {cacheStats && (
+                <div className="mb-4 p-3 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/20">
+                    <div className="text-xs text-amber-400 uppercase tracking-wider mb-2 font-semibold flex items-center gap-2">
+                        <span>🖼️</span>
+                        Texture Cache (LRU)
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div className="flex flex-col">
+                            <span className="text-white/50 text-[10px] mb-0.5">Entries</span>
+                            <span className="text-lg font-bold text-amber-300">
+                                {cacheStats.totalEntries}/{cacheStats.maxEntries}
+                            </span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-white/50 text-[10px] mb-0.5">Memory</span>
+                            <span className="text-lg font-bold text-orange-300">
+                                {cacheStats.totalMemoryMB}MB
+                            </span>
+                        </div>
+                        <div className="col-span-2 mt-2">
+                            <div className="text-[10px] text-white/50 mb-1">Memory Budget</div>
+                            <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className={`absolute top-0 left-0 h-full transition-all duration-300 ${parseFloat(cacheStats.memoryUsagePercent) > 80
+                                            ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                                            : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                        }`}
+                                    style={{ width: `${Math.min(parseFloat(cacheStats.memoryUsagePercent), 100)}%` }}
+                                ></div>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-white/40 mt-1">
+                                <span>{cacheStats.memoryUsagePercent}% used</span>
+                                <span>Max: {cacheStats.maxMemoryMB}MB</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

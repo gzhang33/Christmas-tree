@@ -198,6 +198,20 @@ export const PARTICLE_CONFIG = {
             },
             enableMobileOptimization: true, // 移动端自动降质
         },
+
+        // Phase 3B: 纹理缓存优化 (LRU + Memory Budget)
+        cache: {
+            maxMemoryMB: {
+                normal: 1000,               // 桌面端最大缓存显存 (MB)
+                compact: 800,               // 移动端限制为 50MB
+            },
+            maxEntries: {
+                normal: 100,               // 桌面端最大缓存纹理数量
+                compact: 50,               // 移动端限制为 50 个
+            },
+            evictionBatchSize: 5,          // 每次清理的纹理数量
+            enableDebugLogs: false,        // 缓存调试日志
+        },
     },
 } as const;
 
