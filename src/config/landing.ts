@@ -27,7 +27,7 @@ export const TITLE_CONFIG = {
     // ------------------------------------------------------------------------
     font: {
         family: "'Merry Christmas Flake', 'Mountains of Christmas', cursive",
-        fallback: "'Merry Christmas Flake', 'Great Vibes', serif",
+        fallback: "'Merry Christmas Star', 'Great Vibes', serif",
         size: {
             normal: 300,   // 桌面端基础字号
             compact: 250,  // 移动端基础字号
@@ -297,7 +297,7 @@ export const LANDING_CONFIG = {
         },
         // 字体配置 (用于 Canvas 采样)
         typography: {
-            titleFont: "'Merry Christmas Star', 'Mountains of Christmas', cursive",
+            titleFont: "'Merry Christmas Flake', 'Mountains of Christmas', cursive",
             usernameFont: "'Courier New', monospace",
             samplingFontSize: 80,          // 采样时的基准字号 (px)
             usernameScale: 0.4,            // Username 相对 Title 的大小比例

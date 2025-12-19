@@ -13,41 +13,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
+import { SCATTER_CONFIG } from '../../config';
 
-// Configuration for the scatter effect
-const SCATTER_CONFIG = {
-    instanceCount: 9,
-    // Random position range (percentage of viewport)
-    positionRange: {
-        xMin: 10,
-        xMax: 90,
-        yMin: 15,
-        yMax: 85,
-    },
-    // Animation timing
-    animation: {
-        staggerDelay: 0.15,      // Delay between each text appearing
-        fadeInDuration: 0.6,     // Duration of fade in
-        floatDuration: 4.0,      // Duration of floating animation
-    },
-    // Drift distance (pixels)
-    drift: {
-        xRange: [-80, 80],
-        yRange: [-60, 60],
-    },
-    // Font settings
-    font: {
-        family: "'Merry Christmas Flake', 'Great Vibes', serif",
-        sizeRange: [16, 28],
-    },
-    // Colors (gold/warm tones)
-    colors: [
-        'rgba(255, 215, 0, 0.9)',   // Gold
-        'rgba(255, 223, 128, 0.85)', // Light gold
-        'rgba(255, 200, 100, 0.8)',  // Warm gold
-        'rgba(255, 245, 200, 0.75)', // Cream gold
-    ],
-} as const;
+const CONFIG = SCATTER_CONFIG.twoDimensional;
 
 interface ScatterTextInstance {
     id: number;
@@ -66,7 +34,7 @@ interface ScatterTextInstance {
  */
 function generateScatterInstances(count: number): ScatterTextInstance[] {
     const instances: ScatterTextInstance[] = [];
-    const { positionRange, drift, font, colors, animation } = SCATTER_CONFIG;
+    const { positionRange, drift, font, colors, animation } = CONFIG;
 
     for (let i = 0; i < count; i++) {
         // Distribute positions in a grid-like pattern with randomness
@@ -167,7 +135,7 @@ export const MerryChristmasScatter: React.FC = () => {
     // Generate scatter instances
     const instances = useMemo(() => {
         if (!isVisible) return [];
-        return generateScatterInstances(SCATTER_CONFIG.instanceCount);
+        return generateScatterInstances(CONFIG.instanceCount);
     }, [isVisible]);
 
     // Build the greeting text
@@ -193,7 +161,7 @@ export const MerryChristmasScatter: React.FC = () => {
                             left: `${instance.x}%`,
                             top: `${instance.y}%`,
                             fontSize: `${instance.fontSize}px`,
-                            fontFamily: SCATTER_CONFIG.font.family,
+                            fontFamily: CONFIG.font.family,
                             color: instance.color,
                             textShadow: `
                                 0 0 10px rgba(255, 215, 0, 0.5),
@@ -223,12 +191,12 @@ export const MerryChristmasScatter: React.FC = () => {
                         }}
                         transition={{
                             // Independent property transitions
-                            opacity: { duration: SCATTER_CONFIG.animation.fadeInDuration, delay: instance.delay },
-                            scale: { duration: SCATTER_CONFIG.animation.fadeInDuration, delay: instance.delay },
+                            opacity: { duration: CONFIG.animation.fadeInDuration, delay: instance.delay },
+                            scale: { duration: CONFIG.animation.fadeInDuration, delay: instance.delay },
                             // Drift takes longer
-                            x: { duration: SCATTER_CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
-                            y: { duration: SCATTER_CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
-                            rotate: { duration: SCATTER_CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
+                            x: { duration: CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
+                            y: { duration: CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
+                            rotate: { duration: CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
                         }}
                     >
                         {greetingText}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music, User } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
@@ -26,6 +26,8 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const setParticleCount = useStore((state) => state.setParticleCount);
     const setMagicDustColor = useStore((state) => state.setMagicDustColor);
     const setSelectedAudioId = useStore((state) => state.setSelectedAudioId);
+    const userName = useStore((state) => state.userName);
+    const setUserName = useStore((state) => state.setUserName);
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
 
@@ -270,6 +272,27 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                             {/* Configuration Section */}
                             <div className="mb-8 space-y-6">
                                 <p className="text-[0.65rem] text-teal-accent uppercase tracking-[0.2em] font-bold">Settings</p>
+
+                                {/* Username */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center">
+                                        <span className="flex items-center gap-2">
+                                            <User size={16} className="text-teal-accent" />
+                                            Your Name
+                                        </span>
+                                        <span className="text-[0.6rem] text-white/30 font-mono">
+                                            {(userName || '').length}/{INTERACTION_CONFIG.nameInput.validation.maxLength}
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={userName || ''}
+                                        onChange={(e) => setUserName(e.target.value)}
+                                        maxLength={INTERACTION_CONFIG.nameInput.validation.maxLength}
+                                        className="w-full bg-deep-gray-blue/50 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neon-pink/50 focus:bg-deep-gray-blue transition-all"
+                                        placeholder="Enter your name..."
+                                    />
+                                </div>
 
                                 {/* Tree Color */}
                                 <div className="space-y-3">

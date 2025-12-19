@@ -14,6 +14,7 @@ import {
 } from "../../config/photoConfig";
 import { generatePhotoPositions } from "../../utils/photoUtils";
 import { getTreeRadius, calculateErosionFactor } from "../../utils/treeUtils";
+import { ORNAMENT_CONFIG, type OrnamentType } from "../../config";
 
 import particleVertexShader from "../../shaders/particle.vert?raw";
 import particleFragmentShader from "../../shaders/particle.frag?raw";
@@ -48,33 +49,7 @@ interface TreeParticlesProps {
 
 
 
-// === ORNAMENT DISTRIBUTION ALGORITHM ===
-type OrnamentType =
-  | "BIG_BEN"
-  | "FLAG"
-  | "BUS"
-  | "CORGI"
-  | "GIFT"
-  | "PEARL"
-  | "BAUBLE";
-
-const assignOrnamentType = (heightRatio: number): OrnamentType => {
-  const rand = Math.random();
-  // Simplified logic: Only use Image Ornament Types (FLAG, BUS, CORGI, BAUBLE)
-  // Removed Particle Types: BIG_BEN, GIFT
-  if (heightRatio > 0.8) {
-    // Top 20%: Flag (was Big Ben)
-    return "FLAG";
-  } else if (heightRatio > 0.5) {
-    // Middle 30%: Flag or Bus
-    return rand < 0.4 ? "FLAG" : "BUS";
-  } else {
-    // Bottom 50%: Corgi or Bauble (was Gift)
-    const subRand = Math.random();
-    if (subRand < 0.3) return "CORGI";
-    return "BAUBLE";
-  }
-};
+const assignOrnamentType = ORNAMENT_CONFIG.distribution.getOrnamentType;
 
 /**
  * Calculate explosion target position in 3D space
@@ -137,22 +112,9 @@ const calculateControlPoint = (
 };
 
 // Size coefficients per ornament type
-const SIZE_COEFFICIENTS: Record<OrnamentType, number> = {
-  BUS: 1.2,
-  FLAG: 1.0,
-  CORGI: 0.9,
-  BIG_BEN: 1.1,
-  GIFT: 1.0,
-  PEARL: 0.8,
-  BAUBLE: 1.0,
-};
+const SIZE_COEFFICIENTS = ORNAMENT_CONFIG.sizeCoefficients;
 
-const ORNAMENT_IMAGE_MAP: Partial<Record<OrnamentType, string>> = {
-  BUS: '/models/ornament-bus.png',
-  FLAG: '/models/ornament-uk-flag.png',
-  CORGI: '/models/ornament-corgi.png',
-  BAUBLE: '/models/ornament-ball.png',
-};
+const ORNAMENT_IMAGE_MAP = ORNAMENT_CONFIG.imageMap;
 
 
 

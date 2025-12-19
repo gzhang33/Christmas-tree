@@ -60,3 +60,14 @@ export { ASSET_CONFIG } from './assets';
 // 雪花效果配置 (Snow Effect Configuration)
 // ============================================================================
 export { SNOW_CONFIG, SNOW_DEFAULTS } from './snow';
+
+// ============================================================================
+// 散落文字配置 (Scatter Text Configuration)
+// ============================================================================
+export { SCATTER_CONFIG } from './scatter';
+
+// ============================================================================
+// 挂件配置 (Ornament Configuration)
+// ============================================================================
+export { ORNAMENT_CONFIG } from './ornaments';
+export type { OrnamentType } from './ornaments';

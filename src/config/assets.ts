@@ -23,6 +23,14 @@ export const ASSET_CONFIG = {
     allIWantForChristmas: '/audio/All-I-Want-for-Christmas-Is-You.mp3',
   },
   /**
+   * Font assets
+   */
+  fonts: {
+    star: '/front/MerryChristmasStar-dJnR.ttf',
+    flake: '/front/MerryChristmasFlake-mJY9.ttf',
+    scatter: '/front/SairaStencilOne-Regular.ttf',
+  },
+  /**
    * Placeholder images
    */
   placeholders: {

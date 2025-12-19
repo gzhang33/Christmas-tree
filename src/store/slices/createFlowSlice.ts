@@ -54,7 +54,7 @@ export const createFlowSlice: StateCreator<AppState, [], [], FlowSlice> = (set) 
     activeParticleCount: 0,
     textParticlePhase: 'hidden',
     textParticleProgress: 0.0,
-    setUserName: (name) => set({ userName: name, ...(name ? {} : { landingPhase: 'input' }) }),
+    setUserName: (name) => set({ userName: name }),
     setLandingPhase: (phase) => set({ landingPhase: phase, usernameTransitionComplete: false }),
     setUsernameTransitionComplete: (complete) => set({ usernameTransitionComplete: complete }),
     setTreeMorphState: (state) => set({ treeMorphState: state }),

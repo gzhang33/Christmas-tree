@@ -17,41 +17,10 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../../store/useStore';
 import { PARTICLE_CONFIG } from '../../config/particles';
+import { SCATTER_CONFIG } from '../../config';
 
 // Configuration for 3D scatter effect
-const SCATTER_3D_CONFIG = {
-    instanceCount: 6,
-    // 3D position range (world units)
-    positionRange: {
-        xMin: -25,
-        xMax: 25,
-        yMin: 2,
-        yMax: 18,
-        zMin: -15,
-        zMax: 15,
-    },
-    // Animation timing (seconds)
-    animation: {
-        staggerDelay: 0.12,
-        fadeInDuration: 0.8,
-        driftSpeed: 0.3,
-    },
-    // Font settings
-    font: {
-        size: 1.2,
-        sizeVariance: 0.4,
-        // Using a validated local copy of the star font to ensure stability 
-        // and resolve the DataView bounds error from corrupted downloads.
-        url: '/front/ScatterFont.ttf',
-    },
-    // Colors (hex for Three.js)
-    colors: [
-        '#FFD700', // Gold
-        '#FFDF80', // Light gold
-        '#FFC864', // Warm gold
-        '#FFF5C8', // Cream gold
-    ],
-} as const;
+const CONFIG = SCATTER_CONFIG.threeDimensional;
 
 interface ScatterTextInstance3D {
     id: number;
@@ -68,7 +37,7 @@ interface ScatterTextInstance3D {
  */
 function generateScatterInstances3D(count: number): ScatterTextInstance3D[] {
     const instances: ScatterTextInstance3D[] = [];
-    const { positionRange, font, colors, animation } = SCATTER_3D_CONFIG;
+    const { positionRange, font, colors, animation } = CONFIG;
 
     for (let i = 0; i < count; i++) {
         // Distribute in a 3x3 grid pattern with randomness
@@ -157,7 +126,7 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
 
         if (isVisible) {
             // Fade in animation
-            const fadeProgress = Math.min(localElapsed / SCATTER_3D_CONFIG.animation.fadeInDuration, 1);
+            const fadeProgress = Math.min(localElapsed / CONFIG.animation.fadeInDuration, 1);
             const eased = 1 - Math.pow(1 - fadeProgress, 3); // Ease out cubic
 
             // Lerp to target position
@@ -182,7 +151,7 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
 
             // Gentle floating motion after settling
             if (fadeProgress >= 1) {
-                const floatTime = localElapsed - SCATTER_3D_CONFIG.animation.fadeInDuration;
+                const floatTime = localElapsed - CONFIG.animation.fadeInDuration;
                 const floatOffset = Math.sin(floatTime * 0.5 + instance.id) * 0.2;
                 animState.currentPos[1] = instance.targetPosition[1] + floatOffset;
             }
@@ -199,7 +168,7 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
     return (
         <Text
             ref={meshRef}
-            font={SCATTER_3D_CONFIG.font.url}
+            font={CONFIG.font.url}
             fontSize={instance.fontSize}
             color={instance.color}
             anchorX="center"
@@ -263,7 +232,7 @@ export const ScatterText3D: React.FC = () => {
     // Generate scatter instances
     const instances = useMemo(() => {
         if (!isVisible) return [];
-        return generateScatterInstances3D(SCATTER_3D_CONFIG.instanceCount);
+        return generateScatterInstances3D(CONFIG.instanceCount);
     }, [isVisible]);
 
     // Build greeting text
