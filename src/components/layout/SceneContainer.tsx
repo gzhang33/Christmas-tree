@@ -62,10 +62,20 @@ const PerformanceMonitorWrapper: React.FC<{
  * Drives the render loop when frameloop="demand".
  * Continuously calls invalidate() to request new frames,
  * but stops when isAppInBackground=true to release GPU resources.
+ * 
+ * When returning from background, useFrame won't run (no frames requested),
+ * so we use a useEffect to call invalidate() once to kickstart the loop.
  */
 const FrameloopController: React.FC = () => {
     const isAppInBackground = useStore((state) => state.isAppInBackground);
     const { invalidate } = useThree();
+
+    // Kickstart frameloop when returning from background
+    useEffect(() => {
+        if (!isAppInBackground) {
+            invalidate();
+        }
+    }, [isAppInBackground, invalidate]);
 
     useFrame(() => {
         // Only request next frame if app is in foreground

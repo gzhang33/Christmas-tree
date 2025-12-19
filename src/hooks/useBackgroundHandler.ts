@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { stopVideo } from '../utils/videoSingleton';
 import { PARTICLE_CONFIG } from '../config/particles';
@@ -18,8 +18,6 @@ import { PARTICLE_CONFIG } from '../config/particles';
 export function useBackgroundHandler(): void {
     const setIsAppInBackground = useStore((state) => state.setIsAppInBackground);
 
-    // Track if video was playing before going to background
-    const wasVideoPlayingRef = useRef(false);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -37,7 +35,6 @@ export function useBackgroundHandler(): void {
                 // Pause video (if playing)
                 // Note: stopVideo() pauses but doesn't dispose, allowing quick resume
                 stopVideo();
-                wasVideoPlayingRef.current = true;
 
             } else {
                 // === RETURNING TO FOREGROUND ===

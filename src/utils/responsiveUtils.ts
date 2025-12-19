@@ -21,12 +21,11 @@ import { RESPONSIVE_BREAKPOINTS } from '../config/performance';
  * - Mobile landscape (16:9): viewport.width ≈ 26 at Z=42
  * 
  * Threshold 18 ensures:
- * - All portrait mobile devices (< 15) are detected
+ * - All portrait mobile devices (viewport.width < 18) are detected
  * - Narrow desktop windows (768-1024px) are correctly classified
  * - Provides safe margin for camera zoom variations
  */
 export const VIEWPORT_MOBILE_THRESHOLD = 18;
-
 /**
  * 工具函数：根据窗口宽度判断是否为移动端
  */

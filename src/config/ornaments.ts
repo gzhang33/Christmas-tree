@@ -4,23 +4,17 @@
  */
 
 export type OrnamentType =
-    | "BIG_BEN"
     | "FLAG"
     | "BUS"
     | "CORGI"
-    | "GIFT"
-    | "PEARL"
     | "BAUBLE";
 
 export const ORNAMENT_CONFIG = {
     // 尺寸系数
     sizeCoefficients: {
-        BUS: 1.2,
+        BUS: 1.0,
         FLAG: 1.0,
-        CORGI: 0.9,
-        BIG_BEN: 1.1,
-        GIFT: 1.0,
-        PEARL: 0.8,
+        CORGI: 1.2,
         BAUBLE: 1.0,
     } as Record<OrnamentType, number>,
 
