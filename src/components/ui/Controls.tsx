@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music, User } from 'lucide-react';
+import { Settings, Upload, Camera, X, Wand2, RefreshCcw, Palette, Share2, Check, AlertCircle, Music, User, Volume2, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { UIState } from '../../types.ts';
@@ -30,14 +30,21 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
     const setUserName = useStore((state) => state.setUserName);
     const triggerExplosion = useStore((state) => state.triggerExplosion);
     const resetExplosion = useStore((state) => state.resetExplosion);
+    const photoCount = useStore((state) => state.photoCount);
+    const setPhotoCount = useStore((state) => state.setPhotoCount);
 
     // Local state for debounce
     const [localParticleCount, setLocalParticleCount] = useState(particleCount);
+    const [localPhotoCount, setLocalPhotoCount] = useState(photoCount);
 
     // Sync local state when store changes externally
     useEffect(() => {
         setLocalParticleCount(particleCount);
     }, [particleCount]);
+
+    useEffect(() => {
+        setLocalPhotoCount(photoCount);
+    }, [photoCount]);
 
     // Debounce update to store with longer delay for performance (TREE-08)
     useEffect(() => {
@@ -49,6 +56,15 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
         }, INTERACTION_CONFIG.controls.debounce.particleCountDelay); // Debounce delay from config
         return () => clearTimeout(timer);
     }, [localParticleCount, setParticleCount, particleCount]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (localPhotoCount !== photoCount) {
+                setPhotoCount(localPhotoCount);
+            }
+        }, INTERACTION_CONFIG.controls.debounce.particleCountDelay); // Reuse same delay
+        return () => clearTimeout(timer);
+    }, [localPhotoCount, setPhotoCount, photoCount]);
 
     // Local state from props (for things not yet in store or specific to UI interaction)
     const { updateConfig, addPhotos, photos, isMuted, toggleMute } = uiState;
@@ -162,23 +178,38 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                     transition={{ duration: 0.5 }}
                     className="absolute top-0 right-0 h-full pointer-events-none flex flex-col items-end z-50 p-4 sm:p-6 gap-4"
                 >
-                    {/* Toggle Button with pulse animation */}
-                    <motion.button
-                        onClick={() => setIsOpen(!isOpen)}
-                        aria-label={isOpen ? 'Close controls panel' : 'Open controls panel'}
-                        className="pointer-events-auto bg-deep-gray-blue/80 backdrop-blur-xl p-3 rounded-full border border-electric-purple/50 shadow-[0_0_15px_rgba(128,90,213,0.4)] hover:shadow-[0_0_25px_rgba(213,63,140,0.6)] hover:bg-deep-gray-blue transition-all text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-pink"
-                        animate={!isOpen ? {
-                            scale: [1, 1.08, 1],
-                            boxShadow: [
-                                '0 0 15px rgba(128,90,213,0.4)',
-                                '0 0 25px rgba(213,63,140,0.6)',
-                                '0 0 15px rgba(128,90,213,0.4)'
-                            ]
-                        } : {}}
-                        transition={{ repeat: Infinity, duration: INTERACTION_CONFIG.controls.animation.buttonPulseDuration, ease: 'easeInOut' }}
-                    >
-                        {isOpen ? <X size={24} /> : <Settings size={24} />}
-                    </motion.button>
+                    {/* Button Group */}
+                    <div className="pointer-events-auto flex items-center gap-3">
+                        {/* Quick Mute Button */}
+                        <motion.button
+                            onClick={toggleMute}
+                            aria-label={isMuted ? 'Unmute' : 'Mute'}
+                            className="bg-deep-gray-blue/80 backdrop-blur-xl p-3 rounded-full border border-electric-purple/50 shadow-[0_0_15px_rgba(128,90,213,0.4)] hover:shadow-[0_0_25px_rgba(213,63,140,0.6)] hover:bg-deep-gray-blue transition-all text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-pink"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            title={isMuted ? 'Unmute' : 'Mute'}
+                        >
+                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                        </motion.button>
+
+                        {/* Toggle Panel Button with pulse animation */}
+                        <motion.button
+                            onClick={() => setIsOpen(!isOpen)}
+                            aria-label={isOpen ? 'Close controls panel' : 'Open controls panel'}
+                            className="bg-deep-gray-blue/80 backdrop-blur-xl p-3 rounded-full border border-electric-purple/50 shadow-[0_0_15px_rgba(128,90,213,0.4)] hover:shadow-[0_0_25px_rgba(213,63,140,0.6)] hover:bg-deep-gray-blue transition-all text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neon-pink"
+                            animate={!isOpen ? {
+                                scale: [1, 1.08, 1],
+                                boxShadow: [
+                                    '0 0 15px rgba(128,90,213,0.4)',
+                                    '0 0 25px rgba(213,63,140,0.6)',
+                                    '0 0 15px rgba(128,90,213,0.4)'
+                                ]
+                            } : {}}
+                            transition={{ repeat: Infinity, duration: INTERACTION_CONFIG.controls.animation.buttonPulseDuration, ease: 'easeInOut' }}
+                        >
+                            {isOpen ? <X size={24} /> : <Settings size={24} />}
+                        </motion.button>
+                    </div>
 
                     {/* Main Panel */}
                     <motion.div
@@ -382,6 +413,27 @@ export const Controls: React.FC<ControlsProps> = ({ uiState }) => {
                                         }}
                                         className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
                                         aria-label="Adjust particle count"
+                                    />
+                                </div>
+
+                                {/* Photo Count */}
+                                <div className="space-y-3">
+                                    <label className="text-sm text-white/60 flex justify-between items-center">
+                                        <span>Photo Sea Count</span>
+                                        <span className="text-xs font-mono font-bold text-electric-purple">{localPhotoCount.toLocaleString()}</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min={INTERACTION_CONFIG.controls.ranges.photoCount.min.toString()}
+                                        max={INTERACTION_CONFIG.controls.ranges.photoCount.max.toString()}
+                                        step={INTERACTION_CONFIG.controls.ranges.photoCount.step.toString()}
+                                        value={localPhotoCount}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setLocalPhotoCount(val);
+                                        }}
+                                        className="w-full h-2 bg-deep-gray-blue rounded-lg appearance-none cursor-pointer accent-neon-pink hover:accent-electric-purple transition-colors border border-white/10"
+                                        aria-label="Adjust photo count"
                                     />
                                 </div>
 

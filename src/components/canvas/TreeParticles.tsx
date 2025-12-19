@@ -250,6 +250,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   // Global State
   const treeColor = useStore((state) => state.treeColor);
   const particleCount = useStore((state) => state.particleCount);
+  const photoCount = useStore((state) => state.photoCount);
   const landingPhase = useStore((state) => state.landingPhase);
   const treeMorphState = useStore((state) => state.treeMorphState); // NEW: For warmup timing
   const { viewport } = useThree();
@@ -388,10 +389,11 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       worker.terminate();
     };
     // Use standardized responsive detection for photo count
-    const photoCount = getResponsiveValue(PHOTO_WALL_CONFIG.count);
+    // No longer using PHOTO_WALL_CONFIG.count directly, preferring reactive store value
+    const currentPhotoCount = photoCount;
 
     worker.postMessage({
-      count: photoCount,
+      count: currentPhotoCount,
       aspectRatio,
       sourceUrls
     });
@@ -400,7 +402,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       cancelled = true;
       worker.terminate();
     };
-  }, [photos, viewport.width, viewport.height]);
+  }, [photos, viewport.width, viewport.height, photoCount]);
 
   // Deprecated synchronous logic
   /* 
@@ -424,7 +426,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     const initMaterialPools = () => {
       try {
         // Use standardized responsive detection for pool size
-        const poolSize = getResponsiveValue(PHOTO_WALL_CONFIG.count) + 20;
+        const poolSize = photoCount + 20;
 
         // Pre-warm photo materials
         initPhotoMaterialPool(masterPhotoMaterial, poolSize);
@@ -515,7 +517,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       setPoolsInitialized(false);
       setTexturesLoaded(false);
     };
-  }, [photoData.urls]);
+  }, [photoData.urls, photoCount]);
 
   // === DYNAMIC COLOR VARIANTS ===
   // Generates color variants (base, light, deep, dark) from the selected tree color

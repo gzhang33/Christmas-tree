@@ -25,7 +25,8 @@ export const encodeState = (
             // Only save non-default looking config if needed, or save all
             rotationSpeed: config.rotationSpeed,
             snowDensity: config.snowDensity,
-            photoSize: config.photoSize
+            photoSize: config.photoSize,
+            photoCount: config.photoCount
         }
     };
 

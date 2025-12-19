@@ -87,6 +87,9 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                         if (typeof data.cfg.windStrength === 'number' && data.cfg.windStrength >= 0 && data.cfg.windStrength <= 5) {
                             safeConfig.windStrength = data.cfg.windStrength;
                         }
+                        if (typeof data.cfg.photoCount === 'number' && data.cfg.photoCount >= 10 && data.cfg.photoCount <= 500) {
+                            safeConfig.photoCount = data.cfg.photoCount;
+                        }
                         setConfig(prev => ({ ...prev, ...safeConfig }));
                     }
 
@@ -98,6 +101,11 @@ export const useShareSystem = ({ photos, config, setPhotos, setConfig }: UseShar
                     // Restore Audio Selection
                     if (data.a && typeof data.a === 'string') {
                         setSelectedAudioId(data.a);
+                    }
+
+                    // NEW: Sync store photoCount if restored from URL
+                    if (data.cfg?.photoCount) {
+                        useStore.getState().setPhotoCount(data.cfg.photoCount);
                     }
                 }
             } catch (error) {

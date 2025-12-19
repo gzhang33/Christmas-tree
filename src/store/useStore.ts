@@ -33,6 +33,7 @@ export const useStore = create<AppState>()(
                 userName: state.userName,
                 magicDustColor: state.magicDustColor,
                 selectedAudioId: state.selectedAudioId,
+                photoCount: state.photoCount,
             }),
             // Ensure consistent state after rehydration
             onRehydrateStorage: () => (state) => {

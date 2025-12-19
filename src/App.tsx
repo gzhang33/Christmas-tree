@@ -13,6 +13,8 @@ import { useStore } from './store/useStore.ts';
 import { LandingFlowProvider } from './contexts/LandingFlowContext.tsx';
 import { SceneContainer } from './components/layout/SceneContainer';
 import { useShareSystem } from './hooks/useShareSystem';
+import { PHOTO_WALL_CONFIG } from './config/photoConfig';
+import { getResponsiveValue } from './utils/responsiveUtils';
 import { PARTICLE_CONFIG } from './config/particles';
 import { initGlobalGyroscope } from './hooks/useGyroscope';
 import { useBackgroundHandler } from './hooks/useBackgroundHandler';
@@ -55,6 +57,7 @@ function App() {
     explosionRadius: 30,
     snowSpeed: 1.2,
     windStrength: 0.4,
+    photoCount: getResponsiveValue(PHOTO_WALL_CONFIG.count),
   });
 
   // Audio State (simplified - managed by BackgroundMusicPlayer)
@@ -80,8 +83,9 @@ function App() {
     3000 + // Ornaments
     5500 + // Gifts
     config.snowDensity + // Snow
-    1200 // Magic dust
-  ), [particleCount, config.snowDensity]);
+    1200 + // Magic dust
+    (useStore.getState().photoCount || config.photoCount) * 0.1 // Contribution from photo sea
+  ), [particleCount, config.snowDensity, config.photoCount]);
 
   // Calculate actual active particle counts for each system
   const actualSnowCount = useMemo(() =>

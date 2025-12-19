@@ -67,6 +67,11 @@ export const Snow: React.FC<SnowProps> = ({
   useFrame((state) => {
     if (!mesh.current) return;
 
+    // Sync background check: Stop all calculations if hidden
+    if (typeof window !== 'undefined' && window.__IS_BACKGROUND__) {
+      return;
+    }
+
     // MOBILE OPTIMIZATION: Throttle snow updates during explosion peak
     // During 'morphing-out', skip every other frame to give GPU headroom for photo burst
     if (treeMorphState === 'morphing-out') {

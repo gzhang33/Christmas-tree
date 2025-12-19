@@ -101,6 +101,11 @@ export const INTERACTION_CONFIG = {
                 max: 3,
                 step: 0.1,
             },
+            photoCount: {
+                min: 20,
+                max: 300,
+                step: 10,
+            },
         },
     },
 

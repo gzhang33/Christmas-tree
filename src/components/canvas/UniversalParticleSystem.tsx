@@ -200,6 +200,12 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
     // Animation loop
     useFrame((state) => {
+        // Sync background check: Stop all calculations if hidden
+        // This is critical for iOS where process might be throttled or suspended.
+        if (typeof window !== 'undefined' && window.__IS_BACKGROUND__) {
+            return;
+        }
+
         const time = state.clock.elapsedTime;
         const currentPhase = currentPhaseRef.current;
         const phaseStartTime = phaseStartTimeRef.current;
