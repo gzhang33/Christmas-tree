@@ -42,7 +42,7 @@ export const ActionHint: React.FC<ActionHintProps> = ({
         <AnimatePresence>
             {isVisible && (
                 <motion.div
-                    className={`fixed bottom-8 z-40 select-none ${positionClasses[position]} ${isInteractive ? 'cursor-pointer' : 'pointer-events-none'}`}
+                    className={`fixed bottom-8 z-50 select-none ${positionClasses[position]} ${isInteractive ? 'cursor-pointer' : 'pointer-events-none'}`}
                     initial={{ opacity: 0, y: 15, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}

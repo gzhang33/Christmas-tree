@@ -62,11 +62,23 @@ export const CinematicEffects: React.FC = () => {
     // This prevents the "black screen" flash caused by GPU re-initializing the composer.
     const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.7;
 
+    const primaryBloomRef = useRef<any>(null);
+    const secondaryBloomRef = useRef<any>(null);
+
     // Use a ref to smoothly transition intensity to avoid desktop frame drops from sudden multiplier changes
     const intensityFactorRef = useRef(1.0);
     useFrame((_, delta) => {
         const target = isExplosionPeak ? 0.0 : 1.0;
         intensityFactorRef.current = THREE.MathUtils.lerp(intensityFactorRef.current, target, Math.min(delta * 10, 1));
+
+        // CRITICAL FIX: Direct mutation of bloom intensity to ensure frame-accurate updates
+        // JSX props only update on React re-renders, while useFrame runs every frame.
+        if (primaryBloomRef.current) {
+            primaryBloomRef.current.intensity = bloom.primary.intensity * bloomIntensityMultiplier * intensityFactorRef.current;
+        }
+        if (secondaryBloomRef.current) {
+            secondaryBloomRef.current.intensity = bloom.secondary.intensity * intensityFactorRef.current;
+        }
     });
 
     const bloomIntensityMultiplier = isMobile ? 0.8 : 1.0;
@@ -75,20 +87,22 @@ export const CinematicEffects: React.FC = () => {
         <EffectComposer multisampling={isMobile ? 0 : composer.multisampling}>
             {/* Primary Bloom - Dynamically zeroed during explosion peak on mobile */}
             <Bloom
+                ref={primaryBloomRef}
                 luminanceThreshold={bloom.primary.luminanceThreshold}
                 luminanceSmoothing={bloom.primary.luminanceSmoothing}
                 mipmapBlur={bloom.primary.mipmapBlur}
-                intensity={bloom.primary.intensity * bloomIntensityMultiplier * intensityFactorRef.current}
+                intensity={bloom.primary.intensity * bloomIntensityMultiplier} // Static base, dynamic update in ref
                 radius={bloom.primary.radius}
             />
 
             {/* Secondary Bloom - Disabled on mobile to save a full render pass */}
             {!isMobile && (
                 <Bloom
+                    ref={secondaryBloomRef}
                     luminanceThreshold={bloom.secondary.luminanceThreshold}
                     luminanceSmoothing={bloom.secondary.luminanceSmoothing}
                     mipmapBlur={bloom.secondary.mipmapBlur}
-                    intensity={bloom.secondary.intensity * intensityFactorRef.current}
+                    intensity={bloom.secondary.intensity}
                     radius={bloom.secondary.radius}
                 />
             )}

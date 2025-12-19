@@ -1350,7 +1350,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     if (
       landingPhase === 'morphing' &&
       !animationCompletionFlags.current.entranceComplete &&
-      (progressNearTarget || progressRef.current < 0.1)
+      (progressNearTarget || progressRef.current < 0.15) // Slightly larger threshold
     ) {
       animationCompletionFlags.current.entranceComplete = true;
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Entrance animation complete, transitioning to tree phase');
@@ -1360,8 +1360,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         useStore.getState().setLandingPhase('tree');
         useStore.getState().setTreeMorphState('idle');
       };
-      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
-      else setTimeout(updateState, 0);
+      setTimeout(updateState, 50); // Faster, guaranteed update
     }
 
     // === EXPLOSION ANIMATION COMPLETION (morphing-out) ===
@@ -1378,8 +1377,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const updateState = () => {
         useStore.getState().setTreeMorphState('idle');
       };
-      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
-      else setTimeout(updateState, 0);
+      setTimeout(updateState, 50);
     }
 
     // Reset explosion completion flag when starting new explosion
@@ -1404,8 +1402,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       const updateState = () => {
         useStore.getState().setTreeMorphState('idle');
       };
-      if (window.requestIdleCallback) window.requestIdleCallback(updateState);
-      else setTimeout(updateState, 0);
+      setTimeout(updateState, 50);
     }
 
     // === MOBILE OPTIMIZATION: Throttled Photo Activation ===
