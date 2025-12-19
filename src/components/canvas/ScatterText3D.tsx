@@ -245,11 +245,12 @@ export const ScatterText3D: React.FC = () => {
     // Mobile config with fallback
     const mobileConfig = (CONFIG as any).mobile || { entranceDelay: 150, enableFontPrewarm: true };
 
-    // PHASE 1: Pre-warm font during tree phase (before explosion)
+    // PHASE 1: Pre-warm font during text phase (before morphing starts)
     // Mount text instances with opacity:0 to force font glyph texture upload
+    // This ensures SDF font textures are GPU-resident before the title→dust transition
     useEffect(() => {
         if (
-            landingPhase === 'tree' &&
+            (landingPhase === 'text' || landingPhase === 'tree') &&
             !isExploded &&
             userName &&
             mobileConfig.enableFontPrewarm &&
@@ -316,11 +317,11 @@ export const ScatterText3D: React.FC = () => {
     }, []);
 
     // Generate scatter instances - memoized to avoid regeneration
-    // Create during prewarm OR animation phase
+    // Stable random positions by only depending on userName
     const instances = useMemo(() => {
-        if ((!isPrewarmActive && !isAnimating) || !userName) return [];
+        if (!userName) return [];
         return generateScatterInstances3D(CONFIG.instanceCount, userName);
-    }, [isPrewarmActive, isAnimating, userName]);
+    }, [userName]);
 
     // Early exit if no username or no instances needed
     if (!userName || instances.length === 0) return null;

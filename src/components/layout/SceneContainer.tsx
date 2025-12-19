@@ -303,10 +303,10 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         </React.Suspense>
                     )}
 
-                    {/* 3D Scattered Text - Pre-mounted from morphing phase for font warmup
-                        Mobile Optimization: Font glyphs are loaded and GPU-uploaded during morphing phase (opacity:0)
-                        so they're ready when explosion triggers, preventing black screen flicker */}
-                    {(landingPhase === 'morphing' || landingPhase === 'tree') && (
+                    {/* 3D Scattered Text - Pre-mounted from text phase for font warmup
+                        Mobile Optimization: Font glyphs are loaded and GPU-uploaded during text phase (opacity:0)
+                        so they're ready when morphing triggers, preventing jank during title→dust transition */}
+                    {(landingPhase === 'text' || landingPhase === 'morphing' || landingPhase === 'tree') && (
                         <ScatterText3D />
                     )}
 

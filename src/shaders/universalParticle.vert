@@ -195,29 +195,23 @@ vec3 calculateStaticSpiralPosition(float t, float time, float randomSeed) {
     );
 }
 
-// === SCATTERED POSITION CALCULATION ===
-vec3 calculateScatteredPosition(vec3 textPos, float time) {
-    // Calculate scatter offset using noise
-    vec3 noiseInput = textPos * uDisperseNoiseScale;
-    vec3 noiseOffset = vec3(
-        snoise(noiseInput),
-        snoise(noiseInput + 100.0),
-        snoise(noiseInput + 200.0)
-    );
-    
-    // Scatter components: outward + upward + noise drift
-    vec3 outward = normalize(vec3(textPos.x, 0.0, textPos.z) + vec3(0.001)) * 5.0;
-    vec3 upward = vec3(0.0, uDisperseUpForce, 0.0);
-    vec3 drift = noiseOffset * uDisperseDriftAmp;
-    
-    return textPos + outward + upward + drift;
-}
-
 void main() {
     vec3 finalPos;
     float alpha = 1.0;
     float size = uBaseSize;
     vec3 color = uTextColor;
+
+    // === PRE-COMPUTE NOISE FOR DISPERSE/DRIFT PHASES ===
+    // Only compute once, reuse in both phases to reduce GPU load
+    vec3 noiseOffset = vec3(0.0);
+    if (uPhase == PH_DISPERSING || uPhase == PH_DRIFTING) {
+        vec3 noiseInput = aPositionText * uDisperseNoiseScale + uTime * 0.5;
+        noiseOffset = vec3(
+            snoise(noiseInput),
+            snoise(noiseInput + 100.0),
+            snoise(noiseInput + 200.0)
+        );
+    }
 
     // === PHASE 0: FORMING ===
     // Particles converge from random positions to text positions
@@ -254,15 +248,7 @@ void main() {
     else if (uPhase == PH_DISPERSING) {
         float progress = easeInOutCubic(uProgress);
         
-        // Calculate scatter direction with time-based noise
-        vec3 noiseInput = aPositionText * uDisperseNoiseScale + uTime * 0.5;
-        vec3 noiseOffset = vec3(
-            snoise(noiseInput),
-            snoise(noiseInput + 100.0),
-            snoise(noiseInput + 200.0)
-        );
-        
-        // Scatter offset: outward + upward + noise drift
+        // Use pre-computed noiseOffset
         vec3 outward = normalize(vec3(aPositionText.x, 0.0, aPositionText.z) + vec3(0.001)) * 5.0;
         vec3 upward = vec3(0.0, uDisperseUpForce, 0.0);
         vec3 drift = noiseOffset * uDisperseDriftAmp;
@@ -280,8 +266,11 @@ void main() {
     // === PHASE 3: DRIFTING ===
     // Particles hold scattered position with subtle organic drift, waiting for tree
     else if (uPhase == PH_DRIFTING) {
-        // Base scattered position (same as end of disperse phase)
-        vec3 scatteredPos = calculateScatteredPosition(aPositionText, uTime);
+        // Use pre-computed noiseOffset for scatter base
+        vec3 outward = normalize(vec3(aPositionText.x, 0.0, aPositionText.z) + vec3(0.001)) * 5.0;
+        vec3 upward = vec3(0.0, uDisperseUpForce, 0.0);
+        vec3 drift = noiseOffset * uDisperseDriftAmp;
+        vec3 scatteredPos = aPositionText + outward + upward + drift;
         
         // Add gentle floating motion while waiting
         float floatPhase = uTime * 0.5 + aRandom * 6.28;

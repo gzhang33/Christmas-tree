@@ -345,7 +345,8 @@ export function useUniversalParticleSystem({
     const usernameY = getResponsiveValue(config.layout.usernameY);
 
     // NEW: Adaptive World Width - cap text width to 85% of physical viewport to prevent clipping on thin screens
-    const worldWidth = Math.min(baseWorldWidth, viewport.width * 0.85);
+    // Added rounding to stabilize memoization against minor viewport jitter
+    const worldWidth = Math.round(Math.min(baseWorldWidth, viewport.width * 0.85) * 10) / 10;
 
     const attributes = useMemo(() => {
         const fontFamily = config.typography.titleFont;

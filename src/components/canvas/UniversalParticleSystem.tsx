@@ -117,22 +117,84 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [sparkleTexture, baseSize, config]);
 
+    // Track pending color update for deferred application after critical phases
+    const pendingColorRef = useRef<string | null>(null);
+
     // Update particle colors when magicDustColor changes
-    // This updates both the uniform and the buffer attribute for immediate visual feedback
+    // Uses requestIdleCallback to defer heavy buffer updates during critical animation phases
     useEffect(() => {
+        // Always update uniform immediately (cheap GPU operation)
         if (materialRef.current) {
             materialRef.current.uniforms.uDustColor.value = new THREE.Color(magicDustColor);
         }
 
-        // Also update the aColor buffer attribute for particles
-        if (geometryRef.current) {
+        // Defer buffer attribute update to avoid blocking during title→dust transition
+        const updateColorBuffer = () => {
+            if (!geometryRef.current) return;
+
             const colorAttribute = geometryRef.current.getAttribute('aColor') as THREE.BufferAttribute;
+            if (!colorAttribute) return;
 
-            if (colorAttribute) {
+            const colorsArray = colorAttribute.array as Float32Array;
+
+            // Regenerate color variations from new color
+            const baseColor = new THREE.Color(magicDustColor);
+            const hsl = { h: 0, s: 0, l: 0 };
+            baseColor.getHSL(hsl);
+
+            const newColors = [
+                new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 0.8, 1), Math.min(hsl.l + 0.2, 0.95)),
+                baseColor.clone(),
+                new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)),
+            ];
+
+            // Update each particle's color with weighted distribution
+            const particleCount = colorsArray.length / 3;
+            for (let i = 0; i < particleCount; i++) {
+                const colorChoice = Math.random();
+                let c: THREE.Color;
+                if (colorChoice < 0.3) c = newColors[0];
+                else if (colorChoice < 0.7) c = newColors[1];
+                else c = newColors[2];
+
+                colorsArray[i * 3] = c.r;
+                colorsArray[i * 3 + 1] = c.g;
+                colorsArray[i * 3 + 2] = c.b;
+            }
+
+            // Mark buffer for GPU update
+            colorAttribute.needsUpdate = true;
+            pendingColorRef.current = null;
+        };
+
+        // Critical phases: forming (0) and reforming (4) - defer updates
+        const currentPhase = currentPhaseRef.current;
+        if (currentPhase === 0 || currentPhase === 4) {
+            // Queue for later - uniform update provides visual continuity
+            pendingColorRef.current = magicDustColor;
+            return;
+        } else if (typeof requestIdleCallback !== 'undefined') {
+            const handle = requestIdleCallback(updateColorBuffer, { timeout: 100 });
+            return () => cancelIdleCallback(handle);
+        } else {
+            // Fallback: use setTimeout with short delay
+            const handle = setTimeout(updateColorBuffer, 16);
+            return () => clearTimeout(handle);
+        }
+    }, [magicDustColor]);
+
+    // Apply pending color update when exiting critical phases
+    useEffect(() => {
+        if (pendingColorRef.current && textParticlePhase === 'dust') {
+            // Phase transitioned to dust loop, apply queued color update
+            const updateColorBuffer = () => {
+                if (!geometryRef.current || !pendingColorRef.current) return;
+
+                const colorAttribute = geometryRef.current.getAttribute('aColor') as THREE.BufferAttribute;
+                if (!colorAttribute) return;
+
                 const colorsArray = colorAttribute.array as Float32Array;
-
-                // Regenerate color variations from new color
-                const baseColor = new THREE.Color(magicDustColor);
+                const baseColor = new THREE.Color(pendingColorRef.current);
                 const hsl = { h: 0, s: 0, l: 0 };
                 baseColor.getHSL(hsl);
 
@@ -142,7 +204,6 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
                     new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)),
                 ];
 
-                // Update each particle's color with weighted distribution
                 const particleCount = colorsArray.length / 3;
                 for (let i = 0; i < particleCount; i++) {
                     const colorChoice = Math.random();
@@ -156,11 +217,17 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
                     colorsArray[i * 3 + 2] = c.b;
                 }
 
-                // Mark buffer for GPU update
                 colorAttribute.needsUpdate = true;
+                pendingColorRef.current = null;
+            };
+
+            if (typeof requestIdleCallback !== 'undefined') {
+                requestIdleCallback(updateColorBuffer, { timeout: 50 });
+            } else {
+                setTimeout(updateColorBuffer, 16);
             }
         }
-    }, [magicDustColor]);
+    }, [textParticlePhase]);
 
     // Phase transition handler
     const transitionToPhase = useCallback((newPhase: number, time: number) => {
@@ -251,14 +318,12 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
                 break;
         }
 
-        // Update uniforms
+        // Update uniforms (GPU-only, no React state involved)
         if (materialRef.current) {
             materialRef.current.uniforms.uTime.value = time;
             materialRef.current.uniforms.uPhase.value = currentPhase;
             materialRef.current.uniforms.uProgress.value = progress;
         }
-
-        setTextParticleProgress(progress);
     });
 
     // Don't render if phase is hidden or still in input phase (preloading only)
@@ -267,7 +332,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
     }
 
     return (
-        <points key={attributes.count} raycast={() => null}>
+        <points raycast={() => null}>
             <bufferGeometry ref={geometryRef}>
                 {/* Position (dummy for Three.js, actual position calculated in shader) */}
                 <bufferAttribute
