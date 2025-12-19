@@ -112,9 +112,9 @@ const calculateControlPoint = (
 };
 
 // Size coefficients per ornament type
-const SIZE_COEFFICIENTS = ORNAMENT_CONFIG.sizeCoefficients;
+const SIZE_COEFFICIENTS = ORNAMENT_CONFIG.sizeCoefficients || {};
 
-const ORNAMENT_IMAGE_MAP = ORNAMENT_CONFIG.imageMap;
+const ORNAMENT_IMAGE_MAP = ORNAMENT_CONFIG.imageMap || {};
 
 
 
@@ -166,6 +166,7 @@ const createParticleShaderMaterial = (
       uShrinkAmount: { value: PARTICLE_CONFIG.dissipation.shrinkAmount },
       uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
       uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
+      uExplosionFlash: { value: 0.0 }, // Burst of light during explosion
     },
     transparent: true,
     depthWrite: false,
@@ -629,7 +630,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionEnd[i * 3 + 2] = endPos[2];
 
       // Calculate control point for Bezier curve
-      const ctrlPt = calculateControlPoint(startPos, endPos);
+      const individualForce = 5.0 + Math.random() * 10.0;
+      const ctrlPt = calculateControlPoint(startPos, endPos, individualForce);
       controlPoints[i * 3] = ctrlPt[0];
       controlPoints[i * 3 + 1] = ctrlPt[1];
       controlPoints[i * 3 + 2] = ctrlPt[2];
@@ -1022,7 +1024,8 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       positionEnd[i * 3 + 2] = endPos[2];
 
       // Control point for Bezier curve
-      const ctrlPt = calculateControlPoint(startPos, endPos);
+      const individualForceBase = 3.0 + Math.random() * 7.0; // Base particles move less
+      const ctrlPt = calculateControlPoint(startPos, endPos, individualForceBase);
       controlPoints[i * 3] = ctrlPt[0];
       controlPoints[i * 3 + 1] = ctrlPt[1];
       controlPoints[i * 3 + 2] = ctrlPt[2];
@@ -1154,6 +1157,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             uShrinkAmount: { value: PARTICLE_CONFIG.dissipation.shrinkAmount },
             uFadeStart: { value: PARTICLE_CONFIG.dissipation.fadeStart },
             uFadeEnd: { value: PARTICLE_CONFIG.dissipation.fadeEnd },
+            uExplosionFlash: { value: 0.0 },
           },
           transparent: true,
           depthWrite: false,
@@ -1435,6 +1439,16 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       materials.forEach((mat) => {
         if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
           mat.uniforms.uProgress.value = progressRef.current;
+
+          // Calculate explosion flash intensity
+          // Burst Peaks around progress 0.1-0.2 and fades
+          if (isExploded) {
+            const flashProgress = progressRef.current;
+            const flashIntensity = Math.max(0, 1.0 - flashProgress * 2.5); // Fast fade
+            mat.uniforms.uExplosionFlash.value = flashIntensity;
+          } else {
+            mat.uniforms.uExplosionFlash.value = 0.0;
+          }
         }
       });
     }

@@ -24,40 +24,50 @@ const CONFIG = SCATTER_CONFIG.threeDimensional;
 
 interface ScatterTextInstance3D {
     id: number;
+    text: string;
     position: [number, number, number];
     targetPosition: [number, number, number];
-    rotation: [number, number, number];
     fontSize: number;
     color: string;
     delay: number;
 }
 
 /**
- * Generate random 3D scatter positions with good distribution
+ * Blessing messages for variety
  */
-function generateScatterInstances3D(count: number): ScatterTextInstance3D[] {
+const getBlessing = (userName: string, index: number) => {
+    const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    const blessings = [
+        `Merry Christmas, ${capitalizedName}!`,
+        `圣诞快乐❄, ${capitalizedName}!`,
+        "Wishes Come True",
+        `心愿成真`,
+        `Always with you, ${capitalizedName}`,
+        `一直有你, ${capitalizedName}`,
+    ];
+    return blessings[index % blessings.length];
+};
+
+/**
+ * Generate random 3D scatter positions with radial distribution
+ */
+function generateScatterInstances3D(count: number, userName: string): ScatterTextInstance3D[] {
     const instances: ScatterTextInstance3D[] = [];
     const { positionRange, font, colors, animation } = CONFIG;
 
     for (let i = 0; i < count; i++) {
-        // Distribute in a 3x3 grid pattern with randomness
-        const gridX = (i % 3) / 3;
-        const gridY = Math.floor(i / 3) / 3;
+        // Use radial distribution so text is visible from any camera angle
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        const radius = 18 + Math.random() * 12; // Radius between 18 and 30
 
-        // Random offset from grid
-        const randomOffsetX = (Math.random() - 0.5) * 0.3;
-        const randomOffsetY = (Math.random() - 0.5) * 0.3;
-        const randomOffsetZ = (Math.random() - 0.5);
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const y = positionRange.yMin + Math.random() * (positionRange.yMax - positionRange.yMin);
 
-        // Calculate world position
-        const x = positionRange.xMin + (gridX + randomOffsetX + 0.15) * (positionRange.xMax - positionRange.xMin);
-        const y = positionRange.yMin + (gridY + randomOffsetY + 0.15) * (positionRange.yMax - positionRange.yMin);
-        const z = positionRange.zMin + randomOffsetZ * (positionRange.zMax - positionRange.zMin);
-
-        // Start position (slightly inward for animation)
-        const startX = x * 0.3;
-        const startY = y * 0.8;
-        const startZ = z * 0.3;
+        // Start position (exploding from center)
+        const startX = x * 0.1;
+        const startY = y * 0.5;
+        const startZ = z * 0.1;
 
         // Random font size
         const fontSize = font.size + (Math.random() - 0.5) * font.sizeVariance;
@@ -65,15 +75,11 @@ function generateScatterInstances3D(count: number): ScatterTextInstance3D[] {
         // Random color
         const color = colors[Math.floor(Math.random() * colors.length)];
 
-        // Random rotation (facing camera with slight tilt)
-        const rotationY = (Math.random() - 0.5) * 0.3;
-        const rotationZ = (Math.random() - 0.5) * 0.2;
-
         instances.push({
             id: i,
+            text: getBlessing(userName, i),
             position: [startX, startY, startZ],
             targetPosition: [x, y, z],
-            rotation: [0, rotationY, rotationZ],
             fontSize,
             color,
             delay: i * animation.staggerDelay,
@@ -85,21 +91,19 @@ function generateScatterInstances3D(count: number): ScatterTextInstance3D[] {
 
 interface TextInstance3DProps {
     instance: ScatterTextInstance3D;
-    text: string;
     isVisible: boolean;
     startTime: number;
 }
 
 /**
- * Individual 3D text instance with animation
+ * Individual 3D text instance with animation and billboarding
  */
 const TextInstance3D: React.FC<TextInstance3DProps> = ({
     instance,
-    text,
     isVisible,
     startTime,
 }) => {
-    const meshRef = useRef<THREE.Mesh>(null);
+    const meshRef = useRef<THREE.Group>(null);
     const materialRef = useRef<THREE.MeshBasicMaterial>(null);
 
     // Animation state
@@ -114,6 +118,9 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
 
         const elapsed = state.clock.elapsedTime - startTime;
         const animState = animStateRef.current;
+
+        // Face camera (Billboarding)
+        meshRef.current.quaternion.copy(state.camera.quaternion);
 
         // Wait for stagger delay
         if (elapsed < instance.delay) {
@@ -166,24 +173,24 @@ const TextInstance3D: React.FC<TextInstance3DProps> = ({
     });
 
     return (
-        <Text
-            ref={meshRef}
-            font={CONFIG.font.url}
-            fontSize={instance.fontSize}
-            color={instance.color}
-            anchorX="center"
-            anchorY="middle"
-            rotation={instance.rotation}
-        >
-            {text}
-            <meshBasicMaterial
-                ref={materialRef}
-                transparent
-                opacity={0}
-                side={THREE.DoubleSide}
-                depthWrite={false}
-            />
-        </Text>
+        <group ref={meshRef}>
+            <Text
+                font={CONFIG.font.url}
+                fontSize={instance.fontSize}
+                color={instance.color}
+                anchorX="center"
+                anchorY="middle"
+            >
+                {instance.text}
+                <meshBasicMaterial
+                    ref={materialRef}
+                    transparent
+                    opacity={0}
+                    side={THREE.DoubleSide}
+                    depthWrite={false}
+                />
+            </Text>
+        </group>
     );
 };
 
@@ -231,16 +238,10 @@ export const ScatterText3D: React.FC = () => {
 
     // Generate scatter instances
     const instances = useMemo(() => {
-        if (!isVisible) return [];
-        return generateScatterInstances3D(CONFIG.instanceCount);
-    }, [isVisible]);
+        if (!isVisible || !userName) return [];
+        return generateScatterInstances3D(CONFIG.instanceCount, userName);
+    }, [isVisible, userName]);
 
-    // Build greeting text
-    const greetingText = useMemo(() => {
-        if (!userName) return 'Merry Christmas!';
-        const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
-        return `Merry Christmas, ${capitalizedName}!`;
-    }, [userName]);
 
     if (instances.length === 0 || !userName) return null;
 
@@ -250,7 +251,6 @@ export const ScatterText3D: React.FC = () => {
                 <TextInstance3D
                     key={instance.id}
                     instance={instance}
-                    text={greetingText}
                     isVisible={isVisible}
                     startTime={startTime}
                 />

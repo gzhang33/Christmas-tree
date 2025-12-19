@@ -19,6 +19,7 @@ const CONFIG = SCATTER_CONFIG.twoDimensional;
 
 interface ScatterTextInstance {
     id: number;
+    text: string;
     x: number;
     y: number;
     driftX: number;
@@ -30,9 +31,23 @@ interface ScatterTextInstance {
 }
 
 /**
+ * Blessing messages for variety
+ */
+const getBlessing = (userName: string, index: number) => {
+    const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    const blessings = [
+        `Merry Christmas, ${capitalizedName}!`,
+        `圣诞快乐❄, ${capitalizedName}!`,
+        "Wishes Come True",
+        `Always with you, ${capitalizedName}`
+    ];
+    return blessings[index % blessings.length];
+};
+
+/**
  * Generate random scatter positions ensuring good distribution
  */
-function generateScatterInstances(count: number): ScatterTextInstance[] {
+function generateScatterInstances(count: number, userName: string): ScatterTextInstance[] {
     const instances: ScatterTextInstance[] = [];
     const { positionRange, drift, font, colors, animation } = CONFIG;
 
@@ -63,6 +78,7 @@ function generateScatterInstances(count: number): ScatterTextInstance[] {
 
         instances.push({
             id: i,
+            text: getBlessing(userName, i),
             x: Math.max(positionRange.xMin, Math.min(positionRange.xMax, x)),
             y: Math.max(positionRange.yMin, Math.min(positionRange.yMax, y)),
             driftX,
@@ -90,16 +106,6 @@ export const MerryChristmasScatter: React.FC = () => {
     useEffect(() => {
         const prevMorphState = prevMorphStateRef.current;
 
-        // Debug log
-        console.log('[MerryChristmasScatter] State:', {
-            userName,
-            treeMorphState,
-            prevMorphState,
-            isExploded,
-            landingPhase,
-            isVisible
-        });
-
         // Trigger visibility when: explosion complete AND in tree phase AND is exploded
         if (
             prevMorphState === 'morphing-out' &&
@@ -107,7 +113,6 @@ export const MerryChristmasScatter: React.FC = () => {
             isExploded &&
             landingPhase === 'tree'
         ) {
-            console.log('[MerryChristmasScatter] Explosion complete, showing scatter text');
             setIsVisible(true);
         }
 
@@ -119,13 +124,11 @@ export const MerryChristmasScatter: React.FC = () => {
             !isVisible &&
             userName
         ) {
-            console.log('[MerryChristmasScatter] Already exploded, showing scatter text');
             setIsVisible(true);
         }
 
         // Hide when tree is reset (no longer exploded)
         if (!isExploded && isVisible) {
-            console.log('[MerryChristmasScatter] Tree reset, hiding scatter text');
             setIsVisible(false);
         }
 
@@ -134,16 +137,9 @@ export const MerryChristmasScatter: React.FC = () => {
 
     // Generate scatter instances
     const instances = useMemo(() => {
-        if (!isVisible) return [];
-        return generateScatterInstances(CONFIG.instanceCount);
-    }, [isVisible]);
-
-    // Build the greeting text
-    const greetingText = useMemo(() => {
-        if (!userName) return 'Merry Christmas!';
-        const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
-        return `Merry Christmas, ${capitalizedName}!`;
-    }, [userName]);
+        if (!isVisible || !userName) return [];
+        return generateScatterInstances(CONFIG.instanceCount, userName);
+    }, [isVisible, userName]);
 
     if (!isVisible || !userName) return null;
 
@@ -199,7 +195,7 @@ export const MerryChristmasScatter: React.FC = () => {
                             rotate: { duration: CONFIG.animation.floatDuration, ease: 'easeOut', delay: instance.delay },
                         }}
                     >
-                        {greetingText}
+                        {instance.text}
                     </motion.div>
                 ))}
             </AnimatePresence>

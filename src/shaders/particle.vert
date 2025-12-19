@@ -50,6 +50,7 @@ uniform float uGrowAmount;          // Size growth amount
 uniform float uShrinkAmount;        // Size shrink amount
 uniform float uFadeStart;           // Progress to start fading out
 uniform float uFadeEnd;             // Progress to be fully faded
+uniform float uExplosionFlash;      // Burst intensity
 
 // === ATTRIBUTES ===
 attribute vec3 positionStart;   // Tree shape position (P0)
@@ -119,7 +120,9 @@ void main() {
   if (shouldCoreLayerStay) {
     trigger = 0.0; // Core layer stays in place during explosion
   } else {
-    trigger = (uProgress * uProgressMultiplier) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
+    // Add individual speed variation (0.8 to 1.3)
+    float individualSpeed = 0.8 + aRandom * 0.5;
+    trigger = (uProgress * uProgressMultiplier * individualSpeed) - (erosionNoise * uNoiseInfluence + heightDelay * uHeightInfluence);
   }
   float localProgress = clamp(trigger, 0.0, 1.0);
   
@@ -255,7 +258,9 @@ void main() {
   vColor = aColor;
   vDepth = -mvPosition.z;
   vIsPhotoParticle = aIsPhotoParticle;
-  vFlash = 0.0; // No flash effect in dissipation animation
+  
+  // Dynamic Flash Effect
+  vFlash = uExplosionFlash * (1.0 - aRandom * 0.4) * (1.0 - localProgress);
   
   // === EARLY DISCARD ===
   // Optimization: If particle is fully transparent, move out of clip space

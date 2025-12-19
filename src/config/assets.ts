@@ -26,9 +26,10 @@ export const ASSET_CONFIG = {
    * Font assets
    */
   fonts: {
-    star: '/front/MerryChristmasStar-dJnR.ttf',
-    flake: '/front/MerryChristmasFlake-mJY9.ttf',
-    scatter: '/front/SairaStencilOne-Regular.ttf',
+    star: '/fonts/MerryChristmasStar-dJnR.ttf',
+    flake: '/fonts/MerryChristmasFlake-mJY9.ttf',
+    scatter: '/fonts/SairaStencilOne-Regular.ttf',
+    chinese: '/fonts/WDXLLubrifontSC-Regular.ttf',
   },
   /**
    * Placeholder images

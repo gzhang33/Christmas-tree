@@ -8,7 +8,7 @@ import { ASSET_CONFIG } from './assets';
 export const SCATTER_CONFIG = {
     // 2D DOM version (MerryChristmasScatter.tsx)
     twoDimensional: {
-        instanceCount: 9,
+        instanceCount: 18,
         // Random position range (percentage of viewport)
         positionRange: {
             xMin: 10,
@@ -18,7 +18,7 @@ export const SCATTER_CONFIG = {
         },
         // Animation timing
         animation: {
-            staggerDelay: 0.15,      // Delay between each text appearing
+            staggerDelay: 0.1,      // Delay between each text appearing
             fadeInDuration: 0.6,     // Duration of fade in
             floatDuration: 4.0,      // Duration of floating animation
         },
@@ -29,7 +29,7 @@ export const SCATTER_CONFIG = {
         },
         // Font settings
         font: {
-            family: "'Saira Stencil One', 'Great Vibes', serif",
+            family: "'WDXL Lubrifont SC', 'Saira Stencil One', 'Great Vibes', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif",
             sizeRange: [16, 28],
         },
         // Colors (gold/warm tones)
@@ -43,7 +43,7 @@ export const SCATTER_CONFIG = {
 
     // 3D Mesh version (ScatterText3D.tsx)
     threeDimensional: {
-        instanceCount: 6,
+        instanceCount: 15,
         // 3D position range (world units)
         positionRange: {
             xMin: -25,
@@ -55,7 +55,7 @@ export const SCATTER_CONFIG = {
         },
         // Animation timing (seconds)
         animation: {
-            staggerDelay: 0.12,
+            staggerDelay: 0.08,
             fadeInDuration: 0.8,
             driftSpeed: 0.3,
         },
@@ -63,7 +63,7 @@ export const SCATTER_CONFIG = {
         font: {
             size: 1.2,
             sizeVariance: 0.4,
-            url: ASSET_CONFIG.fonts.scatter,
+            url: ASSET_CONFIG.fonts.chinese,
         },
         // Colors (hex for Three.js)
         colors: [

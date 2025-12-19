@@ -149,9 +149,12 @@ export const CameraController: React.FC = () => {
             // Smooth easing function (ease-out cubic)
             const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-            // NEW: No rotation during explosion as requested. 
-            // Camera only pulls back (Zoom-out)
-            const currentTheta = explosionAnim.initialRotation;
+            // Interpolate azimuthal rotation (Theta)
+            const currentTheta = lerpAngle(
+                explosionAnim.initialRotation,
+                explosionAnim.targetRotation,
+                easedProgress
+            );
 
             // Interpolate camera radius (zoom out)
             const currentRadius = THREE.MathUtils.lerp(
@@ -164,7 +167,17 @@ export const CameraController: React.FC = () => {
             // Use the stored initialPhi to maintain the same pitch
             tempSpherical.set(currentRadius, explosionAnim.initialPhi, currentTheta);
             tempVec3.setFromSpherical(tempSpherical);
+
+            // Apply camera position
             state.camera.position.copy(tempVec3);
+
+            // Add cinematic shake early in the explosion (0.0 to 1.5s)
+            if (elapsed < 1.5) {
+                const shakePower = Math.max(0, 1.0 - elapsed / 1.5) * 0.15;
+                state.camera.position.x += (Math.random() - 0.5) * shakePower;
+                state.camera.position.y += (Math.random() - 0.5) * shakePower;
+                state.camera.position.z += (Math.random() - 0.5) * shakePower;
+            }
 
             // Keep camera looking at origin
             state.camera.lookAt(0, 0, 0);

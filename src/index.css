@@ -5,7 +5,7 @@
 /* Christmas Fonts */
 @font-face {
     font-family: 'Merry Christmas Star';
-    src: url('/front/MerryChristmasStar-dJnR.ttf') format('truetype');
+    src: url('/fonts/MerryChristmasStar-dJnR.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -13,7 +13,7 @@
 
 @font-face {
     font-family: 'Merry Christmas Flake';
-    src: url('/front/MerryChristmasFlake-mJY9.ttf') format('truetype');
+    src: url('/fonts/MerryChristmasFlake-mJY9.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -21,7 +21,15 @@
 
 @font-face {
     font-family: 'Saira Stencil One';
-    src: url('/front/SairaStencilOne-Regular.ttf') format('truetype');
+    src: url('/fonts/SairaStencilOne-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'WDXL Lubrifont SC';
+    src: url('/fonts/WDXLLubrifontSC-Regular.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
