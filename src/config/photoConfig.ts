@@ -12,7 +12,7 @@ export const PHOTO_WALL_CONFIG = {
      * 从爆炸粒子中生成的照片数量
      */
     count: {
-        normal: 120,    // 桌面端照片数量
+        normal: 100,    // 桌面端照片数量
         compact: 18,    // 移动端大幅减少照片数量，防止爆炸时内存压力导致页面崩溃
     },
 
