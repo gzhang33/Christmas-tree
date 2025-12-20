@@ -7,7 +7,7 @@
  * Output: BufferGeometry attributes for positions, colors, random seeds, spiralT, etc.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { LANDING_CONFIG } from '../config/landing';
@@ -36,6 +36,7 @@ interface UniversalParticleSystemConfig {
 
 /**
  * Sample text pixels using OffscreenCanvas and generate particle positions
+ * PERF: Pre-allocates arrays and uses typed arrays directly to reduce memory churn
  */
 function generateTextParticles(
     text: string,
@@ -75,8 +76,10 @@ function generateTextParticles(
     const textHeight = fontSize * 1.2;
 
     // Resize canvas to fit text
-    canvas.width = Math.ceil(textWidth + 20);
-    canvas.height = Math.ceil(textHeight + 20);
+    const canvasWidth = Math.ceil(textWidth + 20);
+    const canvasHeight = Math.ceil(textHeight + 20);
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
 
     // Re-setup after resize
     ctx.font = `${fontSize}px ${fontFamily}`;
@@ -85,55 +88,67 @@ function generateTextParticles(
     ctx.fillStyle = 'white';
 
     // Draw text
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvasWidth / 2, canvasHeight / 2);
 
     // Sample pixels
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
     const pixels = imageData.data;
 
-    const particlePositions: number[] = [];
-    const particleSpiralT: number[] = [];
-    const particleRandoms: number[] = [];
-
-    // Sample at density intervals
-    for (let y = 0; y < canvas.height; y += density) {
-        for (let x = 0; x < canvas.width; x += density) {
-            const i = (y * canvas.width + x) * 4;
-            const alpha = pixels[i + 3];
-
-            if (alpha > 128) {
-                // Convert canvas coords to world coords
-                const worldX = ((x / canvas.width) - 0.5) * worldWidth;
-                const worldY = ((0.5 - y / canvas.height) * (worldWidth * canvas.height / canvas.width)) + yOffset;
-                const worldZ = 0;
-
-                particlePositions.push(worldX, worldY, worldZ);
-
-                // Assign random spiral T for reform phase (uniform distribution ensures even spiral coverage)
-                particleSpiralT.push(Math.random());
-                particleRandoms.push(Math.random());
+    // PERF: First pass - count particles
+    let particleCount = 0;
+    for (let y = 0; y < canvasHeight; y += density) {
+        for (let x = 0; x < canvasWidth; x += density) {
+            const i = (y * canvasWidth + x) * 4;
+            if (pixels[i + 3] > 128) {
+                particleCount++;
             }
         }
     }
 
-    const count = particlePositions.length / 3;
-    const types = new Float32Array(count).fill(1.0); // All text particles are type 1.0
+    // PERF: Pre-allocate typed arrays with exact size
+    const positions = new Float32Array(particleCount * 3);
+    const spiralT = new Float32Array(particleCount);
+    const randoms = new Float32Array(particleCount);
+
+    // Second pass - fill arrays
+    let idx = 0;
+    for (let y = 0; y < canvasHeight; y += density) {
+        for (let x = 0; x < canvasWidth; x += density) {
+            const i = (y * canvasWidth + x) * 4;
+            if (pixels[i + 3] > 128) {
+                // Convert canvas coords to world coords
+                const worldX = ((x / canvasWidth) - 0.5) * worldWidth;
+                const worldY = ((0.5 - y / canvasHeight) * (worldWidth * canvasHeight / canvasWidth)) + yOffset;
+
+                positions[idx * 3] = worldX;
+                positions[idx * 3 + 1] = worldY;
+                positions[idx * 3 + 2] = 0; // worldZ
+
+                spiralT[idx] = Math.random();
+                randoms[idx] = Math.random();
+                idx++;
+            }
+        }
+    }
+
+    const types = new Float32Array(particleCount).fill(1.0);
 
     return {
-        positions: new Float32Array(particlePositions),
-        spiralT: new Float32Array(particleSpiralT),
-        randoms: new Float32Array(particleRandoms),
-        colors: new Float32Array(count * 3), // Placeholder, will be filled with dust colors
-        sizes: new Float32Array(count),      // Placeholder, will be filled with sizes
-        flickerPhases: new Float32Array(count), // Placeholder
+        positions,
+        spiralT,
+        randoms,
+        colors: new Float32Array(particleCount * 3),
+        sizes: new Float32Array(particleCount),
+        flickerPhases: new Float32Array(particleCount),
         types,
-        count,
+        count: particleCount,
     };
 }
 
 /**
  * Generate particles for multi-line text (array of strings)
  * Each line is rendered vertically stacked with proper spacing
+ * PERF: Uses two-pass approach to pre-allocate arrays
  */
 function generateMultilineTextParticles(
     lines: string[],
@@ -157,10 +172,6 @@ function generateMultilineTextParticles(
         };
     }
 
-    const allPositions: number[] = [];
-    const allSpiralT: number[] = [];
-    const allRandoms: number[] = [];
-
     // 1. Measure all lines to find the widest one for consistent scaling
     const tempCanvas = new OffscreenCanvas(1024, 256);
     const tempCtx = tempCanvas.getContext('2d');
@@ -179,30 +190,19 @@ function generateMultilineTextParticles(
     const maxLineWidth = Math.max(...lineMetrics.map(m => m.width));
 
     // Calculate global scale: how many World Units per Pixel
-    // The widest line maps to 'worldWidth'
     const pixelToWorldScale = worldWidth / maxLineWidth;
-
-    // Calculate World Height for a single line (based on font size)
-    // We use the raw font height (fontSize * 1.2) converted to world units
-    // Note: lineMetrics.height includes padding, so we use fontSize * 1.2 for layout
     const worldLineHeight = (fontSize * 1.2) * pixelToWorldScale;
     const worldLineSpacing = worldLineHeight * lineSpacing;
-
-    // Calculate total height of the block in World Units
-    // (lines - 1) * spacing + last line height
     const totalWorldHeight = (lines.length - 1) * worldLineSpacing;
-
-    // Start Y (Top line center Y)
-    // Center the block around yOffset
-    // Top line Y = yOffset + half total height
-    // Actually, let's stack from top to bottom
     const topY = yOffset + (totalWorldHeight / 2);
 
-    // Generate particles
-    lineMetrics.forEach((metrics, lineIndex) => {
-        const lineText = metrics.text;
+    // PERF: Two-pass approach
+    // Pass 1: Count total particles across all lines
+    type LinePixelData = { pixels: Uint8ClampedArray; width: number; height: number; lineWorldWidth: number; lineWorldY: number };
+    const lineDataCache: LinePixelData[] = [];
+    let totalParticleCount = 0;
 
-        // Setup canvas for this specific line
+    lineMetrics.forEach((metrics, lineIndex) => {
         const canvas = new OffscreenCanvas(metrics.width, metrics.height);
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -211,58 +211,73 @@ function generateMultilineTextParticles(
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'white';
+        ctx.fillText(metrics.text, metrics.width / 2, metrics.height / 2);
 
-        ctx.fillText(lineText, canvas.width / 2, canvas.height / 2);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const pixels = imageData.data;
-
-        // Calculate this line's world Y position
-        // Index 0 is top
+        const imageData = ctx.getImageData(0, 0, metrics.width, metrics.height);
         const lineWorldY = topY - (lineIndex * worldLineSpacing);
+        const lineWorldWidth = metrics.width * pixelToWorldScale;
 
-        // Calculate this line's specific world width based on the global scale
-        // This ensures font size stays consistent across lines
-        const lineWorldWidth = metrics.width * pixelToWorldScale; // Incorrect logic if we map 0..1 to this
-        // Correct logic:
-        // x / canvas.width maps 0..1
-        // We want 1.0 in canvas width space to equal lineWorldWidth in world space
-        // So: ((x / width) - 0.5) * lineWorldWidth
+        // Count particles for this line
+        let lineCount = 0;
+        for (let y = 0; y < metrics.height; y += density) {
+            for (let x = 0; x < metrics.width; x += density) {
+                const i = (y * metrics.width + x) * 4;
+                if (imageData.data[i + 3] > 128) {
+                    lineCount++;
+                }
+            }
+        }
+        totalParticleCount += lineCount;
 
-        for (let y = 0; y < canvas.height; y += density) {
-            for (let x = 0; x < canvas.width; x += density) {
-                const i = (y * canvas.width + x) * 4;
+        lineDataCache.push({
+            pixels: imageData.data,
+            width: metrics.width,
+            height: metrics.height,
+            lineWorldWidth,
+            lineWorldY
+        });
+    });
+
+    // Pass 2: Pre-allocate and fill arrays
+    const positions = new Float32Array(totalParticleCount * 3);
+    const spiralT = new Float32Array(totalParticleCount);
+    const randoms = new Float32Array(totalParticleCount);
+
+    let idx = 0;
+    lineDataCache.forEach((lineData) => {
+        const { pixels, width, height, lineWorldWidth, lineWorldY } = lineData;
+
+        for (let y = 0; y < height; y += density) {
+            for (let x = 0; x < width; x += density) {
+                const i = (y * width + x) * 4;
                 if (pixels[i + 3] > 128) {
-                    // X: Standard mapping centered at 0
-                    const worldX = ((x / canvas.width) - 0.5) * lineWorldWidth;
-
-                    // Y: Relative to line center
-                    // (0.5 - y/h) gives range [0.5, -0.5] relative to center
-                    const localY = (0.5 - y / canvas.height) * (metrics.height * pixelToWorldScale);
-
+                    const worldX = ((x / width) - 0.5) * lineWorldWidth;
+                    const localY = (0.5 - y / height) * (height * pixelToWorldScale);
                     const worldY = lineWorldY + localY;
-                    const worldZ = 0;
 
-                    allPositions.push(worldX, worldY, worldZ);
-                    allSpiralT.push(Math.random());
-                    allRandoms.push(Math.random());
+                    positions[idx * 3] = worldX;
+                    positions[idx * 3 + 1] = worldY;
+                    positions[idx * 3 + 2] = 0;
+
+                    spiralT[idx] = Math.random();
+                    randoms[idx] = Math.random();
+                    idx++;
                 }
             }
         }
     });
 
-    const count = allPositions.length / 3;
-    const types = new Float32Array(count).fill(1.0); // All text particles are type 1.0
+    const types = new Float32Array(totalParticleCount).fill(1.0);
 
     return {
-        positions: new Float32Array(allPositions),
-        spiralT: new Float32Array(allSpiralT),
-        randoms: new Float32Array(allRandoms),
-        colors: new Float32Array(count * 3),
-        sizes: new Float32Array(count),
-        flickerPhases: new Float32Array(count),
+        positions,
+        spiralT,
+        randoms,
+        colors: new Float32Array(totalParticleCount * 3),
+        sizes: new Float32Array(totalParticleCount),
+        flickerPhases: new Float32Array(totalParticleCount),
         types,
-        count,
+        count: totalParticleCount,
     };
 }
 
@@ -344,9 +359,14 @@ export function useUniversalParticleSystem({
     const titleY = getResponsiveValue(config.layout.titleY);
     const usernameY = getResponsiveValue(config.layout.usernameY);
 
-    // NEW: Adaptive World Width - cap text width to 85% of physical viewport to prevent clipping on thin screens
-    // Added rounding to stabilize memoization against minor viewport jitter
-    const worldWidth = Math.round(Math.min(baseWorldWidth, viewport.width * 0.85) * 10) / 10;
+    // PERF FIX: Cache worldWidth on first render to prevent re-generation on minor viewport changes
+    // Mobile browsers toggle address bar visibility, causing frequent viewport.width fluctuations.
+    // Using useRef ensures particle generation is stable after initial mount.
+    const cachedWorldWidthRef = useRef<number>(-1);
+    if (cachedWorldWidthRef.current < 0 && viewport.width > 0) {
+        cachedWorldWidthRef.current = Math.round(Math.min(baseWorldWidth, viewport.width * 0.85) * 10) / 10;
+    }
+    const worldWidth = cachedWorldWidthRef.current > 0 ? cachedWorldWidthRef.current : baseWorldWidth;
 
     const attributes = useMemo(() => {
         const fontFamily = config.typography.titleFont;

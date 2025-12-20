@@ -105,30 +105,3 @@ src/
     VITE_CLOUDINARY_UPLOAD_PRESET=your_preset
     ```
 4.  **本地运行**: `npm run dev`
-
-## 可用脚本
-
-- `npm run dev` – 启动带热重载的 Vite 开发服务器。
-- `npm run build` – 在 `dist/` 生成优化后的生产构建。
-- `npm run preview` – 本地预览生产构建。
-
-│  │  ├─ canvas/             # 3D 场景组件（Experience、Snow、MagicDust、TreeParticles、PerformanceMonitor、PhotoCard）
-│  │  └─ ui/                 # UI 外壳与覆盖层（Controls、DebugStore、ErrorBoundary）
-│  ├─ shaders/               # 粒子与光效的 GLSL 着色器
-│  ├─ store/                 # Zustand 状态（useStore.ts）
-│  └─ types.ts               # 公用 TypeScript 类型
-├─ public/
-│  ├─ photos/                # 示例挂饰素材
-│  ├─ textures/              # 场景材质贴图
-│  └─ *JingleBells.mp3       # 内置音乐资源
-├─ docs/                     # 架构、UX 与冲刺文档
-├─ index.html                # Vite HTML 入口
-├─ index.tsx                 # React 入口
-├─ package.json
-└─ vite.config.ts
-```
-
-## 部署提示
-
-- 使用 `npm run build` 构建项目，并在任意静态主机上服务 `dist/` 目录。
-- 当前应用使用 `public/` 中的资源即可运行，不依赖外部密钥。若未来新增密钥，可放入 `.env.local` 并在部署平台配置对应的环境变量。

@@ -114,9 +114,17 @@ export const PhotoManagerOptimized: React.FC<PhotoManagerOptimizedProps> = ({ ph
 
             let hiddenThisFrame = 0;
 
+            // If everything is already hidden, skip the loop entirely to save CPU
+            if (hiddenDuringResetRef.current >= photos.length) {
+                return;
+            }
+
             for (const photo of photos) {
                 const group = photo.groupRef.current;
-                if (!group) continue;
+                if (!group) {
+                    hiddenDuringResetRef.current++; // Account for missing groups to eventually stop the loop
+                    continue;
+                }
 
                 // Already hidden, skip
                 if (!group.visible) continue;

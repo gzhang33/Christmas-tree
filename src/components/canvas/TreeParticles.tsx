@@ -133,6 +133,7 @@ const createParticleShaderMaterial = (
   texture: THREE.Texture | null,
   baseSize: number = 0.55,
   brightness: number = 1.0,
+  initialLandingPhase: string = 'text', // Added parameter
 ): THREE.ShaderMaterial => {
   return new THREE.ShaderMaterial({
     vertexShader: particleVertexShader,
@@ -156,7 +157,7 @@ const createParticleShaderMaterial = (
       // Dual-layer particle system uniforms
       uDissipateOnly: { value: PARTICLE_CONFIG.dissipation.dissipateOnly ? 1.0 : 0.0 },
       uCoreLayerRatio: { value: PARTICLE_CONFIG.dissipation.coreLayerRatio },
-      uIsEntrance: { value: 0.0 }, // Set dynamically based on landingPhase
+      uIsEntrance: { value: initialLandingPhase === 'morphing' ? 1.0 : 0.0 }, // Set dynamically
       // Dissipation animation uniforms (synchronized with MagicDust)
       uProgressMultiplier: { value: PARTICLE_CONFIG.dissipation.progressMultiplier },
       uNoiseInfluence: { value: PARTICLE_CONFIG.dissipation.noiseInfluence },
@@ -242,7 +243,7 @@ const DissolvingImage = ({
 };
 
 // === MAIN COMPONENT ===
-export const TreeParticles: React.FC<TreeParticlesProps> = ({
+const TreeParticlesComponent: React.FC<TreeParticlesProps> = ({
   isExploded,
   config,
   onParticlesClick,
@@ -1098,6 +1099,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         particleTexture,
         PARTICLE_CONFIG.rendering.entity.baseSize,
         PARTICLE_CONFIG.rendering.entity.brightness,
+        landingPhase, // Pass current phase
       );
       entityMaterialRef.current.depthWrite = true;
 
@@ -1112,6 +1114,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
         null,
         PARTICLE_CONFIG.rendering.treeBase.baseSize,
         1.0, // Default brightness for tree base
+        landingPhase, // Pass current phase
       );
       treeBaseMaterialRef.current.blending = THREE.AdditiveBlending;
 
@@ -1151,7 +1154,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             // Dual-layer particle system uniforms
             uDissipateOnly: { value: PARTICLE_CONFIG.dissipation.dissipateOnly ? 1.0 : 0.0 },
             uCoreLayerRatio: { value: PARTICLE_CONFIG.dissipation.coreLayerRatio },
-            uIsEntrance: { value: 0.0 }, // Set dynamically based on landingPhase
+            uIsEntrance: { value: landingPhase === 'morphing' ? 1.0 : 0.0 }, // CRITICAL FIX: Set correct initial value
             // Dissipation animation uniforms (synchronized with MagicDust)
             uProgressMultiplier: { value: PARTICLE_CONFIG.dissipation.progressMultiplier },
             uNoiseInfluence: { value: PARTICLE_CONFIG.dissipation.noiseInfluence },
@@ -1224,15 +1227,23 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     prevIsExplodedRef.current = isExploded;
   }, [isExploded]);
 
-  // === UPDATE TREE PARTICLE COUNT ===
+  // === UPDATE TREE PARTICLE COUNT (Optimized) ===
+  const lastUpdateParticleCountRef = useRef(-1);
   useEffect(() => {
+    // Only update store if count changed to avoid cascading re-renders
     const totalCount =
       entityLayerData.count +
       ornamentData.count +
       giftData.count +
       treeBaseData.count;
 
-    useStore.getState().setTreeParticleCount(totalCount);
+    if (lastUpdateParticleCountRef.current !== totalCount) {
+      lastUpdateParticleCountRef.current = totalCount;
+      // PERF: Defer state update to next tick to avoid blocking current frame
+      setTimeout(() => {
+        useStore.getState().setTreeParticleCount(totalCount);
+      }, 0);
+    }
   }, [
     entityLayerData.count,
     ornamentData.count,
@@ -1288,7 +1299,9 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
   ]);
 
   // Track previous phase to detect transitions
-  const prevPhaseRef = useRef(landingPhase);
+  // CRITICAL FIX: Initialize to empty to ensure first frame after mount 
+  // is always caught if it starts in a transition phase.
+  const prevPhaseRef = useRef<string>('');
 
   // Track animation completion to avoid re-triggering
   const animationCompletionFlags = useRef({
@@ -1297,19 +1310,62 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     resetComplete: false
   });
 
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    const delta = state.clock.getDelta();
+  // Frame skip counter for morphing-in optimization
+  const morphingInFrameSkipRef = useRef(0);
 
-    // === ENTRANCE ANIMATION: Detect phase change to 'morphing' ===
-    if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {
+  useFrame((state, delta) => {
+    const frameStartTime = performance.now();
+    const time = state.clock.elapsedTime;
+
+    // Group all particle materials for uniform updates
+    const materials = [
+      entityMaterialRef.current,
+      treeBaseMaterialRef.current,
+    ];
+
+    // === ENTRANCE ANIMATION: Detect phase change to 'morphing' FIRST ===
+    // CRITICAL: Check phase change BEFORE frame skipping to ensure progress is set correctly
+    const isPhaseJustChanged = landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing';
+    if (isPhaseJustChanged) {
       if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] Entrance animation started (morphing phase)');
-      progressRef.current = 0.61; // Start from exploded state
+      progressRef.current = 1.0; // Start from exploded state 
       targetProgressRef.current = 0.0; // Target is tree form
       animationCompletionFlags.current.entranceComplete = false;
+      morphingInFrameSkipRef.current = 0;
+
+      // CRITICAL FIX: Set BOTH uProgress and uIsEntrance IMMEDIATELY
+      materials.forEach((mat) => {
+        if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
+          mat.uniforms.uProgress.value = progressRef.current;
+          if (mat.uniforms.uIsEntrance) {
+            mat.uniforms.uIsEntrance.value = 1.0;
+          }
+          if (mat.uniforms.uGlobalAlpha) {
+            mat.uniforms.uGlobalAlpha.value = 1.0;
+          }
+        }
+      });
+
+      // SET STATE IMMEDIATELY - remove requestAnimationFrame delay which caused desync
       useStore.getState().setTreeMorphState('morphing-in');
+
+      prevPhaseRef.current = landingPhase;
+      // Note: We don't 'return' here anymore to allow the first frame to render normally
     }
     prevPhaseRef.current = landingPhase;
+
+
+    // PERFORMANCE: Optimized updates during morphing phase
+    // Removed aggressive frame skipping that caused judder. 
+    // Smooth frame updates are essential for a premium feel.
+    const isMorphingPhase = landingPhase === 'morphing';
+    const currentMorphStateEarly = useStore.getState().treeMorphState;
+    const isMorphingInState = currentMorphStateEarly === 'morphing-in' || currentMorphStateEarly === 'idle';
+    const isEarlyPhase = progressRef.current > 0.5;
+
+    morphingInFrameSkipRef.current = 0;
+
+
 
     // === DETERMINE TARGET PROGRESS ===
     // Only update target if NOT in entrance morphing phase (which sets its own target)
@@ -1332,12 +1388,28 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     // === INTERPOLATE PROGRESS ===
     const diff = targetProgressRef.current - progressRef.current;
 
-    // Performance Fix: Make interpolation frame-rate independent
-    // Original: progressRef.current += diff * dampingSpeed;
-    // New: Use exponential decay with delta
-    // Using a base adjustment to keep desktop feeling similar (dampingSpeed * 60)
-    const lerpFactor = 1 - Math.exp(-dampingSpeed * 60 * delta);
-    progressRef.current += diff * Math.min(lerpFactor, 1.0);
+    // SMOOTH ANIMATION FIX: Use frame-rate independent interpolation with delta clamping
+    // CRITICAL: Clamp delta to prevent large jumps when frames are skipped or delta is unstable
+    // This ensures smooth progress even when frame rate drops or frames are skipped
+    const clampedDelta = Math.min(delta, 0.033); // Clamp to ~30fps max (33ms per frame)
+
+    // Use exponential decay for smooth easing
+    // Formula: lerpFactor = 1 - exp(-dampingSpeed * 60 * delta)
+    // This creates a smooth ease-out curve that's frame-rate independent
+    const baseLerpFactor = 1 - Math.exp(-dampingSpeed * 60 * clampedDelta);
+
+    // Additional smoothing: Apply ease-out cubic for even smoother animation
+    // This prevents sudden jumps and creates a more natural deceleration
+    const easedLerpFactor = 1 - Math.pow(1 - baseLerpFactor, 3);
+
+    // Apply interpolation with maximum change limit to prevent jumps
+    const maxChangePerFrame = 0.15; // Limit maximum change per frame to 15%
+    const rawChange = diff * Math.min(easedLerpFactor, 1.0);
+    const clampedChange = Math.max(-maxChangePerFrame, Math.min(maxChangePerFrame, rawChange));
+    progressRef.current += clampedChange;
+
+    // Clamp progress to valid range [0, 1]
+    progressRef.current = Math.max(0, Math.min(1, progressRef.current));
 
     // === CHECK ANIMATION COMPLETION ===
     // Use relaxed thresholds and OR logic for faster detection
@@ -1428,22 +1500,20 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     if (entityMaterialRef.current) entityMaterialRef.current.uniforms.uGlobalAlpha.value = newAlpha;
     if (treeBaseMaterialRef.current) treeBaseMaterialRef.current.uniforms.uGlobalAlpha.value = newAlpha;
 
-    // Update progress in store for debug monitoring (throttled for performance)
+    // Update progress in store for debug monitoring (using fine-grained updates for smooth bloom/DPR transitions)
     const currentProgress = progressRef.current;
-    if (Math.abs(useStore.getState().treeProgress - currentProgress) > 0.01) {
+    if (Math.abs(useStore.getState().treeProgress - currentProgress) > 0.001) {
       useStore.getState().setTreeProgress(currentProgress);
     }
 
     // Update all shader materials with new uniform values
-    const materials = [
-      entityMaterialRef.current,
-      treeBaseMaterialRef.current,
-    ];
-
-    // Mobile optimization: Skip non-critical updates during explosion peak
+    // Performance optimization: Skip non-critical updates during morphing animations
     const isMobile = isMobileViewport(viewport.width);
     const explosionJustStarted = isExploded && currentMorphState === 'morphing-out' && progressRef.current < 0.3;
-    const shouldSkipUpdates = isMobile && explosionJustStarted;
+    // CRITICAL FIX: Also optimize during morphing-in entrance animation initial phase
+    // Don't wait for treeMorphState to be set - check landingPhase directly
+    const entranceJustStarted = landingPhase === 'morphing' && progressRef.current > 0.5;
+    const shouldSkipUpdates = (isMobile && explosionJustStarted) || entranceJustStarted;
 
     if (!shouldSkipUpdates) {
       materials.forEach((mat) => {
@@ -1466,6 +1536,15 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
       materials.forEach((mat) => {
         if (mat && mat instanceof THREE.ShaderMaterial && mat.uniforms) {
           mat.uniforms.uProgress.value = progressRef.current;
+
+          // CRITICAL FIX: Still update uTime even during skip to maintain organic movement
+          mat.uniforms.uTime.value = time;
+
+          // CRITICAL FIX: Also update uIsEntrance during entrance phase even when skipping updates
+          // This ensures core layer particles animate correctly during entrance
+          if (mat.uniforms.uIsEntrance) {
+            mat.uniforms.uIsEntrance.value = landingPhase === 'morphing' ? 1.0 : 0.0;
+          }
 
           // Calculate explosion flash intensity
           // Burst Peaks around progress 0.1-0.2 and fades
@@ -1731,7 +1810,7 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log('[TreeParticles] GPU texture warmup complete');
           }}
           enabled={true}
-          startDelay={landingPhase === 'morphing' ? 200 : 500} // Start faster during morphing
+          startDelay={landingPhase === 'morphing' ? 1000 : 500} // INCREASED DELAY to avoid animation peak
         />
       )}
 
@@ -1744,3 +1823,5 @@ export const TreeParticles: React.FC<TreeParticlesProps> = ({
     </group>
   );
 };
+
+export const TreeParticles = React.memo(TreeParticlesComponent);

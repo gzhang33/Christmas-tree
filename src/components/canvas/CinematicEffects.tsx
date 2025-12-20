@@ -57,10 +57,14 @@ export const CinematicEffects: React.FC = () => {
     // Dynamic bloom intensity reduction during explosion peak (mobile only)
     const treeMorphState = useStore((state) => state.treeMorphState);
     const treeProgress = useStore((state) => state.treeProgress);
+    const landingPhase = useStore((state) => state.landingPhase);
 
     // CRITICAL FIX: Instead of unmounting EffectComposer, we only disable heavy passes.
     // This prevents the "black screen" flash caused by GPU re-initializing the composer.
     const isExplosionPeak = isMobile && isExploded && treeMorphState === 'morphing-out' && treeProgress < 0.7;
+    
+    // PERFORMANCE: Reduce post-processing during morphing-in early phase to reduce GPU load
+    const isMorphingInEarly = landingPhase === 'morphing' && treeMorphState === 'morphing-in' && treeProgress > 0.5;
 
     const primaryBloomRef = useRef<any>(null);
     const secondaryBloomRef = useRef<any>(null);
@@ -68,7 +72,8 @@ export const CinematicEffects: React.FC = () => {
     // Use a ref to smoothly transition intensity to avoid desktop frame drops from sudden multiplier changes
     const intensityFactorRef = useRef(1.0);
     useFrame((_, delta) => {
-        const target = isExplosionPeak ? 0.0 : 1.0;
+        // PERFORMANCE: Reduce bloom intensity during morphing-in early phase (all devices)
+        const target = isExplosionPeak ? 0.0 : (isMorphingInEarly ? 0.3 : 1.0); // Reduce to 30% during morphing-in
         intensityFactorRef.current = THREE.MathUtils.lerp(intensityFactorRef.current, target, Math.min(delta * 10, 1));
 
         // CRITICAL FIX: Direct mutation of bloom intensity to ensure frame-accurate updates

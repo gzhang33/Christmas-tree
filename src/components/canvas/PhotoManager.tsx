@@ -12,6 +12,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { HOVER_CONFIG } from '../../config/interactions';
+import { PHOTO_WALL_CONFIG } from '../../config/photoConfig';
 import { useStore } from '../../store/useStore';
 import { getGyroscopeTilt } from '../../hooks/useGyroscope';
 
@@ -270,7 +271,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                     anim.startTime = time;
                 }
 
-                const delay = photo.morphIndex * 0.05;
+                const delay = photo.morphIndex * (PHOTO_WALL_CONFIG.morphTiming.staggerDelay || 0.06);
                 const startTime = anim.startTime + delay;
                 const elapsed = time - startTime;
 
@@ -294,7 +295,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({ photos, isExploded }
                 // Synchronized arrival logic
                 const minTransitTime = 0.8;
                 const ejectionDuration = 0.6;
-                const lastPhotoDelay = (photo.totalPhotos - 1) * 0.05;
+                const lastPhotoDelay = (photo.totalPhotos - 1) * (PHOTO_WALL_CONFIG.morphTiming.staggerDelay || 0.06);
                 const globalArrivalTime = lastPhotoDelay + ejectionDuration + minTransitTime;
 
                 const myTotalDuration = globalArrivalTime - delay;

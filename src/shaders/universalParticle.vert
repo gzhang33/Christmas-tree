@@ -309,8 +309,11 @@ void main() {
         float startAlpha = aIsText; 
         alpha = mix(startAlpha, 1.0, smoothstep(0.0, 0.3, progress));
         
-        // Smooth color transition from text to dust color
-        color = mix(uTextColor, aColor, smoothstep(0.0, 1.0, progress));
+        // GPU-driven color: use uDustColor with aRandom-based variance
+        // This replaces the previous aColor attribute approach for dynamic color switching
+        float colorVariance = aRandom * 0.4 - 0.2; // Range: -0.2 to +0.2
+        vec3 dustColorWithVariance = uDustColor + vec3(colorVariance * 0.3, colorVariance * 0.1, colorVariance * 0.2);
+        color = mix(uTextColor, dustColorWithVariance, smoothstep(0.0, 1.0, progress));
         
         // Size transition
         size = mix(uBaseSize, aSize, progress);
@@ -325,8 +328,11 @@ void main() {
         float flickerFreq = uDustFlickerFreq + mod(aFlickerPhase, 2.0);
         float flicker = 0.8 + sin(uTime * flickerFreq + aFlickerPhase) * 0.2;
         
-        // Use per-particle color and size
-        color = aColor * (1.0 + flicker * 0.3);
+        // GPU-driven color: use uDustColor with aRandom-based variance
+        // This enables dynamic color switching via uniform without CPU buffer updates
+        float colorVariance = aRandom * 0.4 - 0.2; // Range: -0.2 to +0.2
+        vec3 dustColorWithVariance = uDustColor + vec3(colorVariance * 0.3, colorVariance * 0.1, colorVariance * 0.2);
+        color = dustColorWithVariance * (1.0 + flicker * 0.3);
         size = aSize;
         
         // Fade edges based on spiral position
