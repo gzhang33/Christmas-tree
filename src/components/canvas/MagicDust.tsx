@@ -267,9 +267,30 @@ export const MagicDust: React.FC<MagicDustProps> = ({ count }) => {
   // Track previous phase to detect transitions
   const prevPhaseRef = useRef(landingPhase);
 
+  // Frame skip counter for morphing-in optimization
+  const morphingInFrameSkipRef = useRef(0);
+
   // Animation Loop - STRICTLY SYNCED with TreeParticles
   useFrame((state) => {
     const delta = state.clock.getDelta(); // Although we don't use delta for damping yet (per original design), we might need it later.
+
+    // PERFORMANCE: Skip frames during morphing-in early phase to reduce GPU load
+    const currentMorphState = useStore.getState().treeMorphState;
+    const isMorphingInEarly = landingPhase === 'morphing' && currentMorphState === 'morphing-in' && progressRef.current > 0.5;
+    
+    if (isMorphingInEarly) {
+      morphingInFrameSkipRef.current++;
+      // Skip 2 out of 3 frames (same as TreeParticles) during early morphing-in phase
+      if (morphingInFrameSkipRef.current % 3 !== 0) {
+        // Still update progress to maintain animation continuity, but skip GPU uniform updates
+        const diff = targetProgressRef.current - progressRef.current;
+        const dampingSpeed = PARTICLE_CONFIG.animation.dampingSpeedEntrance;
+        progressRef.current += diff * dampingSpeed;
+        return; // Skip uniform updates to avoid GPU work
+      }
+    } else {
+      morphingInFrameSkipRef.current = 0; // Reset when not in early morphing-in phase
+    }
 
     // Detect phase change to 'morphing' and reset progress instantly
     if (landingPhase === 'morphing' && prevPhaseRef.current !== 'morphing') {

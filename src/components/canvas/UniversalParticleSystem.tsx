@@ -39,10 +39,12 @@ const PHASE_NUMBERS: Record<string, number> = {
     hidden: -1, // Special case: not rendered
 };
 
-export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemProps> = ({
+// PERFORMANCE: Wrap component in React.memo to prevent unnecessary re-renders
+// during phase transitions
+export const UniversalParticleSystemComponent = React.memo(({
     title = 'Merry Christmas',
     username = 'Friend',
-}) => {
+}: UniversalParticleSystemProps) => {
     const materialRef = useRef<THREE.ShaderMaterial>(null);
     const geometryRef = useRef<THREE.BufferGeometry>(null);
     const sparkleTexture = useTexture('/textures/star_07.png');
@@ -61,6 +63,7 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
     const phaseStartTimeRef = useRef(0);
     const morphStartTimeRef = useRef(0);
     const currentPhaseRef = useRef<number>(0);
+    const prevLandingPhaseRef = useRef(landingPhase); // Track phase changes
 
     // Responsive config using standardized detection
     const config = LANDING_CONFIG.textParticle;
@@ -117,119 +120,18 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [sparkleTexture, baseSize, config]);
 
-    // Track pending color update for deferred application after critical phases
-    const pendingColorRef = useRef<string | null>(null);
-
-    // Update particle colors when magicDustColor changes
-    // Uses requestIdleCallback to defer heavy buffer updates during critical animation phases
+    // PERF FIX: Color changes are now GPU-only via uDustColor uniform.
+    // Removed expensive CPU buffer updates that iterated over all particles.
+    // The shader uses aRandom attribute for per-particle color variance.
     useEffect(() => {
-        // Always update uniform immediately (cheap GPU operation)
         if (materialRef.current) {
             materialRef.current.uniforms.uDustColor.value = new THREE.Color(magicDustColor);
         }
-
-        // Defer buffer attribute update to avoid blocking during title→dust transition
-        const updateColorBuffer = () => {
-            if (!geometryRef.current) return;
-
-            const colorAttribute = geometryRef.current.getAttribute('aColor') as THREE.BufferAttribute;
-            if (!colorAttribute) return;
-
-            const colorsArray = colorAttribute.array as Float32Array;
-
-            // Regenerate color variations from new color
-            const baseColor = new THREE.Color(magicDustColor);
-            const hsl = { h: 0, s: 0, l: 0 };
-            baseColor.getHSL(hsl);
-
-            const newColors = [
-                new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 0.8, 1), Math.min(hsl.l + 0.2, 0.95)),
-                baseColor.clone(),
-                new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)),
-            ];
-
-            // Update each particle's color with weighted distribution
-            const particleCount = colorsArray.length / 3;
-            for (let i = 0; i < particleCount; i++) {
-                const colorChoice = Math.random();
-                let c: THREE.Color;
-                if (colorChoice < 0.3) c = newColors[0];
-                else if (colorChoice < 0.7) c = newColors[1];
-                else c = newColors[2];
-
-                colorsArray[i * 3] = c.r;
-                colorsArray[i * 3 + 1] = c.g;
-                colorsArray[i * 3 + 2] = c.b;
-            }
-
-            // Mark buffer for GPU update
-            colorAttribute.needsUpdate = true;
-            pendingColorRef.current = null;
-        };
-
-        // Critical phases: forming (0) and reforming (4) - defer updates
-        const currentPhase = currentPhaseRef.current;
-        if (currentPhase === 0 || currentPhase === 4) {
-            // Queue for later - uniform update provides visual continuity
-            pendingColorRef.current = magicDustColor;
-            return;
-        } else if (typeof requestIdleCallback !== 'undefined') {
-            const handle = requestIdleCallback(updateColorBuffer, { timeout: 100 });
-            return () => cancelIdleCallback(handle);
-        } else {
-            // Fallback: use setTimeout with short delay
-            const handle = setTimeout(updateColorBuffer, 16);
-            return () => clearTimeout(handle);
-        }
     }, [magicDustColor]);
 
-    // Apply pending color update when exiting critical phases
-    useEffect(() => {
-        if (pendingColorRef.current && textParticlePhase === 'dust') {
-            // Phase transitioned to dust loop, apply queued color update
-            const updateColorBuffer = () => {
-                if (!geometryRef.current || !pendingColorRef.current) return;
-
-                const colorAttribute = geometryRef.current.getAttribute('aColor') as THREE.BufferAttribute;
-                if (!colorAttribute) return;
-
-                const colorsArray = colorAttribute.array as Float32Array;
-                const baseColor = new THREE.Color(pendingColorRef.current);
-                const hsl = { h: 0, s: 0, l: 0 };
-                baseColor.getHSL(hsl);
-
-                const newColors = [
-                    new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 0.8, 1), Math.min(hsl.l + 0.2, 0.95)),
-                    baseColor.clone(),
-                    new THREE.Color().setHSL(hsl.h, Math.min(hsl.s * 1.2, 1), Math.max(hsl.l - 0.1, 0.2)),
-                ];
-
-                const particleCount = colorsArray.length / 3;
-                for (let i = 0; i < particleCount; i++) {
-                    const colorChoice = Math.random();
-                    let c: THREE.Color;
-                    if (colorChoice < 0.3) c = newColors[0];
-                    else if (colorChoice < 0.7) c = newColors[1];
-                    else c = newColors[2];
-
-                    colorsArray[i * 3] = c.r;
-                    colorsArray[i * 3 + 1] = c.g;
-                    colorsArray[i * 3 + 2] = c.b;
-                }
-
-                colorAttribute.needsUpdate = true;
-                pendingColorRef.current = null;
-            };
-
-            if (typeof requestIdleCallback !== 'undefined') {
-                requestIdleCallback(updateColorBuffer, { timeout: 50 });
-            } else {
-                setTimeout(updateColorBuffer, 16);
-            }
-        }
-    }, [textParticlePhase]);
-
     // Phase transition handler
+    // PERF: Ref updates are synchronous (for shader uniforms), but React state updates
+    // are deferred to avoid blocking the current render frame
     const transitionToPhase = useCallback((newPhase: number, time: number) => {
         currentPhaseRef.current = newPhase;
         phaseStartTimeRef.current = time;
@@ -244,7 +146,8 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         };
 
         if (phaseNames[newPhase]) {
-            setTextParticlePhase(phaseNames[newPhase]);
+            // PERF: Defer state update to next tick to avoid blocking current frame
+            setTimeout(() => setTextParticlePhase(phaseNames[newPhase]), 0);
         }
     }, [setTextParticlePhase]);
 
@@ -262,8 +165,15 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         } else if (landingPhase === 'morphing') {
             // Capture the start time of the tree morphing phase
             morphStartTimeRef.current = now;
+        } else if (landingPhase === 'tree') {
+            // Capture the time the tree actually finished forming to start magic dust count-down
+            morphStartTimeRef.current = now;
         }
     }, [landingPhase, transitionToPhase, clock]);
+
+
+    // Frame skip counter for morphing-in optimization
+    const morphingInFrameSkipRef = useRef(0);
 
     // Animation loop
     useFrame((state) => {
@@ -272,6 +182,11 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
         if (typeof window !== 'undefined' && window.__IS_BACKGROUND__) {
             return;
         }
+
+        // PERFORMANCE: Optimized updates during morphing phase
+        morphingInFrameSkipRef.current = 0; // Keeping ref for stability but disabling skipping
+
+        prevLandingPhaseRef.current = landingPhase;
 
         const time = state.clock.elapsedTime;
         const currentPhase = currentPhaseRef.current;
@@ -294,20 +209,27 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
 
             case 1: // visible
                 progress = 1.0;
-                // Wait for tree start (morphing) + delay
-                if (landingPhase === 'morphing' || landingPhase === 'tree') {
+                // PERFORMANCE: Wait for the tree to be fully formed ('tree' phase) before starting magic dust.
+                // This eliminates the CPU/GPU peak collision and ensures a clear sequential animation flow.
+                if (landingPhase === 'tree') {
+                    const treeFinishTime = morphStartTimeRef.current;
                     const delay = PARTICLE_CONFIG.magicDust.reformDelay || 0;
-                    if (time >= morphStartTimeRef.current + delay) {
+                    if (time >= treeFinishTime + delay) {
                         transitionToPhase(4, time);
                     }
                 }
                 break;
 
+
             // case 2 (dispersing) and case 3 (drifting) are skipped
 
             case 4: // reforming
                 duration = anim.reformDuration;
-                progress = Math.min(elapsed / duration, 1.0);
+                const rawProgress = Math.min(elapsed / duration, 1.0);
+                // PERFORMANCE: Use ease-in-out cubic for reform to avoid sudden "jerk" at start
+                progress = rawProgress < 0.5
+                    ? 4 * rawProgress * rawProgress * rawProgress
+                    : 1 - Math.pow(-2 * rawProgress + 2, 3) / 2;
                 if (progress >= 1.0) {
                     transitionToPhase(5, time);
                 }
@@ -402,6 +324,6 @@ export const UniversalParticleSystemComponent: React.FC<UniversalParticleSystemP
             />
         </points>
     );
-};
+});
 
 export default UniversalParticleSystemComponent;

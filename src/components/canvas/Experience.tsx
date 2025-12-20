@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { OrbitControls as DreiOrbitControls } from '@react-three/drei';
 // Force HMR refresh for ReferenceError fix
 
@@ -31,7 +31,8 @@ interface ExperienceProps {
 
 
 
-export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true }) => {
+// PERFORMANCE: Wrap component in React.memo
+export const Experience = React.memo(({ uiState, visible = true }: ExperienceProps) => {
     const { config, isExploded, toggleExplosion, photos } = uiState;
     const particleCount = useStore((state) => state.particleCount);
     const hoveredPhotoInstanceId = useStore((state) => state.hoveredPhotoInstanceId); // Consume hover state
@@ -207,4 +208,4 @@ export const Experience: React.FC<ExperienceProps> = ({ uiState, visible = true 
 
         </>
     );
-};
+});

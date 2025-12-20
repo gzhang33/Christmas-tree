@@ -53,7 +53,10 @@ export const LandingTitle: React.FC<LandingTitleProps> = ({ onEntranceComplete }
 
             const displayDuration = LANDING_CONFIG.textParticle.animation.displayDuration * 1000;
             transitionTimerRef.current = window.setTimeout(() => {
-                setLandingPhase('morphing');
+                // PERF: Use requestAnimationFrame to batch state update and avoid blocking
+                requestAnimationFrame(() => {
+                    setLandingPhase('morphing');
+                });
             }, displayDuration);
 
             return () => {

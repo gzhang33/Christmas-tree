@@ -1,5 +1,7 @@
 # 🎄 Interactive 3D Christmas Tree
 
+English | [中文](README-zh.md)
+
 A festive, high-performance 3D interactive experience built with **React**, **Three.js**, and **React Three Fiber**. This project features a customizable Christmas tree that transforms into a galaxy of memories.
 
 ![Project Hero Banner](public/readmeimg/hero.png)
@@ -104,60 +106,3 @@ src/
     ```
 4.  **Run locally**: `npm run dev`
 
-## Configuration (Cloudinary)
-
-This project integrates with **Cloudinary** to enable the **Share Memories** feature. This allows users to upload photos, customize the tree, and generate a unique, persistent link to share with others.
-
-1. **Create Account**: Sign up for free at [Cloudinary](https://cloudinary.com/).
-2. **Get Cloud Name**: Find your cloud name in the Dashboard.
-3. **Create Upload Preset**:
-    - Go to **Settings** > **Upload** > **Upload presets**.
-    - Click **Add Upload Preset**.
-    - Name it (e.g., `christmas-tree`).
-    - **CRITICAL**: Set **Signing Mode** to **Unsigned**.
-    - Save.
-4. **Setup Environment**:
-    - Copy the example config: `cp .env.example .env.local`
-    - Fill in your details in `.env.local`:
-      ```bash
-      VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
-      VITE_CLOUDINARY_UPLOAD_PRESET=your_preset_name
-      ```
-5. **Restart**: Rerun `npm run dev` to load the new variables.
-
-> **Note**: Without Cloudinary configuration, the application works in "Local Mode". Photos will display locally but the shared links will not work for others.
-
-## Available scripts
-
-- `npm run dev` – start the Vite development server with hot reloading.
-- `npm run build` – create an optimized production build in `dist/`.
-- `npm run preview` – preview the production build locally.
-
-## Project structure
-
-```text
-.
-├─ src/
-│  ├─ App.tsx                # scene composition and UI wiring
-│  ├─ index.css              # global styles
-│  ├─ components/
-│  │  ├─ canvas/             # 3D scene pieces (Experience, Snow, MagicDust, TreeParticles, PerformanceMonitor, PhotoCard)
-│  │  └─ ui/                 # UI shells and overlays (Controls, DebugStore, ErrorBoundary)
-│  ├─ shaders/               # GLSL shaders for particle and lighting effects
-│  ├─ store/                 # Zustand store (useStore.ts)
-│  └─ types.ts               # shared TypeScript types
-├─ public/
-│  ├─ photos/                # sample ornaments for uploads
-│  ├─ textures/              # scene materials
-│  └─ *JingleBells.mp3       # bundled music tracks
-├─ docs/                     # architecture, UX, and sprint documentation
-├─ index.html                # Vite HTML entry
-├─ index.tsx                 # React entry point
-├─ package.json
-└─ vite.config.ts
-```
-
-## Deployment tips
-
-- Build the project with `npm run build` and serve the `dist/` folder with any static host.
-- For AI Studio deployment, the current app works without external secrets because media assets are bundled under `public/`. Add any future keys to `.env.local` and provide them in your hosting environment.

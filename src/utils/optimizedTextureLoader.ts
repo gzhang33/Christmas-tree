@@ -54,6 +54,7 @@ const MAX_QUALITY_DESKTOP = TextureQuality.HIGH;
  */
 export class OptimizedTextureLoader {
     private loader: THREE.TextureLoader;
+    private bitmapLoader: THREE.ImageBitmapLoader;
     private cache: Map<string, Map<TextureQuality, THREE.Texture>>;
     private loadQueue: TextureConfig[];
     private loading: Set<string>;
@@ -61,6 +62,12 @@ export class OptimizedTextureLoader {
 
     constructor(maxConcurrent = 6) {
         this.loader = new THREE.TextureLoader();
+        this.bitmapLoader = new THREE.ImageBitmapLoader();
+        // PERFORMANCE: 配置 ImageBitmapLoader 选项
+        // 对于 WebGL，习惯上在解码时翻转或在上传时翻转。
+        // 这里选择在解码时翻转，提升上传性能。
+        this.bitmapLoader.setOptions({ imageOrientation: 'flipY', premultiplyAlpha: 'none' });
+
         this.cache = new Map();
         this.loadQueue = [];
         this.loading = new Set();
@@ -116,14 +123,26 @@ export class OptimizedTextureLoader {
 
         const targetIndex = qualities.indexOf(finalQuality);
         let lastTexture: THREE.Texture | null = null;
+        let lastUrl: string | null = null;
 
         // 逐级加载
         for (let i = 0; i <= targetIndex; i++) {
             const quality = qualities[i];
+            const currentUrl = this.getQualityUrl(url, quality);
+
+            // PERFORMANCE: 如果 URL 与上一级相同且纹理已存在，直接复用
+            if (currentUrl === lastUrl && lastTexture) {
+                if (!this.cache.has(url)) this.cache.set(url, new Map());
+                this.cache.get(url)!.set(quality, lastTexture);
+                onProgress?.(quality, lastTexture);
+                continue;
+            }
+
             const texture = await this.loadSingle(url, quality);
 
             if (texture) {
                 lastTexture = texture;
+                lastUrl = currentUrl;
                 onProgress?.(quality, texture);
             }
         }
@@ -142,7 +161,7 @@ export class OptimizedTextureLoader {
         baseUrl: string,
         quality: TextureQuality
     ): Promise<THREE.Texture | null> {
-        // 检查缓存
+        // 1. 检查当前质量是否已在缓存
         if (!this.cache.has(baseUrl)) {
             this.cache.set(baseUrl, new Map());
         }
@@ -154,6 +173,15 @@ export class OptimizedTextureLoader {
 
         // 生成URL
         const url = this.getQualityUrl(baseUrl, quality);
+
+        // 2. 检查是否有任何其他等级已经加载了相同的 URL，如果有，直接复用
+        for (const [q, tex] of qualityCache.entries()) {
+            if (this.getQualityUrl(baseUrl, q) === url) {
+                qualityCache.set(quality, tex);
+                return tex;
+            }
+        }
+
         const cacheKey = `${baseUrl}:${quality}`;
 
         // 防止重复加载
@@ -172,7 +200,6 @@ export class OptimizedTextureLoader {
                         clearTimeout(timeout);
                         resolve(qualityCache.get(quality)!);
                     } else if (!this.loading.has(cacheKey)) {
-                        // 加载已结束但未进入缓存（可能加载失败）
                         clearInterval(checkInterval);
                         clearTimeout(timeout);
                         resolve(null);
@@ -184,21 +211,49 @@ export class OptimizedTextureLoader {
         this.loading.add(cacheKey);
 
         try {
-            const texture = await this.loader.loadAsync(url);
+            // PERFORMANCE: 使用 ImageBitmapLoader 进行非主线程解码 (浏览器原生异步解码)
+            // 这可以极大减轻主线程 Image decode 带来的卡顿 (通常 > 100ms)
+
+            let texture: THREE.Texture;
+
+            // 检查是否支持 ImageBitmap
+            if (typeof createImageBitmap !== 'undefined') {
+                const imageBitmap = await this.bitmapLoader.loadAsync(url);
+                texture = new THREE.Texture(imageBitmap);
+                texture.flipY = false; // 因为 bitmpLoader 已配置 flipY: 'flipY'
+                texture.needsUpdate = true;
+            } else {
+                // 回退到普通加载器
+                texture = await this.loader.loadAsync(url);
+            }
 
             // 配置纹理
             texture.colorSpace = THREE.SRGBColorSpace;
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
+
+            // PERFORMANCE: 针对 3D 照片卡片优化 Mipmap 和 过滤
+            texture.minFilter = THREE.LinearFilter; // 即使不生成 Mipmap 也足够清晰且省显存
             texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = true;
+            texture.generateMipmaps = false;
 
             // 存入缓存
             qualityCache.set(quality, texture);
 
             return texture;
         } catch (error) {
-            console.warn(`Failed to load texture: ${url}`, error);
-            return null;
+            console.warn(`[OptimizedTextureLoader] Failed to load texture with ImageBitmap: ${url}. Falling back.`, error);
+            try {
+                // 彻底回退
+                const texture = await this.loader.loadAsync(url);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.minFilter = THREE.LinearFilter; // Apply filters consistently
+                texture.magFilter = THREE.LinearFilter;
+                texture.generateMipmaps = false;
+                qualityCache.set(quality, texture);
+                return texture;
+            } catch (e) {
+                console.warn(`[OptimizedTextureLoader] Failed to load texture even after fallback: ${url}`, e);
+                return null;
+            }
         } finally {
             this.loading.delete(cacheKey);
         }

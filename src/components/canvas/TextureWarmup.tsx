@@ -55,11 +55,7 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
     const warmupQueueRef = useRef<string[]>([]);
     const currentIndexRef = useRef(0);
 
-    // Warmup geometries and materials (reused)
-    const microGeometryRef = useRef<THREE.PlaneGeometry | null>(null);
-    const activeMeshesRef = useRef<THREE.Mesh[]>([]);
-
-    // Frame timing
+    // Frame-timing
     const lastFrameTimeRef = useRef(performance.now());
     const startTimeRef = useRef<number | null>(null);
 
@@ -73,9 +69,6 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
             setWarmupStarted(true);
             startTimeRef.current = performance.now();
 
-            // Create shared micro-geometry
-            microGeometryRef.current = new THREE.PlaneGeometry(0.001, 0.001);
-
             if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[TextureWarmup] Starting delayed warmup for ${textureUrls.length} textures`);
         }, startDelay);
 
@@ -83,7 +76,7 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
     }, [enabled, warmupStarted, textureUrls, startDelay]);
 
     // Frame-budgeted warmup loop
-    useFrame(() => {
+    useFrame((state) => {
         if (!enabled || !warmupStarted || warmupComplete) return;
 
         const now = performance.now();
@@ -97,6 +90,7 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
 
         const queue = warmupQueueRef.current;
         let uploadedThisFrame = 0;
+        const renderer = state.gl;
 
         // Process up to MAX_TEXTURES_PER_FRAME textures
         while (
@@ -107,21 +101,9 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
             const texture = getCachedTexture(url);
 
             if (texture) {
-                // Create temporary mesh with texture to force GPU upload
-                const material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    opacity: 0.001,
-                    depthWrite: false,
-                    depthTest: false,
-                });
-
-                const mesh = new THREE.Mesh(microGeometryRef.current!, material);
-                mesh.position.set(0, -1000, 0); // Far below scene
-                mesh.visible = true;
-                mesh.frustumCulled = false;
-
-                activeMeshesRef.current.push(mesh);
+                // PERFORMANCE: 直接使用 WebGLRenderer.initTexture 强制上传
+                // 配合 ImageBitmapLoader，这将只包含 GPU 上传开销，没有解码开销
+                renderer.initTexture(texture);
                 uploadedThisFrame++;
             }
 
@@ -140,41 +122,10 @@ export const TextureWarmup: React.FC<TextureWarmupProps> = ({
 
             setWarmupComplete(true);
             onWarmupComplete?.();
-
-            // Schedule cleanup after a few frames (textures are now in GPU cache)
-            setTimeout(() => {
-                activeMeshesRef.current.forEach(mesh => {
-                    mesh.geometry.dispose();
-                    (mesh.material as THREE.Material).dispose();
-                });
-                activeMeshesRef.current = [];
-                microGeometryRef.current?.dispose();
-                microGeometryRef.current = null;
-            }, 100);
         }
     });
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            activeMeshesRef.current.forEach(mesh => {
-                mesh.geometry.dispose();
-                (mesh.material as THREE.Material).dispose();
-            });
-            microGeometryRef.current?.dispose();
-        };
-    }, []);
-
-    // Render active warmup meshes
-    if (!warmupStarted || warmupComplete || !enabled) return null;
-
-    return (
-        <group position={[0, -1000, 0]}>
-            {activeMeshesRef.current.map((mesh, i) => (
-                <primitive key={i} object={mesh} />
-            ))}
-        </group>
-    );
+    return null;
 };
 
 export default TextureWarmup;

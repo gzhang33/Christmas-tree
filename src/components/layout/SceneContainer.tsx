@@ -57,6 +57,60 @@ const PerformanceMonitorWrapper: React.FC<{
 };
 
 /**
+ * Dynamic DPR Controller
+ * 
+ * Dynamically adjusts device pixel ratio during morphing-in phase to reduce GPU load.
+ * Reduces rendering resolution temporarily during heavy animation phases.
+ */
+const DynamicDPRController: React.FC = () => {
+    const { gl } = useThree();
+    const landingPhase = useStore((state) => state.landingPhase);
+    const treeMorphState = useStore((state) => state.treeMorphState);
+    const treeProgress = useStore((state) => state.treeProgress);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    const textParticlePhase = useStore((state) => state.textParticlePhase);
+
+    // PERFORMANCE: Drop DPR early when text starts dispersing to prepare for the heavy morphing phase
+    const isTextDispersing = textParticlePhase === 'dispersing' || textParticlePhase === 'reforming';
+    const isTreeMorphingIn = landingPhase === 'morphing' && treeMorphState === 'morphing-in' && treeProgress > 0.1;
+
+    const isHeavyPhase = isTextDispersing || isTreeMorphingIn;
+    const targetDPR = isHeavyPhase ? (isMobile ? 0.8 : 0.9) : (isMobile ? 1.0 : 1.5);
+
+    const currentDPRRef = useRef(gl.getPixelRatio());
+
+    // PERFORMANCE FIX: Delay DPR jump to avoid colliding with animation start peak
+    const framesSinceTargetChangeRef = useRef(0);
+    const prevTargetDPRRef = useRef(targetDPR);
+
+    useFrame(() => {
+        if (targetDPR !== prevTargetDPRRef.current) {
+            framesSinceTargetChangeRef.current = 0;
+            // CRITICAL PERF: Jump DPR immediately on the very first frame of a target change
+            // This aligns the resolution switch with the phase transition, making it less noticeable.
+            gl.setPixelRatio(targetDPR);
+            currentDPRRef.current = targetDPR;
+            prevTargetDPRRef.current = targetDPR;
+            if (PARTICLE_CONFIG.performance.enableDebugLogs) console.log(`[DPR] Immediate jump to ${targetDPR}`);
+            return;
+        }
+        framesSinceTargetChangeRef.current++;
+
+        const currentDPR = gl.getPixelRatio();
+        if (Math.abs(currentDPR - targetDPR) > 0.01) {
+            // For subsequent corrections (if any), keep the delay
+            if (framesSinceTargetChangeRef.current < 15) return;
+            gl.setPixelRatio(targetDPR);
+            currentDPRRef.current = targetDPR;
+        }
+    });
+
+
+    return null;
+};
+
+/**
  * FrameloopController
  * 
  * Drives the render loop when frameloop="demand".
@@ -256,6 +310,9 @@ export const SceneContainer: React.FC<SceneContainerProps> = React.memo(({
                         setPlayingVideoInHover(null);
                     }}
                 >
+                    {/* Dynamic DPR Controller - Adjusts pixel ratio during morphing-in */}
+                    <DynamicDPRController />
+
                     {/* Global Environment & Lighting - Persistent across phases */}
                     <SceneEnvironment />
 

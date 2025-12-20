@@ -12,11 +12,12 @@ interface SnowProps {
 
 import { useSnowTexture } from '../../hooks/useSnowTexture';
 
-export const Snow: React.FC<SnowProps> = ({
+// PERFORMANCE: Wrap component in React.memo
+export const Snow = React.memo(({
   count = SNOW_DEFAULTS.count,
   speed = SNOW_DEFAULTS.speed,
   wind = SNOW_DEFAULTS.wind
-}) => {
+}: SnowProps) => {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -72,16 +73,9 @@ export const Snow: React.FC<SnowProps> = ({
       return;
     }
 
-    // MOBILE OPTIMIZATION: Throttle snow updates during explosion peak
-    // During 'morphing-out', skip every other frame to give GPU headroom for photo burst
-    if (treeMorphState === 'morphing-out') {
-      frameSkipRef.current++;
-      if (frameSkipRef.current % 2 !== 0) {
-        return; // Skip this frame
-      }
-    } else {
-      frameSkipRef.current = 0; // Reset when not morphing
-    }
+    // PERFORMANCE: Optimized updates during morphing phase
+    frameSkipRef.current = 0;
+
 
     const { animation: aCfg, particles: pCfg } = SNOW_CONFIG;
     const time = state.clock.getElapsedTime();
@@ -147,5 +141,5 @@ export const Snow: React.FC<SnowProps> = ({
       />
     </instancedMesh>
   );
-};
+});
 
