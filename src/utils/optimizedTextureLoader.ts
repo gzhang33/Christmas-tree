@@ -55,7 +55,6 @@ const MAX_QUALITY_DESKTOP = TextureQuality.HIGH;
 export class OptimizedTextureLoader {
     private loader: THREE.TextureLoader;
     private bitmapLoader: THREE.ImageBitmapLoader;
-    private bitmapLoader: THREE.ImageBitmapLoader;
     private cache: Map<string, Map<TextureQuality, THREE.Texture>>;
     private loadQueue: TextureConfig[];
     private loading: Set<string>;
@@ -125,7 +124,6 @@ export class OptimizedTextureLoader {
         const targetIndex = qualities.indexOf(finalQuality);
         let lastTexture: THREE.Texture | null = null;
         let lastUrl: string | null = null;
-        let lastUrl: string | null = null;
 
         // 逐级加载
         for (let i = 0; i <= targetIndex; i++) {
@@ -140,21 +138,10 @@ export class OptimizedTextureLoader {
                 continue;
             }
 
-            const currentUrl = this.getQualityUrl(url, quality);
-
-            // PERFORMANCE: 如果 URL 与上一级相同且纹理已存在，直接复用
-            if (currentUrl === lastUrl && lastTexture) {
-                if (!this.cache.has(url)) this.cache.set(url, new Map());
-                this.cache.get(url)!.set(quality, lastTexture);
-                onProgress?.(quality, lastTexture);
-                continue;
-            }
-
             const texture = await this.loadSingle(url, quality);
 
             if (texture) {
                 lastTexture = texture;
-                lastUrl = currentUrl;
                 lastUrl = currentUrl;
                 onProgress?.(quality, texture);
             }
@@ -175,7 +162,6 @@ export class OptimizedTextureLoader {
         quality: TextureQuality
     ): Promise<THREE.Texture | null> {
         // 1. 检查当前质量是否已在缓存
-        // 1. 检查当前质量是否已在缓存
         if (!this.cache.has(baseUrl)) {
             this.cache.set(baseUrl, new Map());
         }
@@ -187,15 +173,6 @@ export class OptimizedTextureLoader {
 
         // 生成URL
         const url = this.getQualityUrl(baseUrl, quality);
-
-        // 2. 检查是否有任何其他等级已经加载了相同的 URL，如果有，直接复用
-        for (const [q, tex] of qualityCache.entries()) {
-            if (this.getQualityUrl(baseUrl, q) === url) {
-                qualityCache.set(quality, tex);
-                return tex;
-            }
-        }
-
 
         // 2. 检查是否有任何其他等级已经加载了相同的 URL，如果有，直接复用
         for (const [q, tex] of qualityCache.entries()) {
@@ -255,11 +232,7 @@ export class OptimizedTextureLoader {
 
             // PERFORMANCE: 针对 3D 照片卡片优化 Mipmap 和 过滤
             texture.minFilter = THREE.LinearFilter; // 即使不生成 Mipmap 也足够清晰且省显存
-
-            // PERFORMANCE: 针对 3D 照片卡片优化 Mipmap 和 过滤
-            texture.minFilter = THREE.LinearFilter; // 即使不生成 Mipmap 也足够清晰且省显存
             texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
             texture.generateMipmaps = false;
 
             // 存入缓存
@@ -267,20 +240,6 @@ export class OptimizedTextureLoader {
 
             return texture;
         } catch (error) {
-            console.warn(`[OptimizedTextureLoader] Failed to load texture with ImageBitmap: ${url}. Falling back.`, error);
-            try {
-                // 彻底回退
-                const texture = await this.loader.loadAsync(url);
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.minFilter = THREE.LinearFilter; // Apply filters consistently
-                texture.magFilter = THREE.LinearFilter;
-                texture.generateMipmaps = false;
-                qualityCache.set(quality, texture);
-                return texture;
-            } catch (e) {
-                console.warn(`[OptimizedTextureLoader] Failed to load texture even after fallback: ${url}`, e);
-                return null;
-            }
             console.warn(`[OptimizedTextureLoader] Failed to load texture with ImageBitmap: ${url}. Falling back.`, error);
             try {
                 // 彻底回退
